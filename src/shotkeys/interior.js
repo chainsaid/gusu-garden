@@ -17,54 +17,33 @@ const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
 const s5 = (x) => { const t = Math.min(1, Math.max(0, x)); return t * t * t * (t * (6 * t - 15) + 10); };
 const DUR = 7.0;
 
-export function sanctum() {
-  const F = V([10, 6.43, -27.1]);          // the eyes (surface)
-  const E0 = V([10, 6.4, -27.12]);          // macro aim: curls .. lips in frame, eyes above centre
-  const T1 = V([10, 6.2, -27.3]);           // mid aim: head + mandorla
-  const TE = V([10, 5.35, -27.4]);          // end aim: the whole altar / Amida
-  const D0 = 1.55, DE = 12.1;
-  // speed profile in log-distance: a slow breath, a long acceleration, a soft landing
-  const v = (t) => 0.035 + sm(1.0, 3.3, t) * (1 - 0.93 * sm(3.7, 7.0, t));
-  const N = 700, cum = [0];
-  for (let i = 1; i <= N; i++) cum.push(cum[i - 1] + v(((i - 0.5) / N) * DUR));
-  const P = (t) => { const x = Math.min(N, Math.max(0, (t / DUR) * N)); const i = Math.min(N - 1, Math.floor(x)); return (cum[i] + (cum[i + 1] - cum[i]) * (x - i)) / cum[N]; };
-  const gEnd = ((DE - 1.15) ** 2) / (DE - 1.15 + 0.4);
-  const yOf = (D) => {
-    const x = Math.max(0, D - 1.15);
-    const g = (x * x) / (x + 0.4);
-    return 6.36 - 3.26 * (1 - Math.exp(-g / 3.2)) / (1 - Math.exp(-gEnd / 3.2));
-  };
+export function scholarHall() {
   const keys = [];
+  const DUR = 7.0;
   for (let k = 0; k <= 28; k++) {
     const t = (k / 28) * DUR;
-    const D = Math.exp(Math.log(D0) + (Math.log(DE) - Math.log(D0)) * P(t));
-    // azimuth about the Amida's axis: starts on the camera-right 3/4, swings across, settles centred
-    // opening (t < 2.5 s): starts further round on the 3/4 (the face turned against the warm
-    // side light, its far cheek lit, the near side in soft shadow) on a slightly longer lens and
-    // hands over to the pull-back with zero velocity/acceleration difference (quintic blend):
-    // the keys from t = 2.5 s on are unchanged
-    const o = 1 - s5(t / 2.5);
-    const phi = 0.36 - 0.14 * sm(0, 2.0, t) - 0.42 * sm(1.4, 4.1, t) + 0.2 * sm(3.9, 7.0, t) + 0.26 * o;
-    const pos = V([F.x + Math.sin(phi) * D, yOf(D), F.z + Math.cos(phi) * D]);
-    const w1 = sm(1.6, 3.8, t), w2 = sm(3.4, 6.8, t);
-    const tgt = E0.clone().lerp(T1, w1).lerp(TE, w2);
-    const dir = tgt.clone().sub(pos).normalize();
-    const ld = tgt.distanceTo(pos);
-    const look = pos.clone().addScaledVector(dir, ld);
-    const fp = F.clone().lerp(V([10, 5.9, -27.05]), sm(2.5, 6.5, t)).add(V([0.08 * o, 0, -0.015 * o]));
-    const focus = fp.distanceTo(pos);
-    const focal = (56 - 36 * sm(1.4, 6.3, t)) * (1 + 0.1 * o);
-    const fstop = 5.6 + 2.4 * sm(2.5, 6.5, t);
-    const q = (x) => Math.round(x * 1000) / 1000;
-    keys.push({ pos: [q(pos.x), q(pos.y), q(pos.z)], look: [q(look.x), q(look.y), q(look.z)], focal: q(focal), focus: q(focus), fstop: q(fstop) });
+    const u = t / DUR;
+    // Smooth push-in from z = -15.5 to z = -21.5 across the polished floor
+    const s = u * u * (3 - 2 * u);
+    const z = -15.5 - 6.0 * s;
+    const y = 2.7 + 0.3 * Math.sin(u * Math.PI);
+    const x = 10.0 + 0.4 * Math.sin(u * Math.PI * 1.2);
+    const pos = [x, y, z];
+    const look = [10.0, 3.1, -29.8]; // Aimed at landscape scroll, altar table & armchairs
+    const focal = 28 + 6 * (1 - u);
+    const focus = Math.hypot(x - 10, y - 3.1, z - (-29.8));
+    const fstop = 4.5 + 3.5 * u;
+    const q = (v) => Math.round(v * 1000) / 1000;
+    keys.push({ pos: pos.map(q), look: look.map(q), focal: q(focal), focus: q(focus), fstop: q(fstop) });
   }
   return keys;
 }
 
 export default {
   6: {
+    name: 'Scholar Hall - push-in from the Changchuang doors toward the landscape scroll, altar table, and armchairs',
     ease: 'linear',
-    keys: sanctum(),
+    keys: scholarHall(),
     near: 0.06,
     shadow: { center: [10, 5, -22], radius: 22 },
     noShadow: ['vegetation', 'terrain', 'buildings', 'pagoda'],
