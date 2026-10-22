@@ -1,20 +1,11 @@
-// Shot overrides owned by the pond module agent.
-// export default { <shotIndex>: { keys: [...], ease, shadow, post, near, noShadow, ... } }
-// Fields given here REPLACE the base definition in src/shots.js for that shot.
-//
-// Shot 1 - looking down into a sunlit lotus in full bloom (0.62 m, 50 mm): crown
-//          of golden stamens, seed pod, dew; the lens slides past it and glides
-//          low through the bed toward the bridge (pagoda + hall reveal).
-// Shot 8 - 13 cm above the water, facing the low sun: a floating lotus leaf
-//          beaded with quicksilver drops, golden glitter bokeh behind and a koi
-//          crossing; the camera skims over the pad, rises and swings 40 deg
-//          right off the sun onto the mirror view of pagoda, bridge and hall.
-// The pond module reads these keys (src/world/pond.js) to place the hero
-// flower / pad exactly at the first key's focus point and to keep the camera
-// path clear of stems and leaves.
+// Shot overrides owned by the pond / water cinematography.
+// Shot 1: 晨露荷花 — macro looking into a sunlit blooming lotus flower with morning dewdrops,
+// sliding past it and gliding low through the bed along stacked rockery shores toward the stone bridge.
+// Shot 8: 倒影借景 — 13 cm above the water, facing the low sun over a beaded lotus pad,
+// skimming over it and swinging up to the mirror reflection of the distant North Temple Pagoda and stone bridge.
 export default {
   1: {
-    name: 'Lotus - macro looking into a sunlit lotus in full bloom, sliding past it and gliding through the bed to the bridge',
+    name: 'Morning Lotus — macro on blooming lotus with morning dewdrops, gliding through rockery beds toward stone bridge',
     ease: 'reveal',
     keys: [
       { pos: [21.392, 0.152, 27.255], look: [20.98, -0.12, 26.88], focal: 50, focus: 0.62, fstop: 8 },
@@ -27,7 +18,7 @@ export default {
     pondHero: { kind: 'flower', size: 1.0, open: 0.9 },
   },
   8: {
-    name: 'Mirror - facing the low sun over a beaded lotus pad, skimming over it and swinging up to the reflections of pagoda and bridge',
+    name: 'Borrowed Reflection — low water skim on beaded lotus pad, swinging up to mirror reflections of pagoda and bridge',
     ease: 'reveal',
     keys: [
       { pos: [30.2, -0.42, 27.2], look: [29.718, -0.507, 27.302], focal: 50, focus: 0.5, fstop: 11 },

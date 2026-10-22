@@ -1,14 +1,9 @@
-// Shot overrides owned by the hall module agent.
-// export default { <shotIndex>: { keys: [...], ease, shadow, post, near, noShadow, ... } }
-// Fields given here REPLACE the base definition in src/shots.js for that shot.
+// Shot overrides owned by the hall / eaves architecture cinematography.
 export default {
-  // 5 Eave corner: sunlit macro under the south-west corner of the mokoshi roof
-  // (gilt hip-rafter cap + wind bell, onigawara with moulded clouds, tomoe tile
-  // ends, double rafters with kibana caps, painted bracket rows), held, then a
-  // rising crane that pulls back over the corner (clear of the red maple at
-  // [-6,-6] and the cherry at [-10,-18]) into a high three-quarter view of the
-  // whole two-tier hall: west front + south front + karahafu.
+  // Shot 5: 飞檐发戗 — low-angle rising crane under the south-west soaring eave corner (发戗起翘),
+  // framing the high lifted hip rafter, flying rafters, cyan dripping tiles, and bronze wind chime.
   5: {
+    name: 'Fa Qiang Eaves — low-angle rising crane framing soaring corner rafter, cyan drip tiles, and bronze wind chime',
     ease: 'reveal',
     keys: [
       { pos: [-10.2, 7.4, -7.2], look: [-7.5, 8.7, -9.0], focal: 42, focus: 3.3, fstop: 3.5 },

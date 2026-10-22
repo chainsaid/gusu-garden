@@ -1,35 +1,33 @@
-// Shot overrides owned by the buildings module agent.
-// export default { <shotIndex>: { keys: [...], ease, shadow, post, near, noShadow, ... } }
-// Fields given here REPLACE the base definition in src/shots.js for that shot.
+// Shot overrides owned by the corridor & pavilion architecture cinematography.
 export default {
-  // 4 Stone lantern: macro on the lit kumiko window of the west plaza kasuga lantern
-  // (sun raking from the left), orbiting the fire box, then swinging out onto the
-  // processional axis for the reveal of the hall between the lantern pairs.
+  // Shot 4: 漫步曲廊 — gliding along the promenade covered corridor with dappled bamboo
+  // shadows dancing on the white plaster wall, chestnut columns, and openwork leak windows.
   4: {
+    name: 'Winding Corridor — promenade along white plaster wall with dappled bamboo shadows and leak windows',
     ease: 'reveal',
     keys: [
-      { pos: [5.36, 1.45, 3.08], look: [6.05, 1.7, 2.0], focal: 42, focus: 1.05, fstop: 3.5 },
-      { pos: [6.5, 3.3, 3.95], look: [6.0, 2.3, 1.3], focal: 38, focus: 2.0, fstop: 5 },
-      { pos: [8.6, 2.7, 5.3], look: [9.6, 4.6, -12], focal: 28, focus: 9, fstop: 5.6 },
-      { pos: [10.0, 1.85, 5.6], look: [10, 6.4, -22], focal: 28, focus: 16, fstop: 5.6 },
+      { pos: [-8.0, 1.65, 46.0], look: [-1.0, 1.75, 42.0], focal: 32, focus: 4.5, fstop: 4.0 },
+      { pos: [-3.5, 1.65, 46.0], look: [4.0, 1.75, 40.0], focal: 30, focus: 8.0, fstop: 4.5 },
+      { pos: [1.5, 1.65, 46.0], look: [8.5, 1.8, 36.0], focal: 28, focus: 14.0, fstop: 5.6 },
+      { pos: [6.0, 1.65, 46.0], look: [10.0, 1.9, 30.0], focal: 26, focus: 22.0, fstop: 5.6 },
     ],
-    near: 0.03,
-    shadow: { center: [9, 2.5, -4], radius: 22 },
+    near: 0.04,
+    shadow: { center: [0, 2, 44], radius: 25 },
     post: { dof: true },
   },
-  // 7 South gate: macro on the chased kazari-kanagu sleeve of the south-east
-  // centre pillar (raking low sun from the west), pulling back and sliding onto
-  // the axis into the telephoto view of the hall through the gate passage.
+  // Shot 7: 柳影拂水 — at the Water Pavilion (水榭), weeping willow fronds swaying over
+  // the curved Meirenakao (美人靠) bench, gliding low over rippling pond water and stone spurs.
   7: {
+    name: 'Water Pavilion — weeping willow swaying over Meirenakao curved bench, gliding out over rippling pond',
     ease: 'reveal',
     keys: [
-      { pos: [11.75, 2.22, 49.12], look: [11.85, 2.18, 48.66], focal: 45, focus: 0.47, fstop: 8 },
-      { pos: [11.86, 2.1, 50.05], look: [11.62, 2.14, 48.7], focal: 40, focus: 1.42, fstop: 8 },
-      { pos: [11.5, 1.93, 51.45], look: [10.4, 2.65, 46.0], focal: 32, focus: 2.75, fstop: 6.3 },
-      { pos: [10.4, 1.7, 55.5], look: [9.9, 8, -22], focal: 50, focus: 60, fstop: 5.6 },
+      { pos: [44.5, 1.85, 16.2], look: [41.2, 1.45, 17.8], focal: 45, focus: 2.2, fstop: 2.8 },
+      { pos: [43.0, 1.55, 16.8], look: [36.0, 1.1, 18.2], focal: 36, focus: 4.5, fstop: 4.0 },
+      { pos: [40.5, 1.25, 17.5], look: [28.0, 0.8, 19.0], focal: 30, focus: 12, fstop: 5.6 },
+      { pos: [37.5, 1.1, 18.2], look: [18.0, 1.5, 20.0], focal: 26, focus: 22, fstop: 6.3 },
     ],
-    near: 0.03,
-    shadow: { center: [10, 4, 30], radius: 40 },
+    near: 0.04,
+    shadow: { center: [40, 2, 18], radius: 24 },
     post: { dof: true },
   },
 };

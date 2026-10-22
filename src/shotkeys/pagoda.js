@@ -1,22 +1,18 @@
-// Shot overrides owned by the pagoda module agent.
-// export default { <shotIndex>: { keys: [...], ease, shadow, post, near, noShadow, ... } }
-// Fields given here REPLACE the base definition in src/shots.js for that shot.
-//
-// Shot 3: macro on the bronze wind bell under the first-storey SW hip rafter
-// (gilt hanger, engraved hip-rafter sleeve, gold rafter caps, corner bracket cascade), then a
-// pull-back that cranes down and away to the south while tilting up all five storeys to the
-// spire, framed by the maple (left) and the pine (right).
+// Shot overrides owned by the rockery / courtyard cinematography.
+// Shot 3: 太湖石透 — framing the hero Guanyun Peak (冠云峰) Taihu rockery and looking through
+// its natural karst through-holes ("透"), racking focus across the pond to reveal the Water Pavilion.
 export default {
   3: {
+    name: 'Taihu Rockery — looking through Guanyun Peak dissolution caverns, rack focus across pond to Water Pavilion',
     ease: 'reveal',
     keys: [
-      { pos: [-41.17, 4.5, 0.76], look: [-39.45, 5.17, -0.58], focal: 40, focus: 2.15, fstop: 4 },
-      { pos: [-42.0, 3.7, 2.3], look: [-38.8, 6.8, -1.4], focal: 30, focus: 4.0, fstop: 4.5 },
-      { pos: [-42.6, 2.4, 5.6], look: [-35.5, 11.0, -5.5], focal: 22, focus: 9, fstop: 6 },
-      { pos: [-42.5, 1.3, 9.5], look: [-32.5, 15.6, -8.0], focal: 16.5, focus: 20, fstop: 8 },
+      { pos: [18.2, 1.85, -0.8], look: [22.0, 2.2, -3.5], focal: 38, focus: 4.8, fstop: 3.5 },
+      { pos: [17.5, 1.95, -1.8], look: [25.0, 2.0, 2.0], focal: 32, focus: 12, fstop: 4.5 },
+      { pos: [16.8, 2.05, -3.0], look: [32.0, 1.8, 8.0], focal: 28, focus: 20, fstop: 5.6 },
+      { pos: [16.0, 2.15, -4.2], look: [38.0, 1.6, 14.0], focal: 26, focus: 28, fstop: 6.3 },
     ],
     near: 0.04,
-    shadow: { center: [-34, 9, -5], radius: 21 },
+    shadow: { center: [24, 2, 2], radius: 28 },
     post: { dof: true },
   },
 };

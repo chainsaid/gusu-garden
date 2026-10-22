@@ -118,8 +118,8 @@ export const L = {
     { type: 'mapleRed', at: [36, 34], h: 5 }, { type: 'mapleRed', at: [-14, 36], h: 5.5 },
     { type: 'maple', at: [52, 26], h: 10 },   // big green maple overhanging the pavilion
     { type: 'maple', at: [-20, -22], h: 9 }, { type: 'maple', at: [58, -38], h: 10 },
-    { type: 'cherry', at: [32, -16], h: 7 }, { type: 'cherry', at: [-10, -18], h: 7 },
-    { type: 'cherry', at: [-46, 30], h: 8 }, { type: 'cherry', at: [58, 38], h: 7.5 },
+    { type: 'maple', at: [32, -16], h: 7 }, { type: 'pine', at: [-10, -18], h: 7 },
+    { type: 'pine', at: [-46, 30], h: 8 }, { type: 'maple', at: [58, 38], h: 7.5 },
   ],
 
   // Distant landscape

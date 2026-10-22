@@ -59,6 +59,7 @@ export function finale() {
 
 export default {
   9: {
+    name: 'Jiangnan Twilight — grand aerial rising crane overlooking pink walls, cyan tiles, winding water, and evening mist',
     ease: 'linear',
     keys: finale(),
     near: 0.05,
