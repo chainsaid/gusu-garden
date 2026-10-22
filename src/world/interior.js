@@ -18,6 +18,11 @@ import {
 import { makeStrandKit, flushStrands, buildCanopy, buildBanner, buildPendantLantern } from './interior-hang.js';
 import { buildColumns, buildBeams, buildCeiling, buildBackScreen, buildSideScreen } from './interior-arch.js';
 import { buildShafts, buildDust, buildSmoke } from './interior-fx.js';
+import {
+  createZhongtangTexture, createCoupletTexture,
+  buildAltarTable, buildArmchair, buildSquareTable,
+  buildLuohanBed, buildCurioShelf, buildGuqinSet,
+} from './interior-scholar.js';
 
 export async function build(ctx) {
   const { THREE, L, geom } = ctx;
@@ -50,57 +55,60 @@ export async function build(ctx) {
   const inst = { flowers: [], leaves: [] };
 
   // ---------------------------------------------------------------- floor + dais
+  // ---------------------------------------------------------------- floor
   buildFloor(ctx, B, M, S);
-  buildShumidan(B, M, { x: cx, y: Y0, z: cz - 5.62, w: 10.0, d: 4.6, h: S.daisH, panels: 10, sidePanels: 4 });
 
-  // ---------------------------------------------------------------- figures
-  const figures = await buildFigures(ctx, M, S);
-  root.add(figures);
+  // ---------------------------------------------------------------- 中堂格局 (Central Reception)
+  const woodMat = M.woodNanmu || M.woodFloor;
 
-  // ---------------------------------------------------------------- thrones + mandorlas
-  buildThrone(ctx, B, M, S, { x: cx, z: S.zB, y: S.yThrone, scale: 1 });
-  buildMandorla(ctx, B, M, { x: cx, y: S.ySeat, z: S.zB, s: 1, headY: HAIR.HPY + (2.03 - HAIR.HPY) * HAIR.HK - HAIR.HD });
+  // 1. Central Ink Landscape Hanging Scroll (水墨中堂大轴)
+  const scrollTex = createZhongtangTexture();
+  const scrollMat = new THREE.MeshStandardMaterial({ map: scrollTex, roughness: 0.88, metalness: 0 });
+  const scrollMesh = new THREE.Mesh(new THREE.BoxGeometry(2.1, 3.2, 0.02), scrollMat);
+  scrollMesh.position.set(cx, Y0 + 3.1, cz - 7.82);
+  scrollMesh.castShadow = true; scrollMesh.receiveShadow = true;
+  root.add(scrollMesh);
+
+  // Wooden scroll rollers (轴头)
+  B.add(rbox(2.3, 0.05, 0.05, 0.01, 2), M.black, geom.mat4([cx, Y0 + 3.1 - 1.6, cz - 7.80]));
+  B.add(rbox(2.2, 0.04, 0.04, 0.01, 2), M.black, geom.mat4([cx, Y0 + 3.1 + 1.6, cz - 7.80]));
+
+  // 2. Black Lacquered Couplets (黑漆金字对联)
+  const rightCoupletTex = createCoupletTexture('清风明月本无价');
+  const leftCoupletTex = createCoupletTexture('近水远山皆有情');
+  const rightCoupletMat = new THREE.MeshStandardMaterial({ map: rightCoupletTex, roughness: 0.45, metalness: 0.1 });
+  const leftCoupletMat = new THREE.MeshStandardMaterial({ map: leftCoupletTex, roughness: 0.45, metalness: 0.1 });
+  const coupletGeo = new THREE.BoxGeometry(0.42, 2.6, 0.02);
+  const rightCouplet = new THREE.Mesh(coupletGeo, rightCoupletMat);
+  rightCouplet.position.set(cx + 1.65, Y0 + 3.0, cz - 7.82);
+  const leftCouplet = new THREE.Mesh(coupletGeo, leftCoupletMat);
+  leftCouplet.position.set(cx - 1.65, Y0 + 3.0, cz - 7.82);
+  root.add(rightCouplet, leftCouplet);
+
+  // 3. Long Altar Table (红木翘头条案)
+  buildAltarTable(B, woodMat, { x: cx, y: Y0, z: cz - 6.8, w: 4.6, d: 0.68, h: 0.98 });
+  const smokeSrc = buildIncenseBurner(B, M, { x: cx, y: Y0 + 0.98, z: cz - 6.8, s: 0.55 }, embers);
+  const smokeSrc2 = [cx, Y0 + 1.25, cz - 6.8];
+  buildFlowerVase(B, M, { x: cx - 1.5, y: Y0 + 0.98, z: cz - 6.8, s: 0.75, h: 0.8, spread: 0.32, n: 24, pink: 0.35 }, rnd, inst);
+  buildFruitStand(B, M, { x: cx + 1.5, y: Y0 + 0.98, z: cz - 6.8 });
+
+  // 4. Eight Immortals Square Table & Master Armchairs (八仙桌与太师椅)
+  buildSquareTable(B, woodMat, { x: cx, y: Y0, z: cz - 4.5, size: 1.15, h: 0.88 });
+  buildArmchair(B, woodMat, { x: cx - 1.15, y: Y0, z: cz - 4.5, ry: Math.PI / 2, scale: 1.05 });
+  buildArmchair(B, woodMat, { x: cx + 1.15, y: Y0, z: cz - 4.5, ry: -Math.PI / 2, scale: 1.05 });
+  buildArmchair(B, woodMat, { x: cx - 1.6, y: Y0, z: cz - 2.8, ry: 0, scale: 1.0 });
+  buildArmchair(B, woodMat, { x: cx + 1.6, y: Y0, z: cz - 2.8, ry: 0, scale: 1.0 });
+
+  // 5. East Alcove: Guqin Desk & Seven-String Zither (琴台雅集)
+  buildGuqinSet(B, woodMat, M.black, { x: cx + 5.5, y: Y0, z: cz - 4.2, ry: Math.PI / 2 });
+
+  // 6. West Alcove: Luohan Daybed & Curio Bookcases (罗汉床与博古架)
+  buildLuohanBed(B, woodMat, { x: cx - 5.5, y: Y0, z: cz - 4.0, w: 2.2, d: 1.3, h: 0.52 });
+  buildCurioShelf(B, woodMat, { x: cx - 7.5, y: Y0, z: cz - 6.6, w: 2.0, d: 0.42, h: 2.6 });
+
+  // 7. Floor Lanterns flanking the central table
   for (const sx of [-1, 1]) {
-    const ax = cx + sx * 3.35, az = cz - 4.75, s = 0.58;
-    buildThrone(ctx, B, M, S, { x: ax, z: az, y: S.yThrone, scale: s, rows: 3 });
-    const seat = S.yThrone + (S.pedH + S.lotusH) * s;
-    buildMandorla(ctx, B, M, { x: ax, y: seat, z: az, s: 0.6, headY: 1.19, bodhi: true });
-    buildBodhiOrnaments(ctx, B, M, { x: ax, y: seat, z: az });
-  }
-
-  // ---------------------------------------------------------------- altar + offerings
-  const yA = Y0 + 1.05;
-  buildShumidan(B, M, { x: cx, y: Y0, z: cz - 2.55, w: 7.4, d: 1.7, h: 1.05, panels: 6, sidePanels: 2, ids: [4, 7, 5, 5, 7, 4] });
-  for (const sx of [-1, 1]) {
-    buildJoka(B, M, { x: cx + sx * 1.8, y: yA, z: cz - 2.85, s: 1.3 }, rnd);
-    buildCandlestick(B, M, { x: cx + sx * 0.85, y: yA, z: cz - 2.05, h: 0.5 }, flames);
-    buildCandlestick(B, M, { x: cx + sx * 2.75, y: yA, z: cz - 2.15, h: 0.72 }, flames);
-    lights.push({ p: buildFloorLantern(B, M, { x: cx + sx * 2.35, y: yA, z: cz - 3.0, s: 0.5 }).light, i: 0 });
-    buildFlowerVase(B, M, { x: cx + sx * 1.15, y: yA, z: cz - 2.95, s: 0.75, h: 0.75, spread: 0.32, n: 20, pink: 0.3 }, rnd, inst);
-    buildFruitStand(B, M, { x: cx + sx * 0.4, y: yA, z: cz - 2.15 });
-    buildFlowerVase(B, M, { x: cx + sx * 3.25, y: yA, z: cz - 2.6, s: 0.7, h: 0.7, spread: 0.3, n: 16, pink: 0.45 }, rnd, inst);
-  }
-  const smokeSrc2 = buildIncenseBurner(B, M, { x: cx, y: yA, z: cz - 2.3, s: 0.45 }, embers);
-
-  // front table + big incense burner + candles
-  const yT = Y0 + 0.85;
-  buildFrontTable(B, M, { x: cx, y: Y0, z: cz - 1.05, w: 3.2, d: 0.8, h: 0.85 });
-  const smokeSrc = buildIncenseBurner(B, M, { x: cx, y: yT, z: cz - 1.08, s: 0.85 }, embers);
-  for (const sx of [-1, 1]) {
-    buildCandlestick(B, M, { x: cx + sx * 1.25, y: yT, z: cz - 1.0, h: 0.42 }, flames);
-    buildFlowerVase(B, M, { x: cx + sx * 0.72, y: yT, z: cz - 1.2, s: 0.55, h: 0.55, spread: 0.22, n: 12, pink: 0.25 }, rnd, inst);
-  }
-  buildRaiban(B, M, { x: cx, y: Y0, z: cz + 0.35 });
-  buildSutraDesk(B, M, { x: cx, y: Y0 + 0.16, z: cz - 0.2 });
-  buildKin(B, M, { x: cx + 1.3, y: Y0, z: cz + 0.2 });
-  buildMokugyo(B, M, { x: cx - 1.3, y: Y0, z: cz + 0.2 });
-
-  // floor lanterns + big flower arrangements on stands
-  for (const sx of [-1, 1]) {
-    lights.push({ p: buildFloorLantern(B, M, { x: cx + sx * 2.65, y: Y0, z: cz - 0.55, s: 1.0 }).light, i: 1 });
-    // low black stand + big arrangement
-    B.add(latheGeo([[0, 0], [0.36, 0], [0.36, 0.05], [0.3, 0.07], [0.3, 0.3], [0.38, 0.33], [0.38, 0.38], [0, 0.38]], 8, Math.PI / 8), M.black, geom.mat4([cx + sx * 4.55, Y0, cz - 1.15]));
-    buildFlowerVase(B, M, { x: cx + sx * 4.55, y: Y0 + 0.38, z: cz - 1.15, s: 1.35, h: 1.1, spread: 0.6, n: 64, pink: 0.4 }, rnd, inst);
+    lights.push({ p: buildFloorLantern(B, M, { x: cx + sx * 2.85, y: Y0, z: cz - 4.5, s: 0.85 }).light, i: 1 });
   }
 
   // ---------------------------------------------------------------- architecture
@@ -114,13 +122,8 @@ export async function build(ctx) {
   buildBackScreen(B, M, S, { x0: cx - 5.2, x1: cx + 5.2, z: cz - 7.9, y0: Y0, y1: S.ceilY - 0.12 });
   for (const sx of [-1, 1]) buildSideScreen(B, M, S, { x: cx + sx * 7.45, z0: cz - 7.95, z1: cz - 2.3, y0: Y0, y1: 6.6, facing: -sx });
 
-  // ---------------------------------------------------------------- hanging ornaments
-  // great tengai over the Amida: wide, with the long strands on the outside so the curtain
-  // frames the head (the centre stays short enough to clear the face from the shot-6 eye line)
-  buildCanopy(B, M, K, { x: cx, y: S.ceilY - 0.12, z: S.zB + 0.75, r: 2.05, depth: 0.46, rings: 8, lenOuter: 1.75, lenInner: 1.0 }, rnd);
+  // ---------------------------------------------------------------- hanging lanterns
   for (const sx of [-1, 1]) {
-    buildCanopy(B, M, K, { x: cx + sx * 3.35, y: S.ceilY - 0.3, z: cz - 4.3, r: 0.85, depth: 0.3, rings: 4, lenOuter: 1.2, lenInner: 0.95 }, rnd);
-    buildBanner(B, M, K, { x: cx + sx * 4.6, y: S.ceilY - 0.15, z: cz - 1.0, w: 0.74, plates: 5, plateH: 0.66 }, rnd);
     lights.push({ p: buildPendantLantern(B, M, K, { x: cx + sx * 3.05, y: S.ceilY - 0.12, z: cz - 0.2, s: 1.0, chain: 1.45 }, rnd), i: 2 });
     buildPendantLantern(B, M, K, { x: cx + sx * 6.7, y: S.ceilY - 0.12, z: cz - 1.0, s: 1.15, chain: 1.3 }, rnd);
     buildPendantLantern(B, M, K, { x: cx + sx * 2.15, y: S.ceilY - 0.12, z: cz - 3.6, s: 1.1, chain: 1.75 }, rnd);
@@ -150,12 +153,14 @@ export async function build(ctx) {
     root.add(geom.instanced(leafGeo(), M.leaf, inst.leaves));
   }
   // flames (HDR glow) + embers
-  const fgeo = flameGeo();
-  const fl = geom.instanced(fgeo, M.flame, flames.map((f) => geom.mat4([f[0], f[1], f[2]], [0, 0, 0], f[3] || 1)), { castShadow: false, receiveShadow: false });
-  fl.name = 'interior-flames';
-  root.add(fl);
-  const core = geom.instanced(fgeo, M.flameCore, flames.map((f) => geom.mat4([f[0], f[1] - 0.008, f[2]], [0, 0, 0], (f[3] || 1) * 0.5)), { castShadow: false, receiveShadow: false });
-  root.add(core);
+  if (flames.length) {
+    const fgeo = flameGeo();
+    const fl = geom.instanced(fgeo, M.flame, flames.map((f) => geom.mat4([f[0], f[1], f[2]], [0, 0, 0], f[3] || 1)), { castShadow: false, receiveShadow: false });
+    fl.name = 'interior-flames';
+    root.add(fl);
+    const core = geom.instanced(fgeo, M.flameCore, flames.map((f) => geom.mat4([f[0], f[1] - 0.008, f[2]], [0, 0, 0], (f[3] || 1) * 0.5)), { castShadow: false, receiveShadow: false });
+    root.add(core);
+  }
   if (embers.length) root.add(geom.instanced(new THREE.SphereGeometry(0.004, 6, 4), M.ember, embers.map((e) => geom.mat4(e)), { castShadow: false, receiveShadow: false }));
 
   // ---------------------------------------------------------------- local lights (max 6)
@@ -197,16 +202,14 @@ export async function build(ctx) {
     },
     finalize: (c) => finalizeInterior(c, M, S, root),
     showcase: [
-      // shot 7: push-in from the door line toward the Amida
-      { cam: [cx, 3.2, cz + 8.5], look: [cx, 4.4, cz - 5], focal: 30 },
-      // the Amida's face inside the halo and the petal fan
-      { cam: [cx + 0.9, 6.3, cz - 2.0], look: [cx, 6.55, cz - 5.4], focal: 50 },
-      // low altar close-up: priest seat, kin, sutra desk, front table, incense smoke
-      { cam: [cx, 3.1, cz + 3.4], look: [cx, 2.6, cz], focal: 35 },
-      // looking up: canopies, coffered ceiling, attendant
-      { cam: [cx + 2.5, 3.3, cz + 0.5], look: [cx, 8.2, cz - 4.5], focal: 22 },
-      // three-quarter view across the sanctum from the west aisle
-      { cam: [cx - 8, 4.0, cz + 2.5], look: [cx + 0.5, 4.6, cz - 4.5], focal: 28 },
+      // 1. Zhongtang reception: push-in towards the landscape scroll, couplets and furniture
+      { cam: [cx, 3.4, cz + 5.5], look: [cx, 3.6, cz - 6.5], focal: 28, what: 'scholar central hall: landscape scroll, couplets, altar table & armchairs' },
+      // 2. Altar table details: incense smoke, plum vase
+      { cam: [cx + 1.4, 3.2, cz - 4.5], look: [cx, 2.9, cz - 6.8], focal: 40, what: 'altar table details: incense burner, plum vase' },
+      // 3. Guqin alcove
+      { cam: [cx + 3.8, 3.0, cz - 2.2], look: [cx + 5.5, 2.6, cz - 4.2], focal: 35, what: 'east alcove: Guqin zither desk and seven-string instrument' },
+      // 4. Luohan daybed & curio shelf
+      { cam: [cx - 3.6, 3.0, cz - 2.2], look: [cx - 5.8, 2.8, cz - 4.5], focal: 32, what: 'west alcove: Luohan daybed and curio bookcase' },
     ],
   };
 }
@@ -237,32 +240,9 @@ function addLights(ctx, root, S, lights, flames) {
 
 // ============================================================================
 function buildFloor(ctx, B, M, S) {
-  const { THREE } = ctx;
   const { cx, cz, Y0 } = S;
-  // polished wood everywhere (thin slab so it never z-fights the shell floor)
+  // Polished dark water-ground bluestone floor (水磨金砖地面)
   B.box(M.woodFloor, 25.0, 0.04, 16.0, [cx, Y0 - 0.02, cz], [0, 0, 0], 0);
-  // tatami field in front of the altar (traditional alternating layout)
-  const tw = 0.91, tl = 1.82, th = 0.05;
-  const mats = [];
-  const x0 = cx - 1.5 * tl, z0 = cz + 1.25;
-  for (let r = 0; r < 3; r++) {
-    for (let c = 0; c < 3; c++) {
-      const rot = (r + c) % 2 === 0;
-      const px = x0 + c * tl + tl * 0.5;
-      const pz = z0 + r * tl + tl * 0.5;
-      if (!rot) { mats.push({ x: px, z: pz - tw * 0.5, rot: 0 }); mats.push({ x: px, z: pz + tw * 0.5, rot: 0 }); }
-      else { mats.push({ x: px - tw * 0.5, z: pz, rot: 1 }); mats.push({ x: px + tw * 0.5, z: pz, rot: 1 }); }
-    }
-  }
-  // matte underlay so the joints between mats never show the polished floor (bright doorway glints)
-  B.box(M.incense, 3 * tl + 0.01, 0.006, 3 * tl + 0.01, [cx, Y0 + 0.003, z0 + 1.5 * tl], [0, 0, 0], 0);
-  mats.forEach((m, k) => {
-    const g = rbox(tl - 0.002, th, tw - 0.002, 0.008, 2);
-    const p = g.attributes.position, uv = g.attributes.uv;
-    // u carries +2 m per mat (a whole number of weave periods) so the shader can recover the mat index
-    for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) + 2.0 * k, p.getZ(i));
-    B.add(g, M.tatami, ctx.geom.mat4([m.x, Y0 + th * 0.5, m.z], [0, m.rot ? Math.PI / 2 : 0, 0]));
-  });
 }
 
 // ============================================================================

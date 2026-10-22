@@ -29,7 +29,8 @@ for (let i = 0; i < args.length; i++) {
   else if (!views.length) views.push({ q: '', out: a });
 }
 if (base === null) { console.error('usage: node tools/snap.mjs "<query>" out.png | --view "<q>" out.png ...'); process.exit(1); }
-const bq = new URLSearchParams(base);
+const queryStr = base.includes('?') ? base.slice(base.indexOf('?') + 1) : base;
+const bq = new URLSearchParams(queryStr);
 if (!bq.has('w')) bq.set('w', '854');
 if (!bq.has('h')) bq.set('h', '480');
 if (!bq.has('q')) bq.set('q', 'preview');

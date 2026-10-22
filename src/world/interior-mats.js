@@ -221,9 +221,10 @@ export function makeInteriorMaterials(ctx) {
     fragColor: `{ float n = n_fbm3(vWPos * 2.0, 3); diffuseColor.rgb *= 0.85 + 0.3 * n; g_h = n; }`,
     fragRough: `roughnessFactor = clamp(roughnessFactor + g_h * 0.1, 0.05, 1.0);`,
   });
-  M.redColumn = phys({ color: 0xffffff, roughness: 0.4, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.22 }, PROC.lacquer('vec3(0.19, 0.026, 0.013)'));
-  M.red = phys({ color: 0xffffff, roughness: 0.45, metalness: 0, clearcoat: 0.35, clearcoatRoughness: 0.3 }, PROC.lacquer('vec3(0.25, 0.035, 0.016)'));
-  envList.push(M.black, M.redColumn, M.red);
+  M.redColumn = phys({ color: 0xffffff, roughness: 0.4, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.22 }, PROC.chestnutWood('vec3(0.08, 0.045, 0.025)'));
+  M.red = phys({ color: 0xffffff, roughness: 0.45, metalness: 0, clearcoat: 0.35, clearcoatRoughness: 0.3 }, PROC.chestnutWood('vec3(0.10, 0.05, 0.03)'));
+  M.woodNanmu = phys({ color: 0xffffff, roughness: 0.38, metalness: 0, clearcoat: 0.45, clearcoatRoughness: 0.25 }, PROC.chestnutWood('vec3(0.12, 0.055, 0.028)'));
+  envList.push(M.black, M.redColumn, M.red, M.woodNanmu);
 
   // ---- floors
   M.woodFloor = phys({ color: 0xffffff, roughness: 0.22, metalness: 0, clearcoat: 0.9, clearcoatRoughness: 0.07 }, {

@@ -305,6 +305,57 @@ export function buildStone(ctx, site, U) {
       s += len;
     }
   }
+  // ---- 叠石假山驳岸与挑石 (Stacked rockery embankment & overhanging crags) ----
+  function rockeryEmbankment(path) {
+    const seg = [];
+    let total = 0;
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i], c = path[i + 1];
+      const l = Math.hypot(c[0] - a[0], c[1] - a[1]);
+      if (l < 1e-4) continue;
+      seg.push({ a, c, l, s0: total }); total += l;
+    }
+    if (total < 0.5) return;
+    const at = (s) => {
+      s = clamp(s, 0, total - 1e-6);
+      let sg = seg[0];
+      for (const q of seg) { if (s >= q.s0 && s <= q.s0 + q.l) { sg = q; break; } }
+      const t = (s - sg.s0) / sg.l;
+      const x = sg.a[0] + (sg.c[0] - sg.a[0]) * t, z = sg.a[1] + (sg.c[1] - sg.a[1]) * t;
+      let tx = (sg.c[0] - sg.a[0]) / sg.l, tz = (sg.c[1] - sg.a[1]) / sg.l;
+      const [gx, gz] = grad(x, z);
+      let nxx = -tz, nzz = tx;
+      if (nxx * gx + nzz * gz < 0) { nxx = -nxx; nzz = -nzz; }
+      return { x, z, tx, tz, nx: nxx, nz: nzz };
+    };
+
+    let s = r.range(0.2, 0.6);
+    while (s < total - 0.4) {
+      const step = r.range(1.1, 1.8);
+      s += step;
+      if (s >= total) break;
+      const m = at(s);
+      const isOverhang = r.chance(0.65);
+      const overhangDist = isOverhang ? r.range(0.2, 0.45) : r.range(-0.1, 0.15);
+      const rx = m.x + m.nx * overhangDist + r.range(-0.12, 0.12);
+      const rz = m.z + m.nz * overhangDist + r.range(-0.12, 0.12);
+      const sz = r.range(0.85, 1.45);
+      const sy = sz * r.range(0.6, 0.95);
+      const ry = waterY + sz * r.range(0.1, 0.35);
+      const yaw = r.range(0, Math.PI * 2);
+      const pIdx = r.int(0, protos.length - 1);
+      b.add(protos[pIdx], rockMat, geom.mat4([rx, ry, rz], [r.range(-0.15, 0.15), yaw, r.range(-0.15, 0.15)], [sz, sy, sz]));
+
+      if (r.chance(0.4)) {
+        const sUpper = sz * r.range(0.45, 0.7);
+        const upX = rx - m.nx * 0.25 + r.range(-0.1, 0.1);
+        const upZ = rz - m.nz * 0.25 + r.range(-0.1, 0.1);
+        const upY = ry + sy * 0.65;
+        b.add(protos[r.int(0, protos.length - 1)], rockMat, geom.mat4([upX, upY, upZ], [r.range(-0.2, 0.2), r.range(0, 6.28), r.range(-0.2, 0.2)], [sUpper, sUpper * 1.1, sUpper]));
+      }
+    }
+  }
+
   // the wall face sits ~0.1 m into the water from the natural waterline
   {
     const faceLines = contourLines(site.sdGrid, nx, nz, site.gx0, site.gz0, RES, 0.1).filter((l) => l.length > 4);
@@ -326,7 +377,28 @@ export function buildStone(ctx, site, U) {
       }
       if (cur.length > 2) runs.push(cur);
     }
-    for (const run of runs) wallRun(run);
+    for (const run of runs) {
+      wallRun(run);
+      rockeryEmbankment(run);
+    }
+  }
+
+  // Water Spurs (水矶 - stepped limestone rocks jutting out into pond water)
+  const spurs = [
+    { x: 25.5, z: 7.2, len: 2.2, dir: [0.3, 0.95] },
+    { x: -9.0, z: 6.8, len: 2.0, dir: [-0.2, 0.98] },
+    { x: 38.0, z: 12.0, len: 2.4, dir: [-0.85, 0.52] },
+  ];
+  for (const sp of spurs) {
+    const numStones = r.int(3, 5);
+    for (let i = 0; i < numStones; i++) {
+      const dist = (i / (numStones - 1)) * sp.len;
+      const sx = sp.x + sp.dir[0] * dist + r.range(-0.15, 0.15);
+      const sz = sp.z + sp.dir[1] * dist + r.range(-0.15, 0.15);
+      const s = r.range(0.8, 1.3) * (1.0 - i * 0.08);
+      const y = waterY + (1.0 - (i / numStones) * 0.4) * 0.22;
+      b.add(protos[r.int(0, protos.length - 1)], rockMat, geom.mat4([sx, y, sz], [r.range(-0.1, 0.1), r.range(0, 6.28), r.range(-0.1, 0.1)], [s, s * 0.65, s]));
+    }
   }
 
   const rocks = b.build({ name: 'pondRocks' });

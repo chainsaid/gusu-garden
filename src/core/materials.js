@@ -302,6 +302,38 @@ PROC.granite = (mossAmt = '0.6', tint = 'vec3(1.0)') => ({
   fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.01);`,
 });
 
+// Classical Suzhou Taihu Stone (太湖石 - 皱漏瘦透)
+PROC.taihuStone = (mossAmt = '0.65', tint = 'vec3(1.0)') => ({
+  fragHead: /* glsl */ `float g_h; float g_moss;`,
+  fragColor: /* glsl */ `
+    {
+      vec3 wp = vWPos; vec3 wn = normalize(vWNrm);
+      float vAo = clamp(vColor.r, 0.15, 1.0);
+      float big = n_fbm3(wp * 0.45, 4);
+      float med = n_fbm3(wp * 2.2 + 2.0, 3);
+      float micro = n_snoise3(wp * 32.0);
+      vec3 baseCol = vec3(0.55, 0.57, 0.58) * ${tint} * (0.86 + 0.25 * big);
+      float rill = n_fbm3(wp * vec3(6.5, 0.4, 6.5) + 1.2, 3);
+      baseCol *= 1.0 - smoothstep(0.18, 0.72, rill) * 0.28 * (1.0 - abs(wn.y));
+      float ochre = smoothstep(0.62, 0.82, n_fbm3(wp * 1.6 + 4.0, 3) * 0.5 + 0.5);
+      baseCol = mix(baseCol, vec3(0.46, 0.40, 0.28), ochre * 0.35);
+      baseCol *= mix(0.35, 1.0, vAo);
+      float up = smoothstep(0.25, 0.82, wn.y);
+      float mn = n_fbm3(wp * 2.2 + 6.5, 4) * 0.5 + 0.5;
+      g_moss = clamp(smoothstep(0.56 - 0.38 * up * ${mossAmt}, 0.82, mn + up * 0.2) * ${mossAmt}, 0.0, 1.0);
+      vec3 mossCol = mix(vec3(0.035, 0.062, 0.014), vec3(0.11, 0.15, 0.032), n_snoise3(wp * 12.0) * 0.5 + 0.5);
+      vec3 finalCol = mix(baseCol, mossCol, g_moss);
+      float above = wp.y - (-0.55);
+      float wet = 1.0 - smoothstep(0.04, 0.18, above);
+      finalCol *= mix(1.0, 0.42, wet);
+      diffuseColor.rgb *= finalCol;
+      g_h = big * 0.4 + med * 0.2 + micro * 0.06 + g_moss * 0.35;
+    }
+  `,
+  fragRough: /* glsl */ `roughnessFactor = mix(0.85, 0.22, g_moss * 0.08 + (1.0 - smoothstep(0.04, 0.18, vWPos.y - (-0.55))) * 0.7);`,
+  fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0035);`,
+});
+
 // Weathered timber (bridge deck, raw wood). grainAxis: 'x' | 'y' | 'z'
 PROC.wood = (base = 'vec3(0.24, 0.15, 0.09)', grainAxis = 'x') => {
   const sc = grainAxis === 'x' ? 'vec3(0.4, 14.0, 14.0)' : grainAxis === 'y' ? 'vec3(14.0, 0.4, 14.0)' : 'vec3(14.0, 14.0, 0.4)';
@@ -438,6 +470,7 @@ export function materials() {
   M.granite = std({ color: 0xffffff, roughness: 0.8, metalness: 0 }, PROC.granite('0.55'));
   M.graniteMossy = std({ color: 0xffffff, roughness: 0.8, metalness: 0 }, PROC.granite('1.0', 'vec3(0.92, 0.95, 0.9)'));
   M.graniteClean = std({ color: 0xffffff, roughness: 0.75, metalness: 0 }, PROC.granite('0.12', 'vec3(1.08, 1.06, 1.03)'));
+  M.taihuStone = std({ color: 0xffffff, roughness: 0.85, metalness: 0, vertexColors: true }, PROC.taihuStone('0.65'));
   M.woodRaw = std({ color: 0xffffff, roughness: 0.8, metalness: 0 }, PROC.wood('vec3(0.24, 0.16, 0.10)', 'x'));
   M.woodRawZ = std({ color: 0xffffff, roughness: 0.8, metalness: 0 }, PROC.wood('vec3(0.24, 0.16, 0.10)', 'z'));
   M.woodFloorX = phys({ color: 0xffffff, roughness: 0.32, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.2 }, PROC.wood('vec3(0.16, 0.075, 0.04)', 'x'));

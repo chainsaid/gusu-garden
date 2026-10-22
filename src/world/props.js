@@ -9,6 +9,7 @@ import { buildStoneLantern } from './props-stone.js';
 import { buildHangingLantern, buildBell } from './props-hang.js';
 import { buildJokoro, buildTsukubai, buildSteppingStones, smokeGeo } from './props-plaza.js';
 import { Acc, mat4 } from './props-geo.js';
+import { buildTaihuPeak, buildCourtyardPeak } from './rockery-sdf.js';
 
 const Q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
 
@@ -347,12 +348,47 @@ export async function build(ctx) {
   if (propBells.length) group.add(instanced(bellGeometry(), makeMats(ctx).metalBell, propBells.map(anchorMatrix), { depth: makeMats(ctx).metalBellDepth, name: 'props.jokoroBells' }));
   makeLights(group);
   hookSceneLights(ctx.scene);
+
+  // ---------------------------------------------------------------------------
+  // Classical Taihu Stone Rockery (太湖石假山与立峰)
+  // ---------------------------------------------------------------------------
+  // 1. Hero Peak: Guanyun Peak (冠云峰) in the garden courtyard
+  const heroPeak = buildTaihuPeak(ctx, {
+    height: 3.8,
+    lean: 0.35,
+    seed: 42,
+    hasPedestal: true,
+    pos: [22.0, 0, -3.5],
+    rotY: 0.4,
+  });
+  group.add(heroPeak);
+
+  // 2. Courtyard Leak-Window Companion Peak (漏窗对景立峰)
+  const windowPeak = buildCourtyardPeak(ctx, {
+    height: 2.2,
+    seed: 88,
+    pos: [42.0, 0, 4.5],
+    rotY: -0.5,
+  });
+  group.add(windowPeak);
+
+  // 3. Water-Facing Rockery Peak & Shore Spurt (临波叠石立峰)
+  const shorePeak = buildCourtyardPeak(ctx, {
+    height: 2.4,
+    seed: 156,
+    pos: [34.5, 0, 8.5],
+    rotY: 1.2,
+  });
+  group.add(shorePeak);
+
   if (Q.has('propstest')) {
     const anchors = testRig(ctx, group);
     group.add(placeAnchors(ctx, anchors));
   }
   console.log(`[world] props base: ${JSON.stringify(stats(group))}`);
   STATE.showcase = [
+    { cam: [17.5, 1.8, 1.2], look: [22.0, 2.2, -3.5], focal: 28, what: 'taihu hero peak: Guanyun Peak against hall and sky' },
+    { cam: [46.0, 2.2, 2.0], look: [41.0, 1.8, 5.0], focal: 35, what: 'corridor leak window view: perforated taihu stone and bamboo' },
     { cam: [10, 1.45, 2.6], look: [10, 1.9, -4.5], focal: 24, what: 'processional axis: carved lantern pair + jokoro before the hall stairs' },
     { cam: [8.2, 1.2, -0.4], look: [6.2, 1.75, -4.2], focal: 30, what: 'hero square lantern: carving, moss, glowing two-pane windows' },
     { cam: [7.2, 1.75, 33.2], look: [-6, 4, 10], focal: 26, what: 'bridge-head kasuga lantern foreground, pagoda behind' },
