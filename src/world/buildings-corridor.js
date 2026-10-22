@@ -26,7 +26,7 @@ const prof = (d) => 0.42 * d + 0.045 * d * d;
 export const CORRIDOR_RIDGE_Y = Y0 + prof(CW);
 
 // ---------------------------------------------------------------------------
-// body of one bay (no columns, no roof): plinth, beams, ridge beam, outer wall
+// body of one bay (no columns, no roof): plinth, beams, ridge beam, outer wall, inner rail
 // ---------------------------------------------------------------------------
 function body(lb, K, bay, { wall = true } = {}) {
   const half = bay / 2;
@@ -43,19 +43,142 @@ function body(lb, K, bay, { wall = true } = {}) {
   }
   lb.box(K.red, bay, 0.18, 0.17, [half, yRB(CW) - 0.09, 0], [0, 0, 0], 0.012);
   if (wall) outerWall(lb, K, COL_R, bay - COL_R, -COLZ, true);
+
+  // inner garden-facing side: Jiangnan promenade low sitting rail (苏式游廊坐槛)
+  const L_in = bay - 2 * COL_R;
+  lb.box(K.redDark, L_in, 0.08, 0.10, [half, Y_PL + 0.04, COLZ], [0, 0, 0], 0.008);
+  lb.box(K.red, L_in, 0.07, 0.14, [half, Y_PL + 0.44, COLZ], [0, 0, 0], 0.012);
+  const nStruts = Math.floor(L_in / 0.42);
+  for (let i = 1; i < nStruts; i++) {
+    lb.box(K.redDark, 0.045, 0.34, 0.06, [COL_R + (L_in * i) / nStruts, Y_PL + 0.24, COLZ], [0, 0, 0], 0.005);
+  }
 }
-// wall between a and b (along x) at z = zw
+
+// Jiangnan openwork leak window (苏式镂空透花漏窗)
+function leakWindow(lb, K, cx, cy, cz, style = 0) {
+  const w = 1.14, h = 1.14;
+  const hw = w / 2, hh = h / 2;
+  const th = 0.024, dp = 0.05;
+
+  // Molded inner subframe
+  lb.box(K.redDark, w, 0.03, dp + 0.01, [cx, cy - hh + 0.015, cz], [0, 0, 0], 0.004);
+  lb.box(K.redDark, w, 0.03, dp + 0.01, [cx, cy + hh - 0.015, cz], [0, 0, 0], 0.004);
+  lb.box(K.redDark, 0.03, h, dp + 0.01, [cx - hw + 0.015, cy, cz], [0, 0, 0], 0.004);
+  lb.box(K.redDark, 0.03, h, dp + 0.01, [cx + hw - 0.015, cy, cz], [0, 0, 0], 0.004);
+
+  const slat = (x0, y0, x1, y1) => {
+    const dx = x1 - x0, dy = y1 - y0;
+    const len = Math.hypot(dx, dy);
+    const ang = Math.atan2(dy, dx);
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+    lb.add(chamferBox(len, th, dp, 0.002), K.lattice,
+      new THREE.Matrix4().makeRotationZ(ang).setPosition(cx + mx, cy + my, cz));
+  };
+
+  if (style === 0) {
+    // Style 0: 八角套方漏窗 (Octagonal fret with diamond center)
+    const c = 0.28;
+    slat(-hw + c, -hh, -hw, -hh + c);
+    slat(hw - c, -hh, hw, -hh + c);
+    slat(-hw + c, hh, -hw, hh - c);
+    slat(hw - c, hh, hw, hh - c);
+    const d = 0.36;
+    slat(0, -d, d, 0);
+    slat(d, 0, 0, d);
+    slat(0, d, -d, 0);
+    slat(-d, 0, 0, -d);
+    slat(-hw, 0, -d, 0);
+    slat(d, 0, hw, 0);
+    slat(0, -hh, 0, -d);
+    slat(0, d, 0, hh);
+    slat(-d * 0.45, 0, d * 0.45, 0);
+    slat(0, -d * 0.45, 0, d * 0.45);
+  } else if (style === 1) {
+    // Style 1: 冰裂纹漏窗 (Ice-crackle / Binglie-wen)
+    const pts = [
+      [-0.12, -0.08], [0.15, -0.05], [0.08, 0.16], [-0.14, 0.14],
+      [-0.32, -0.28], [0.28, -0.32], [0.35, 0.25], [-0.28, 0.32],
+    ];
+    slat(pts[0][0], pts[0][1], pts[1][0], pts[1][1]);
+    slat(pts[1][0], pts[1][1], pts[2][0], pts[2][1]);
+    slat(pts[2][0], pts[2][1], pts[3][0], pts[3][1]);
+    slat(pts[3][0], pts[3][1], pts[0][0], pts[0][1]);
+    slat(pts[0][0], pts[0][1], pts[4][0], pts[4][1]);
+    slat(pts[1][0], pts[1][1], pts[5][0], pts[5][1]);
+    slat(pts[2][0], pts[2][1], pts[6][0], pts[6][1]);
+    slat(pts[3][0], pts[3][1], pts[7][0], pts[7][1]);
+    slat(pts[4][0], pts[4][1], pts[5][0], pts[5][1]);
+    slat(pts[5][0], pts[5][1], pts[6][0], pts[6][1]);
+    slat(pts[6][0], pts[6][1], pts[7][0], pts[7][1]);
+    slat(pts[7][0], pts[7][1], pts[4][0], pts[4][1]);
+    slat(pts[4][0], pts[4][1], -hw, pts[4][1] * 0.8);
+    slat(pts[4][0], pts[4][1], pts[4][0] * 0.8, -hh);
+    slat(pts[5][0], pts[5][1], hw, pts[5][1] * 0.8);
+    slat(pts[5][0], pts[5][1], pts[5][0] * 0.8, -hh);
+    slat(pts[6][0], pts[6][1], hw, pts[6][1] * 0.8);
+    slat(pts[6][0], pts[6][1], pts[6][0] * 0.8, hh);
+    slat(pts[7][0], pts[7][1], -hw, pts[7][1] * 0.8);
+    slat(pts[7][0], pts[7][1], pts[7][0] * 0.8, hh);
+  } else {
+    // Style 2: 步步锦连环漏窗 (Stepped geometric fret)
+    const s1 = 0.42, s2 = 0.22;
+    slat(-s1, -s1, s1, -s1);
+    slat(s1, -s1, s1, s1);
+    slat(s1, s1, -s1, s1);
+    slat(-s1, s1, -s1, -s1);
+    slat(-s2, -s2, s2, -s2);
+    slat(s2, -s2, s2, s2);
+    slat(s2, s2, -s2, s2);
+    slat(-s2, s2, -s2, -s2);
+    slat(-hw, 0, -s1, 0);
+    slat(s1, 0, hw, 0);
+    slat(0, -hh, 0, -s1);
+    slat(0, s1, 0, hh);
+    slat(-hw, -s1, -s1, -s1);
+    slat(hw, -s1, s1, -s1);
+    slat(-hw, s1, -s1, s1);
+    slat(hw, s1, s1, s1);
+  }
+}
+
+// wall between a and b (along x) at z = zw: pristine white plaster with openwork leak window
 function outerWall(lb, K, a, b, zw) {
   const L = b - a, x = (a + b) / 2;
-  lb.box(K.red, L, 0.15, 0.15, [x, Y_PL + 0.075, zw], [0, 0, 0], 0.012);
-  lb.box(K.plaster, L, 0.6, 0.1, [x, Y_PL + 0.15 + 0.3, zw]);
-  lb.box(K.red, L, 0.12, 0.14, [x, 1.26, zw], [0, 0, 0], 0.012);
-  lb.box(K.red, L, 0.06, 0.13, [x, 1.35, zw], [0, 0, 0], 0.008);
-  lb.box(K.red, L, 0.06, 0.13, [x, 2.41, zw], [0, 0, 0], 0.008);
-  const n = Math.floor(L / 0.13);
-  for (let i = 1; i < n; i++) lb.add(chamferBox(0.048, 1.0, 0.048, 0), K.lattice, m4([a + (L * i) / n, 1.88, zw], [0, Math.PI / 4, 0]));
-  lb.box(K.red, L, 0.16, 0.16, [x, 2.54, zw], [0, 0, 0], 0.014);
-  lb.box(K.plaster, L, 0.51, 0.1, [x, 2.875, zw]);
+  const style = Math.floor(Math.abs(x * 1.3) + Math.abs(zw * 2.1)) % 3;
+  const yBot = Y_PL + 0.12;
+  const yTop = Y_COLTOP - 0.12;
+  const wallH = yTop - yBot;
+
+  // Base sill beam (下槛)
+  lb.box(K.redDark, L, 0.12, 0.14, [x, Y_PL + 0.06, zw], [0, 0, 0], 0.01);
+  // Upper lintel beam (上枋)
+  lb.box(K.redDark, L, 0.12, 0.14, [x, Y_COLTOP - 0.06, zw], [0, 0, 0], 0.01);
+
+  // Leak window dimensions
+  const wW = 1.25, wH = 1.25;
+  const yMid = 1.88;
+  const yWin0 = yMid - wH / 2;
+  const yWin1 = yMid + wH / 2;
+  const wSide = (L - wW) / 2;
+
+  // White plaster walls (白粉墙)
+  // Left wall
+  lb.box(K.plaster, wSide, wallH, 0.10, [a + wSide / 2, (yBot + yTop) / 2, zw]);
+  // Right wall
+  lb.box(K.plaster, wSide, wallH, 0.10, [b - wSide / 2, (yBot + yTop) / 2, zw]);
+  // Bottom wall below window
+  lb.box(K.plaster, wW + 0.004, yWin0 - yBot, 0.10, [x, (yBot + yWin0) / 2, zw]);
+  // Top wall above window
+  lb.box(K.plaster, wW + 0.004, yTop - yWin1, 0.10, [x, (yWin1 + yTop) / 2, zw]);
+
+  // Window outer casing (外框)
+  lb.box(K.redDark, wW + 0.06, 0.045, 0.12, [x, yWin0 + 0.02, zw], [0, 0, 0], 0.005);
+  lb.box(K.redDark, wW + 0.06, 0.045, 0.12, [x, yWin1 - 0.02, zw], [0, 0, 0], 0.005);
+  lb.box(K.redDark, 0.045, wH, 0.12, [x - wW / 2 + 0.02, yMid, zw], [0, 0, 0], 0.005);
+  lb.box(K.redDark, 0.045, wH, 0.12, [x + wW / 2 - 0.02, yMid, zw], [0, 0, 0], 0.005);
+
+  // Openwork lattice (镂空花心)
+  leakWindow(lb, K, x, yMid, zw, style);
 }
 
 // roof package over faces: tiles, caps, soffit, rafters
@@ -124,7 +247,6 @@ function unitLine(lb, K) {
 function unitColumn(lb, K) {
   lb.add(lathe([[0, -0.05], [0.25, -0.05], [0.25, 0.02], [0.22, 0.05], [0.18, 0.07], [0, 0.07]], 10, 'csos'), K.stoneClean, m4([0, Y_PL, 0]));
   lb.add(new THREE.CylinderGeometry(COL_R, COL_R * 1.02, Y_COLTOP - Y_PL - 0.07, 16, 1), K.col, m4([0, (Y_COLTOP + Y_PL + 0.07) / 2, 0]));
-  lb.add(colBand(COL_R, 0.11, 12, 0, true), K.gold, m4([0, Y_PL + 0.07, 0]));
   lb.add(block(0.32, 0.17, 0.32), K.red, m4([0, Y_COLTOP, 0]));
 }
 
@@ -178,10 +300,9 @@ function cornerPiece(lb, K, bayA, bayB) {
   lb.add(sweep(linePath([0, -0.12], [0, Lz], () => CORRIDOR_RIDGE_Y - 0.02, 0.9), rp), K.tile);
   const hp = ridgeProfile(0.3, 0.26, 3, 0.065, 0.18);
   lb.add(sweep(linePath([0.05, -0.05], [W + 0.03, -W - 0.03], (x, z) => Y0 + prof(W - Math.max(x, -z)) - 0.02, 0.2), hp), K.tile);
-  // small oni at the hip end
-  const oy = Y0 - 0.06;
-  lb.add(chamferBox(0.34, 0.36, 0.1, 0.02), K.tile, m4([W + 0.06, oy + 0.12, -W - 0.06], [0, Math.PI * 0.75, 0]));
-  lb.add(rosette(0.07, 8, 0.016, true), K.cap, m4([W + 0.1, oy + 0.14, -W - 0.1], [0, Math.PI * 0.75, 0]));
+  // corner ridge end upturn (江南小青瓦滴水脊头)
+  const oy = Y0 - 0.04;
+  lb.add(chamferBox(0.22, 0.24, 0.12, 0.015), K.tile, m4([W + 0.06, oy + 0.12, -W - 0.06], [0, Math.PI * 0.75, 0]));
   // valley channel (dark metal)
   lb.add(sweep(linePath([-W, W], [-0.15, 0.15], (x, z) => Y0 + prof(W - Math.min(-x, z)) - 0.035, 0.25), rectProfile(0.14, 0.02)), K.black);
 }

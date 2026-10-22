@@ -591,6 +591,7 @@ function kebutsuGeo() {
 
 // ============================================================================
 function finalizeInterior(ctx, M, S, root) {
+  if (ctx.quality === 'preview') return;
   // local env map at the sanctum centre so gold reflects the gold interior
   const hidden = [];
   root.traverse((o) => { if ((o.isPoints || /interior-(shafts|smoke)/.test(o.name)) && o.visible) { o.visible = false; hidden.push(o); } });

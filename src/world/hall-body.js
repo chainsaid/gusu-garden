@@ -310,24 +310,12 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
   const Y = { sill0: fy, sill1: fy + 0.26, koshi: 2.95, kn1: 3.12, nag0: 5.9, nag1: 6.15, kn0: 7.35, kh1: 7.65, top: HB.colTop };
   // --- structural beams (through columns)
   panel(redA, -L / 2, L / 2, Y.kn0, Y.kh1, -0.11, 0.11, 0.015); // kashiranuki
-  // kirikane gold lines along the kashiranuki face + small gold rosettes
-  for (const yy of [Y.kn0 + 0.045, Y.kh1 - 0.045]) panel(gold, -L / 2 + r + 0.02, L / 2 - r - 0.02, yy - 0.008, yy + 0.008, 0.108, 0.118, 0.003);
-  for (let u = -L / 2 + r + 0.6; u < L / 2 - r - 0.4; u += 0.62) rosette(gold, M(u, (Y.kn0 + Y.kh1) / 2, 0.11), 0.045, 6, 0.015);
   panel(redA, -L / 2, L / 2, Y.top - 0.17, Y.top, -0.13, 0.13, 0.015); // daiwa (head plate)
   if (type !== 'open') panel(redA, -half, half, Y.sill0, Y.sill1, -0.12, 0.12, 0.015); // sill
   else panel(redA, -half, half, Y.sill0, Y.sill0 + 0.1, -0.12, 0.12, 0.01); // low threshold
   // nageshi (proud on the exterior face, applied to the columns)
   panel(redA, -L / 2 - 0.05, L / 2 + 0.05, Y.nag0, Y.nag1, r - 0.02, r + 0.09, 0.02);
   panel(redA, -L / 2 - 0.05, L / 2 + 0.05, Y.sill1 - 0.02, Y.sill1 + 0.16, r - 0.02, r + 0.07, 0.015); // kirime nageshi (low)
-  // gold fittings at both ends
-  for (const s of [-1, 1]) {
-    const u = s * (L / 2 - r - 0.13);
-    kanagu(gold, M(u, (Y.nag0 + Y.nag1) / 2, r + 0.088), 0.3, 0.3, 0.012);
-    rosette(gold, M(s * (L / 2 - r - 0.02), (Y.nag0 + Y.nag1) / 2, r + 0.1), 0.1, 6, 0.03);
-    kanagu(gold, M(u, (Y.kn0 + Y.kh1) / 2, 0.11), 0.26, 0.38, 0.012);
-    kanagu(gold, M(u, Y.sill1 + 0.07, r + 0.068), 0.24, 0.22, 0.01, false);
-  }
-  // rosettes centred on the nageshi at the column (shared, emitted per bay end s=-1 only)
   // --- upper wall: plaster between kashiranuki and daiwa (both faces)
   panel(white, -half, half, Y.kh1, Y.top - 0.17, 0.0, 0.07, 0.006);
   panel(inP, -half, half, Y.kh1, HB.ceilY + 0.08, -0.07, 0.0, 0.006);
@@ -344,71 +332,89 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
   }
   // --- main zone
   if (type === 'panel') {
-    // black lacquered panel doors with big gold mon, studs and frame
-    panel(black, -half, half, Y.sill1, Y.nag0, 0.0, 0.06, 0.004);
-    panel(inW, -half, half, Y.sill1, Y.nag0, -0.08, 0.0, 0.004);
-    // red frame stiles/rails
-    const fw = 0.13;
-    panel(red, -half, -half + fw, Y.sill1, Y.nag0, 0.0, 0.1, 0.012);
-    panel(red, half - fw, half, Y.sill1, Y.nag0, 0.0, 0.1, 0.012);
-    panel(red, -0.06, 0.06, Y.sill1, Y.nag0, 0.0, 0.09, 0.01); // meeting stile
-    for (const y of [Y.sill1 + 0.06, 3.35, Y.nag0 - 0.06]) panel(red, -half, half, y - 0.06, y + 0.06, 0.0, 0.1, 0.012);
-    // lattice upper part (kōshi): black bars over dark recess between 3.41 and nag0-0.12
-    for (const s of [-1, 1]) {
-      const u0 = s < 0 ? -half + fw : 0.06, u1 = s < 0 ? -0.06 : half - fw;
-      for (let u = u0 + 0.11; u < u1 - 0.05; u += 0.12) panel(black, u - 0.022, u + 0.022, 3.41, Y.nag0 - 0.12, 0.06, 0.09, 0.005);
-      for (let y = 3.6; y < Y.nag0 - 0.2; y += 0.42) panel(black, u0, u1, y - 0.018, y + 0.018, 0.06, 0.085, 0.004);
-      // gold studs on the lower boards
-      for (let y = Y.sill1 + 0.3; y < 3.2; y += 0.2) for (let u = u0 + 0.14; u < u1 - 0.1; u += 0.2)
-        lathe(gold, mul(M(u, y, 0.06), xf([0, 0, 0], 0, Math.PI / 2)), [[0, 0], [0.026, 0], [0.022, 0.012], [0.01, 0.02], [0, 0.022]], 8);
-      // gold corner L-fittings
-      for (const [uu, yy] of [[u0 + 0.12, Y.sill1 + 0.17], [u1 - 0.12, Y.sill1 + 0.17], [u0 + 0.12, 3.24], [u1 - 0.12, 3.24]]) panel(gold, uu - 0.12, uu + 0.12, yy - 0.05, yy + 0.05, 0.1, 0.112, 0.004);
-      // gilt hinge straps on the rails (outer stile inward), nail heads at the lattice crossings
-      const uo = s < 0 ? -half + 0.02 : half - 0.02;
-      const hx = s < 0 ? ax : v3.scale(ax, -1);
-      for (const yy of [Y.sill1 + 0.06, 3.35, Y.nag0 - 0.06]) hinge(gold, basis(at(uo, yy, 0.1), hx, [0, 1, 0], o), 0.62, 0.085, 0.006);
-      for (let u = u0 + 0.11; u < u1 - 0.05; u += 0.12) for (let y = 3.6; y < Y.nag0 - 0.2; y += 0.42)
-        lathe(gold, mul(M(u, y, 0.085), xf([0, 0, 0], 0, Math.PI / 2)), [[0.017, 0], [0.013, 0.007], [0, 0.011]], 6);
-      // pull ring beside the meeting stile
-      pullRing(gold, M(s * 0.2, 3.35, 0.1), 0.05, 0.007);
+    // ---- 苏式落地长窗（4扇一组格扇门，Four-leaf Jiangnan Changchuang）----
+    const nLeaves = 4;
+    const leafW = (2 * half) / nLeaves;
+    const fw = 0.052; // 边梃宽度
+    const ySkirt = 3.22; // 裙板上口
+    const yWaist = 3.52; // 绦环板上口
+
+    // 底层内衬透光白壁
+    panel(white, -half, half, Y.sill1, Y.nag0, 0.03, 0.045, 0.002);
+    panel(inW, -half, half, Y.sill1, Y.nag0, -0.06, 0.0, 0.004);
+
+    for (let li = 0; li < nLeaves; li++) {
+      const u0 = -half + li * leafW + 0.008;
+      const u1 = -half + (li + 1) * leafW - 0.008;
+
+      // 1. 门扇外框（边梃与抹头）
+      panel(red, u0, u0 + fw, Y.sill1, Y.nag0, 0.035, 0.085, 0.008); // 左边梃
+      panel(red, u1 - fw, u1, Y.sill1, Y.nag0, 0.035, 0.085, 0.008); // 右边梃
+      panel(red, u0, u1, Y.sill1, Y.sill1 + 0.055, 0.035, 0.085, 0.008); // 下抹头
+      panel(red, u0, u1, Y.nag0 - 0.055, Y.nag0, 0.035, 0.085, 0.008); // 上抹头
+      panel(red, u0, u1, ySkirt - 0.04, ySkirt, 0.035, 0.085, 0.008); // 裙板上抹头
+      panel(red, u0, u1, yWaist - 0.04, yWaist, 0.035, 0.085, 0.008); // 绦环板上抹头
+
+      // 2. 裙板（障板，下段实木栗壳色面板）
+      panel(redD, u0 + fw, u1 - fw, Y.sill1 + 0.055, ySkirt - 0.04, 0.045, 0.075, 0.004);
+
+      // 3. 绦环板（腰段实木窄板）
+      panel(redD, u0 + fw, u1 - fw, ySkirt, yWaist - 0.04, 0.045, 0.075, 0.004);
+
+      // 4. 格心（上部高挑透光花格：步步锦棂花构架）
+      const gx0 = u0 + fw + 0.015, gx1 = u1 - fw - 0.015;
+      const gy0 = yWaist + 0.02, gy1 = Y.nag0 - 0.075;
+      // 竖向棂条 (3 vertical bars)
+      const nV = 3;
+      const du = (gx1 - gx0) / (nV + 1);
+      for (let vi = 1; vi <= nV; vi++) {
+        const vx = gx0 + vi * du;
+        panel(redA, vx - 0.012, vx + 0.012, gy0, gy1, 0.048, 0.078, 0.003);
+      }
+      // 横向棂条 (8 horizontal crossbars)
+      const nH = 8;
+      const dy = (gy1 - gy0) / (nH + 1);
+      for (let hi = 1; hi <= nH; hi++) {
+        const hy = gy0 + hi * dy;
+        panel(redA, gx0, gx1, hy - 0.012, hy + 0.012, 0.048, 0.078, 0.003);
+      }
+
+      // 5. 门环（中间两扇相遇处加素雅小拉手）
+      if (li === 1 || li === 2) {
+        const ringU = li === 1 ? u1 - fw - 0.04 : u0 + fw + 0.04;
+        pullRing(gold, M(ringU, (ySkirt + yWaist) / 2, 0.088), 0.038, 0.005);
+      }
     }
-    // big gold mon roundel straddling the doors (on a black backing disc)
-    const mc = (Y.nag0 + 3.41) / 2 + 0.02;
-    lathe(black, mul(M(0, mc, 0.09), xf([0, 0, 0], 0, Math.PI / 2)), [[0, 0], [0.72, 0], [0.72, 0.03], [0.69, 0.05], [0, 0.05]], 40);
-    monCrest(gold, M(0, mc, 0.14), 0.62, 0.035);
   } else if (type === 'open') {
-    // folded doors stacked at both sides, perpendicular to the wall (outward)
+    // 敞开明间：两对隔扇长窗折叠收拢在两侧柱旁
     for (const s of [-1, 1]) {
-      const u = s * (half - 0.08);
+      const u = s * (half - 0.06);
       for (const k of [0, 1]) {
-        const uu = u - s * (0.03 + k * 0.075);
-        panel(black, uu - 0.032, uu + 0.032, Y.sill1 - 0.05, Y.nag0 - 0.04, 0.12, 0.98, 0.006);
-        panel(red, uu - 0.036, uu + 0.036, Y.sill1 - 0.05, Y.sill1 + 0.07, 0.12, 0.98, 0.006);
-        panel(red, uu - 0.036, uu + 0.036, Y.nag0 - 0.16, Y.nag0 - 0.04, 0.12, 0.98, 0.006);
-        // gold studs on the outer face of the outermost leaf
-        if (k === 0) for (let y = Y.sill1 + 0.3; y < Y.nag0 - 0.4; y += 0.32) for (const w of [0.3, 0.55, 0.8])
-          lathe(gold, mul(M(uu - s * 0.033, y, w), xf([0, 0, 0], -s * Math.PI / 2, 0, -s * Math.PI / 2)), [[0, 0], [0.022, 0], [0.018, 0.011], [0, 0.018]], 8);
-        if (k === 0) panel(gold, uu - s * 0.034 - 0.004, uu - s * 0.034 + 0.004, 3.2, 3.6, 0.42, 0.68, 0.003);
+        const uu = u - s * (0.02 + k * 0.065);
+        panel(red, uu - 0.025, uu + 0.025, Y.sill1, Y.nag0, 0.12, 0.95, 0.006);
+        panel(redD, uu - 0.022, uu + 0.022, Y.sill1 + 0.06, 3.22, 0.14, 0.93, 0.004); // 裙板
+        for (let w = 0.22; w < 0.9; w += 0.16) {
+          panel(redA, uu - 0.018, uu + 0.018, 3.52, Y.nag0 - 0.08, w - 0.015, w + 0.015, 0.003);
+        }
       }
     }
   } else if (type === 'renji') {
-    // koshikabe boards + renji window with diagonal square bars
-    // koshikabe: black lacquer board with a gilt stud row and corner fittings
-    panel(black, -half, half, Y.sill1, Y.koshi, 0.0, 0.07, 0.006);
-    for (let u = -half + 0.22; u < half - 0.15; u += 0.3) lathe(gold, mul(M(u, (Y.sill1 + Y.koshi) / 2, 0.07), xf([0, 0, 0], 0, Math.PI / 2)), [[0, 0], [0.028, 0], [0.024, 0.012], [0.01, 0.02], [0, 0.022]], 8);
-    for (const su of [-1, 1]) for (const yy of [Y.sill1 + 0.07, Y.koshi - 0.07]) panel(gold, su * (half - 0.14) - 0.13, su * (half - 0.14) + 0.13, yy - 0.05, yy + 0.05, 0.07, 0.082, 0.004);
+    // 苏式半窗：下为白粉矮墙，上为步步锦直棂花窗
+    panel(white, -half, half, Y.sill1, Y.koshi, 0.0, 0.07, 0.006);
     panel(inW, -half, half, Y.sill0, Y.koshi, -0.08, 0.0, 0.006);
     panel(redA, -half, half, Y.koshi, Y.kn1, -0.1, 0.1, 0.012); // koshi-nuki
-    const fw = 0.14;
-    panel(redA, -half, -half + fw, Y.kn1, Y.nag0, -0.1, 0.1, 0.012);
-    panel(redA, half - fw, half, Y.kn1, Y.nag0, -0.1, 0.1, 0.012);
-    panel(redA, -half, half, Y.nag0 - 0.1, Y.nag0, -0.1, 0.1, 0.012);
-    for (let u = -half + fw + 0.1; u < half - fw - 0.05; u += 0.19) {
-      cbox(redA, mul(M(u, (Y.kn1 + Y.nag0 - 0.1) / 2, 0.0), xf([0, 0, 0], Math.PI / 4)), 0.034, (Y.nag0 - 0.1 - Y.kn1) / 2, 0.034, 0.005);
+    const fw = 0.12;
+    panel(redA, -half, -half + fw, Y.kn1, Y.nag0, -0.08, 0.08, 0.01);
+    panel(redA, half - fw, half, Y.kn1, Y.nag0, -0.08, 0.08, 0.01);
+    panel(redA, -half, half, Y.nag0 - 0.08, Y.nag0, -0.08, 0.08, 0.01);
+    // 窗心竖向棂条
+    for (let u = -half + fw + 0.12; u < half - fw - 0.08; u += 0.18) {
+      panel(redA, u - 0.015, u + 0.015, Y.kn1 + 0.04, Y.nag0 - 0.08, -0.035, 0.035, 0.005);
     }
-    // gold fittings at the window frame corners
-    for (const su of [-1, 1]) for (const yy of [Y.kn1 + 0.08, Y.nag0 - 0.12]) panel(gold, su * (half - fw) - 0.09, su * (half - fw) + 0.09, yy - 0.06, yy + 0.06, 0.1, 0.112, 0.004);
-    // interior skin above window
+    // 窗心横向棂条
+    for (const yy of [Y.kn1 + 0.8, Y.kn1 + 1.6, Y.kn1 + 2.2]) {
+      panel(redA, -half + fw, half - fw, yy - 0.015, yy + 0.015, -0.035, 0.035, 0.005);
+    }
     panel(inW, -half, half, Y.nag0, Y.nag1, -0.08, 0.0, 0.004);
   } else if (type === 'board' || type === 'door') {
     panel(redD, -half, half, Y.sill1, Y.nag0, 0.0, 0.07, 0.006);

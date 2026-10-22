@@ -37,8 +37,8 @@ export function makeStoreys(L) {
     s.yG = s.T + 1.64 * s.kv; // gangyo top at mid-side
     s.O = (P.eaveOverhang + 0.3) * Math.pow(k, 0.5);
     s.flare = 0.6 * k;
-    s.lift = (s.top ? 1.0 : 0.95) * k;
-    s.liftExp = 1.65;
+    s.lift = (s.top ? 1.45 : 1.35) * k;
+    s.liftExp = 1.7;
     s.Xc = s.a + s.O + s.flare;
     s.Rt = s.top ? 0.42 : (P.baseWidth * Math.pow(P.shrink, i + 1)) / 2 + 0.12;
     s.qa = s.top ? 0.28 : 0.42;
@@ -64,7 +64,8 @@ export function roofY(s, x, p) {
   const tc = Math.max(t, -0.4);
   const Q = s.qa * tc + (1 - s.qa) * tc * tc;
   const l = 1 - Math.min(Math.max(t, 0), 1);
-  return s.Ye + (s.Yt - s.Ye) * Q + s.lift * Math.pow(A, s.liftExp) * l * l;
+  const kick = A > 0.4 ? Math.pow((A - 0.4) / 0.6, 2.8) * 0.35 : 0;
+  return s.Ye + (s.Yt - s.Ye) * Q + (s.lift * Math.pow(A, s.liftExp) + kick) * l * l;
 }
 // fixed point x = f(x) (corner on the diagonal)
 const fixX = (f, x0) => { let x = x0; for (let i = 0; i < 40; i++) x = f(x); return x; };
@@ -123,24 +124,24 @@ export async function build(ctx) {
   const rig = (proc, kind) => ({ ...proc, fragLight: (proc.fragLight || '') + rigGLSL(kind) });
   const P = mat.PROC;
   const MT = {
-    red: mat.phys({ color: 0xffffff, roughness: 0.5, metalness: 0, clearcoat: 0.25, clearcoatRoughness: 0.4 }, rig(woodProc('vec3(0.50, 0.072, 0.028)', C, { wear: 0.8 }), 'wood')),
-    redDark: mat.phys({ color: 0xffffff, roughness: 0.55, metalness: 0, clearcoat: 0.15, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.30, 0.040, 0.020)', C, { wear: 0.6 }), 'wood')),
-    gold: mat.std({ color: 0xffffff, roughness: 0.24, metalness: 1.0 }, rig(goldProc(), 'gold')),
-    capGold: mat.std({ color: 0xffffff, roughness: 0.26, metalness: 1.0 }, rig(capGoldProc(), 'gold')),
-    capSatin: mat.std({ color: 0xffffff, roughness: 0.38, metalness: 1.0 }, rig(capGoldProc('vec3(1.0, 0.68, 0.28)'), 'gold')),
+    red: mat.phys({ color: 0xffffff, roughness: 0.5, metalness: 0, clearcoat: 0.15, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.082, 0.046, 0.028)', C, { wear: 0.8 }), 'wood')),
+    redDark: mat.phys({ color: 0xffffff, roughness: 0.55, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.050, 0.028, 0.018)', C, { wear: 0.6 }), 'wood')),
+    gold: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(goldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
+    capGold: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(capGoldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
+    capSatin: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(capGoldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
     tile: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(P.roofTile(), 'tile')),
     tileRound: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(tileProc('round'), 'tile')),
     tileFlat: mat.std({ color: 0xffffff, roughness: 0.45, metalness: 0.1 }, rig(tileProc('flat'), 'tile')),
     plaster: mat.std({ color: 0xffffff, roughness: 0.93, metalness: 0 }, rig(P.plaster(), 'wall')),
-    green: mat.std({ color: 0xffffff, roughness: 0.6, metalness: 0 }, rig(P.lacquer('vec3(0.05, 0.16, 0.11)'), 'wood')),
+    green: mat.std({ color: 0xffffff, roughness: 0.6, metalness: 0 }, rig(P.chestnutWood('vec3(0.05, 0.12, 0.08)'), 'wood')),
     dark: M.woodDark,
     granite: M.granite,
     graniteC: M.graniteClean,
-    soffit: mat.std({ color: 0xffffff, roughness: 0.66, metalness: 0 }, rig(woodProc('vec3(0.25, 0.065, 0.03)', C, { wear: 0.0, grime: 0.6, planks: true }), 'wood')),
-    // stained red-brown wood of the eave structure (brackets, rafters, purlins)
-    wood: mat.phys({ color: 0xffffff, roughness: 0.58, metalness: 0, clearcoat: 0.12, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.40, 0.105, 0.048)', C), 'wood')),
-    goldSatin: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 1.0 }, rig(goldProc('vec3(1.0, 0.68, 0.28)'), 'gold')),
-    spireGold: mat.std({ color: 0xffffff, roughness: 0.3, metalness: 1.0 }, rig(goldProc('vec3(1.0, 0.62, 0.24)'), 'gold')),
+    soffit: mat.std({ color: 0xffffff, roughness: 0.66, metalness: 0 }, rig(woodProc('vec3(0.065, 0.038, 0.022)', C, { wear: 0.0, grime: 0.6, planks: true }), 'wood')),
+    // stained dark wood of the eave structure (brackets, rafters, purlins)
+    wood: mat.phys({ color: 0xffffff, roughness: 0.58, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.075, 0.042, 0.026)', C), 'wood')),
+    goldSatin: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(goldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
+    spireGold: mat.std({ color: 0xffffff, roughness: 0.45, metalness: 0.7 }, rig(goldProc('vec3(0.15, 0.14, 0.13)'), 'gold')),
   };
 
   // ---------------------------------------------------------------- helpers

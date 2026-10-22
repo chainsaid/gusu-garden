@@ -55,12 +55,12 @@ function makeMaterials(ctx) {
   // weathered lacquer: low sheen (limits the grazing sky reflection that turned backlit fascias white)
   const SH = { clearcoat: 0.1, specularIntensity: 0.55 };
   const red = A(M.lacquerRed, mergeHooks(weatherHooks(0.9, 0.7, 0.8), lacquerMicroHooks(1.0)), SH); red.name = 'hallRed';
-  const redA = A(lac('vec3(0.205, 0.054, 0.032)', 0.12, 0.58), mergeHooks(weatherHooks(1.0, 1.0, 1.0), lacquerMicroHooks(1.0)), { specularIntensity: 0.6 }); redA.name = 'hallRedAged';
+  const redA = A(lac('vec3(0.082, 0.046, 0.028)', 0.12, 0.58), mergeHooks(weatherHooks(1.0, 1.0, 1.0), lacquerMicroHooks(1.0)), { specularIntensity: 0.6 }); redA.name = 'hallRedAged';
   const redDark = A(M.lacquerRedDark, mergeHooks(weatherHooks(0.8, 0.6, 1.0), lacquerMicroHooks(0.8)), SH); redDark.name = 'hallRedDark';
-  const soffit = A(lac('vec3(0.13, 0.040, 0.024)', 0.08, 0.62), mergeHooks(weatherHooks(0.5, 0.0, 0.4), lacquerMicroHooks(0.7))); soffit.name = 'hallSoffit';
-  // gilt: saturated warm leaf (engine golds read pale/khaki on flat fittings)
-  const gilt = (base, rough) => ctx.mat.std({ color: 0xffffff, roughness: rough, metalness: 1.0 }, P.gold(base));
-  const bkt = A(M.lacquerRed, mergeHooks(paintHooks(), weatherHooks(0.8, 0.5, 0.5), lacquerMicroHooks(0.9)), SH); bkt.name = 'hallBracket';
+  const soffit = A(lac('vec3(0.065, 0.038, 0.022)', 0.08, 0.62), mergeHooks(weatherHooks(0.5, 0.0, 0.4), lacquerMicroHooks(0.7))); soffit.name = 'hallSoffit';
+  // Jiangnan metal fittings: dark wrought iron / aged dark bronze
+  const gilt = (base, rough) => ctx.mat.std({ color: 0xffffff, roughness: Math.max(rough, 0.45), metalness: 0.6 }, P.darkIron());
+  const bkt = A(M.lacquerRed, mergeHooks(weatherHooks(0.8, 0.5, 0.5), lacquerMicroHooks(0.9)), SH); bkt.name = 'hallBracket';
   bkt.userData.wantLoc = true; // Mesher stores primitive-local coords (aLoc) for the paint bands
   return {
     red, redA, redDark, soffit, bkt, gold: A(gilt('vec3(1.0, 0.64, 0.24)', 0.27), agedGiltHooks(0.6)), goldB: A(gilt('vec3(1.0, 0.70, 0.30)', 0.18), agedGiltHooks(0.4)), black: A(M.blackLacquer, null, { clearcoat: 0.7, clearcoatRoughness: 0.28, roughness: 0.4 }),
@@ -183,8 +183,8 @@ export async function build(ctx) {
     E: { dP: 4.08, yP: 14.82, sb: 0.33, dTip: 0.9, yF0: 13.74, sf: 0.22, dFly: 1.95, rafW: 0.13, rafH: 0.15, frafW: 0.12, frafH: 0.13, dwX: 5.4, dwZ: 5.4, purW: 0.26, purH: 0.3, spacing: 0.3 },
     bellScale: 1.1,
   };
-  const warpM = makeWarp(mok.ex, mok.ez, 0.55, 0.32, Math.max(13 / mok.ex, 8.5 / mok.ez) - 0.02);
-  const warpU = makeWarp(main.ex, main.ez, 0.95, 0.5, Math.max(xi / main.ex, zi / main.ez));
+  const warpM = makeWarp(mok.ex, mok.ez, 1.15, 0.55, Math.max(13 / mok.ex, 8.5 / mok.ez) - 0.04);
+  const warpU = makeWarp(main.ex, main.ez, 1.75, 0.85, Math.max(xi / main.ex, zi / main.ez) - 0.04);
   const tmp = [0, 0, 0];
   // mokoshi tile height (with warp lift) for intersections
   const mokY = (x, z) => {
@@ -210,7 +210,7 @@ export async function build(ctx) {
       // shallow bury: the corner end overhangs the eave, a deep bury hung below it as a dark slab
       ridgeAlong(tile, path, 0.42, 3, 0.1, 0.13, 0.16);
       const hd = v3.norm([sx, 0, sz]);
-      onigawara(tile, gold, basis(v3.add(path[0], [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.74, 0.95, 0.2, { hornLen: 0.62, goldEdge: true });
+      onigawara(tile, gold, basis(v3.add(path[0], [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.74, 0.95, 0.2, { horn: false, goldEdge: false });
     }
     // flashing ridges against the upper wall
     const yF = (d) => Y(d) - 0.02;
@@ -218,10 +218,7 @@ export async function build(ctx) {
     for (const sz of [-1, 1]) { const pts = []; for (let i = 0; i <= 20; i++) { const x = -(xi + 0.15) + (2 * (xi + 0.15) * i) / 20; pts.push([x, yF(mok.ez - zi - 0.14), sz * (zi + 0.14)]); } pf(pts); }
     for (const sx of [-1, 1]) { const pts = []; for (let i = 0; i <= 12; i++) { const z = -(zi + 0.15) + (2 * (zi + 0.15) * i) / 12; pts.push([sx * (xi + 0.14), yF(mok.ex - xi - 0.14), z]); } pf(pts); }
   }
-  placeBrackets(accM, mats, HB.colX, HB.colZ, HB.colTop, 'demitsudo', {
-    flatFront: (x) => Math.abs(x) < K.Wk + 0.1,
-    frontSpans: [[-13, -K.Wk - 0.2], [K.Wk + 0.2, 13]], frontGaps: [[-K.Wk - 0.2, K.Wk + 0.2]],
-  });
+  placeBrackets(accM, mats, HB.colX, HB.colZ, HB.colTop, 'demitsudo');
   kentoku(accM, mats, 13, 8.5, HB.colTop - 0.02, mok.E.yP + mok.E.sb * (mok.E.dwX - mok.E.dP) + 0.02, HB.colR);
   accM.warp(warpM);
   for (const b of bellsM.bells) { warpM(b.pos[0], b.pos[1], b.pos[2], tmp); b.pos = [tmp[0], tmp[1], tmp[2]]; anchors.bells.push(b); }
@@ -239,9 +236,9 @@ export async function build(ctx) {
   accU.warp(warpU);
   for (const b of bellsU.bells) { warpU(b.pos[0], b.pos[1], b.pos[2], tmp); b.pos = [tmp[0], tmp[1], tmp[2]]; anchors.bells.push(b); }
 
-  // ------------------------------------------------------------ karahafu
+  // ------------------------------------------------------------ karahafu (removed for Jiangnan style)
   const accK = new Acc();
-  buildKarahafu(accK, mats, R, K, mokY, anchors);
+  // buildKarahafu(accK, mats, R, K, mokY, anchors);
 
   // ------------------------------------------------------------ body
   const accB = new Acc();
@@ -278,7 +275,7 @@ export async function build(ctx) {
 
   // ------------------------------------------------------------ assemble
   const all = new Acc();
-  all.absorb(accB).absorb(accM).absorb(accU).absorb(accK);
+  all.absorb(accB).absorb(accM).absorb(accU);
   // ---- baked analytic ambient occlusion (indirect light only)
   const mainSurf = (x, z) => {
     const d = Math.min(main.ez - Math.abs(z), main.ex - Math.abs(x));
@@ -327,20 +324,7 @@ export async function build(ctx) {
   };
   all.computeAO(aoField);
   const group = all.build('hall', { noShadow: new Set([]) });
-  // cloth: black banners in bays 2 & 4 (outer halves), white valance over the open bays
-  {
-    const blk = clothMaterial(ctx, 'black'), wht = clothMaterial(ctx, 'white');
-    const z = 8.5 + 0.42;
-    for (const s of [-1, 1]) {
-      const g = clothGeometry(THREE, s < 0 ? -5.2 : 3.7, s < 0 ? -3.7 : 5.2, 5.85, 3.25, z + 0.02, 0.3, 0.03, s);
-      const m = new THREE.Mesh(g, blk.m); m.castShadow = true; m.receiveShadow = true;
-      group.add(m);
-    }
-    const gv = clothGeometry(THREE, -5.5, 5.5, 6.12, 0.62, z + 0.08, 0.26, 0.04, 0.7);
-    const mv = new THREE.Mesh(gv, wht.m); mv.castShadow = true; mv.receiveShadow = true;
-    group.add(mv);
-    // curtain rod
-  }
+  // cloth banners removed for Jiangnan style
   group.position.set(C[0], C[1], C[2]);
   group.updateMatrixWorld(true);
   for (const k of ['hangingLanterns', 'bells']) for (const a of anchors[k]) a.pos = [a.pos[0] + C[0], a.pos[1] + C[1], a.pos[2] + C[2]];
@@ -358,6 +342,7 @@ export async function build(ctx) {
     anchors,
     showcase,
     finalize: async (c) => {
+      if (c.quality === 'preview') return;
       try {
         // interior IBL: capture a local environment inside the hall twice (bounce)
         let env = null;

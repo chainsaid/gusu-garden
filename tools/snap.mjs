@@ -30,7 +30,12 @@ for (let i = 0; i < args.length; i++) {
 }
 if (base === null) { console.error('usage: node tools/snap.mjs "<query>" out.png | --view "<q>" out.png ...'); process.exit(1); }
 const bq = new URLSearchParams(base);
-const W = +bq.get('w') || 1280, H = +bq.get('h') || 720;
+if (!bq.has('w')) bq.set('w', '854');
+if (!bq.has('h')) bq.set('h', '480');
+if (!bq.has('q')) bq.set('q', 'preview');
+if (!bq.has('spp')) bq.set('spp', '1');
+if (!bq.has('smap')) bq.set('smap', '1024');
+const W = +bq.get('w'), H = +bq.get('h');
 if (!bq.has('mode')) bq.set('mode', 'still');
 if (!bq.has('shot') && !bq.has('cam')) bq.set('shot', '0');
 if (views.some((v) => v.q)) bq.set('skipfirst', '1');
@@ -57,13 +62,15 @@ catch (e) { console.error('[snap] ' + e.message); process.exit(1); }
 await acquireLock();
 let browser;
 try {
+  const isFirefox = /firefox/i.test(CHROME);
   const launchOpts = (profile) => ({
     executablePath: CHROME,
+    ...(isFirefox ? { browser: 'firefox' } : {}),
     headless: true,
-    args: [...gpuArgs(), `--window-size=${W},${H}`, '--force-device-scale-factor=1'],
+    args: isFirefox ? [] : [...gpuArgs(), `--window-size=${W},${H}`, '--force-device-scale-factor=1'],
     defaultViewport: { width: W, height: H, deviceScaleFactor: 1 },
     protocolTimeout: timeout * 1000,
-    userDataDir: profile,
+    ...(isFirefox ? {} : { userDataDir: profile }),
   });
   // the profile (shader cache) can still be held by a just-closed Chrome: retry, then fall back to a fresh profile
   for (let attempt = 0; attempt < 12 && !browser; attempt++) {

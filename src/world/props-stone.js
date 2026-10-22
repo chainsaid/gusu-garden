@@ -243,7 +243,7 @@ function variantA(S, P) {
   polyStack(S, { n, rot, rc: 0.006, sideSeg: 2, profile: [
     { a: 0.272, y: y0, tag: T(0, 0, 0.35) }, { a: 0.272, y: y0 + 0.035 }, { a: 0.262, y: y0 + 0.04, tag: T(0, 1, 0.4) }, { a: 0.0, y: y0 + 0.04 },
   ] });
-  fireBox(S, P, { n, rot, af: 0.255, y0: y0 + 0.04, y1: y1 - 0.05, faces: ['win', 'moon', 'relief', 'win', 'relief', 'sun'] });
+  fireBox(S, P, { n, rot, af: 0.255, y0: y0 + 0.04, y1: y1 - 0.05, faces: ['win', 'win2', 'relief', 'win', 'relief', 'win2'] });
   polyStack(S, { n, rot, rc: 0.006, sideSeg: 2, profile: [
     { a: 0.0, y: y1 - 0.05, tag: T(0, 1, 0) }, { a: 0.262, y: y1 - 0.05, tag: T(0, 0, 0.3) }, { a: 0.274, y: y1 - 0.044, tag: T(3, 0, 0.3) }, { a: 0.274, y: y1 - 0.004, tag: T(0, 0, 0.3) },
     { a: 0.31, y: y1, tag: T(0, 0, 0.3) }, { a: 0.31, y: y1 + 0.02 }, { a: 0.35, y: y1 + 0.025 }, { a: 0.35, y: y1 + 0.04 },
@@ -288,7 +288,7 @@ function variantB(S, P) {
   polyStack(S, { n, rot, rc: 0.008, sideSeg: 2, profile: [
     { a: 0.322, y: y0, tag: T(0, 0, 0.35) }, { a: 0.322, y: y0 + 0.032 }, { a: 0.312, y: y0 + 0.04, tag: T(0, 1, 0.4) }, { a: 0.0, y: y0 + 0.04 },
   ] });
-  fireBox(S, P, { n, rot, af: 0.3, y0: y0 + 0.04, y1: y1 - 0.055, t: 0.05, faces: ['win2', 'sunP', 'win2', 'moonP'], postW: 0.075 });
+  fireBox(S, P, { n, rot, af: 0.3, y0: y0 + 0.04, y1: y1 - 0.055, t: 0.05, faces: ['win2', 'relief', 'win2', 'relief'], postW: 0.075 });
   polyStack(S, { n, rot, rc: 0.008, sideSeg: 2, profile: [
     { a: 0.0, y: y1 - 0.055, tag: T(0, 1, 0) }, { a: 0.312, y: y1 - 0.055, tag: T(0, 0, 0.3) }, { a: 0.326, y: y1 - 0.048, tag: T(3, 0, 0.3) }, { a: 0.326, y: y1 - 0.004, tag: T(0, 0, 0.3) },
     { a: 0.36, y: y1, tag: T(0, 0, 0.3) }, { a: 0.36, y: y1 + 0.024 }, { a: 0.405, y: y1 + 0.03 }, { a: 0.405, y: y1 + 0.046 },
@@ -337,7 +337,7 @@ function variantC(S, P) {
   polyStack(S, { n, rot, rc: 0.006, sideSeg: 2, profile: [
     { a: 0.222, y: y0, tag: T(0, 0, 0.35) }, { a: 0.222, y: y0 + 0.03 }, { a: 0.213, y: y0 + 0.035, tag: T(0, 1, 0.4) }, { a: 0.0, y: y0 + 0.035 },
   ] });
-  fireBox(S, P, { n, rot, af: 0.205, y0: y0 + 0.035, y1: y1 - 0.045, t: 0.04, faces: ['win', 'sun', 'relief', 'win', 'relief', 'moon'], postW: 0.048 });
+  fireBox(S, P, { n, rot, af: 0.205, y0: y0 + 0.035, y1: y1 - 0.045, t: 0.04, faces: ['win', 'relief', 'win2', 'win', 'relief', 'win2'], postW: 0.048 });
   polyStack(S, { n, rot, rc: 0.006, sideSeg: 2, profile: [
     { a: 0.0, y: y1 - 0.045, tag: T(0, 1, 0) }, { a: 0.213, y: y1 - 0.045, tag: T(0, 0, 0.3) }, { a: 0.224, y: y1 - 0.04 }, { a: 0.224, y: y1 - 0.004 },
     { a: 0.26, y: y1, tag: T(0, 0, 0.3) }, { a: 0.26, y: y1 + 0.02 }, { a: 0.3, y: y1 + 0.026 }, { a: 0.3, y: y1 + 0.038 },

@@ -187,9 +187,9 @@ export async function build(ctx) {
         float fine = n_snoise3((gp + pr * 5.0) * vec3(1.4, 70.0, 70.0)) * aaF;
         // fine dark checks (drying cracks) along the grain
         float chk = smoothstep(0.84, 0.97, abs(n_snoise3((gp + pr * 3.0) * vec3(0.5, 38.0, 38.0) + 3.0))) * (1.0 - smoothstep(0.004, 0.012, pxL));
-        // railings: sun-faded shu (orange vermilion); fascia + substructure: deeper oxblood bengara over visible grain
-        vec3 baseR = vec3(0.400, 0.140, 0.095);
-        vec3 baseS = vec3(0.150, 0.058, 0.050);
+        // railings and fascia: Jiangnan deep chestnut wood (栗壳色)
+        vec3 baseR = vec3(0.082, 0.046, 0.028);
+        vec3 baseS = vec3(0.065, 0.038, 0.022);
         vec3 base = mix(baseS, baseR, kindR) * (0.86 + 0.16 * (pr - 0.5) + 0.18 * big);
         vec3 col = base * (1.0 - mix(0.12, 0.30, kindR) * lines - 0.12 * smoothstep(0.0, 0.4, gl) - 0.05 * fine - 0.35 * chk);
         // structure: thin paint worn off the raised latewood -> paler salmon streaks of the figure
@@ -390,7 +390,7 @@ export async function build(ctx) {
         float bright = vColor.r, rAdd = vColor.g - 2.0 * engr, tsh = vColor.b;
         float n = n_fbm3(wp * 3.1, 3);
         float tarnish = smoothstep(0.15, 0.75, n_fbm3(wp * 1.1 + 7.0, 3) * 0.5 + 0.5);
-        vec3 base = mix(vec3(1.0, 0.74, 0.36), vec3(1.0, 0.68, 0.30), tsh);
+        vec3 base = mix(vec3(0.12, 0.11, 0.10), vec3(0.08, 0.078, 0.075), tsh);
         vec3 col = base * (0.93 + 0.1 * n);
         col = mix(col, base * vec3(0.52, 0.40, 0.24), tarnish * (0.25 + 0.35 * max(rAdd, 0.0)));
         // punched ground: tiny dots
@@ -445,7 +445,7 @@ export async function build(ctx) {
         float n2 = n_fbm3(wp * 1.7 + 11.0, 2);
         float aa3 = 1.0 - smoothstep(0.004, 0.012, px);
         float n3 = n_fbm3(wp * 23.0, 2) * aa3;
-        vec3 gld = vec3(1.0, 0.745, 0.37);
+        vec3 gld = vec3(0.12, 0.11, 0.10);
         vec3 col = gld * (0.93 + 0.07 * n1 + 0.04 * n3);
         float cavW = smoothstep(0.55, 0.92, cav);
         float pol = 1.0 - smoothstep(0.2, 0.45, cav);           // raised, hand-polished arrises

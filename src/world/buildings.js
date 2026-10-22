@@ -321,12 +321,51 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
     oni: { s: 0.85 }, gegyo: 0.62, hafuH: 0.36, capGoldMat: K.cap, gableLattice: true,
   });
 
-  // ---- railing with giboshi
+  // ---- railings & Meirenakao (吴王靠 / 美人靠)
   const ry = yF, rx = hx - 0.1, rzF = zF - 0.1, rzB = zB + 0.1;
   const stairZ0 = 0.35, stairZ1 = 2.7;
-  railing(lb, [[-rx, stairZ0], [-rx, rzB], [rx, rzB], [rx, rzF], [-rx, rzF], [-rx, stairZ1]], ry, {
-    H: 0.86, post: 0.13, spacing: 1.36, midY: 0.48, gibSeg: 32, K: { red: K.red, redDark: K.redDark, gold: K.gold, gib: K.gib, relief: K.goldRelief },
+  // Side and back railings (Jiangnan lotus-post balustrade)
+  railing(lb, [[-rx, stairZ0], [-rx, rzB], [rx, rzB], [rx, rzF]], ry, {
+    H: 0.86, post: 0.13, spacing: 1.36, midY: 0.48, K: { red: K.red, redDark: K.redDark },
   });
+  railing(lb, [[-rx, rzF], [-rx, stairZ1]], ry, {
+    H: 0.86, post: 0.13, spacing: 1.36, midY: 0.48, K: { red: K.red, redDark: K.redDark },
+  });
+
+  // West water-facing Meirenakao (临水水榭美人靠)
+  {
+    const wBench = 2 * rx;
+    const ySeat = yF + 0.42;
+    const seatD = 0.38;
+    // Wooden bench seat plank (坐板)
+    lb.box(K.red, wBench, 0.045, seatD, [0, ySeat - 0.0225, rzF - seatD / 2], [0, 0, 0], 0.008);
+    // Skirt apron beneath bench (牙板与挂落)
+    lb.box(K.redDark, wBench, 0.10, 0.04, [0, ySeat - 0.09, rzF - 0.02], [0, 0, 0], 0.006);
+    lb.box(K.redDark, wBench, 0.08, 0.08, [0, yF + 0.04, rzF - 0.04], [0, 0, 0], 0.008);
+
+    // Curved goose-neck backrest (鹅颈靠背)
+    const yTop = yF + 0.86, zTop = rzF + 0.14;
+    lb.add(new THREE.CylinderGeometry(0.04, 0.04, wBench, 16, 1), K.red,
+      m4([0, yTop, zTop], [0, 0, Math.PI / 2]));
+    // Outward bow mid rail
+    const yMid = yF + 0.65, zMid = rzF + 0.22;
+    lb.add(new THREE.CylinderGeometry(0.028, 0.028, wBench, 12, 1), K.redDark,
+      m4([0, yMid, zMid], [0, 0, Math.PI / 2]));
+
+    // S-curved vertical ribs (靠背曲木棂条) spaced across the width
+    const nRibs = Math.floor(wBench / 0.18);
+    for (let i = 1; i < nRibs; i++) {
+      const xb = -rx + (wBench * i) / nRibs;
+      const l1 = Math.hypot(zMid - rzF, yMid - ySeat);
+      const a1 = Math.atan2(zMid - rzF, yMid - ySeat);
+      lb.add(chamferBox(0.035, l1, 0.035, 0.004), K.redDark,
+        m4([xb, (ySeat + yMid) / 2, (rzF + zMid) / 2], [a1, 0, 0]));
+      const l2 = Math.hypot(zTop - zMid, yTop - yMid);
+      const a2 = Math.atan2(zTop - zMid, yTop - yMid);
+      lb.add(chamferBox(0.032, l2, 0.032, 0.004), K.redDark,
+        m4([xb, (yMid + yTop) / 2, (zMid + zTop) / 2], [a2, 0, 0]));
+    }
+  }
   // ---- stairs (north side = local -x), between z = stairZ0..stairZ1
   {
     const n = 5, rise = yF / n, tread = 0.3;

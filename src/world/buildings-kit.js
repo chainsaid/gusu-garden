@@ -540,13 +540,16 @@ export function tileCapGeos(r, detail = 2) {
 }
 
 // ---------------------------------------------------------------------------
-// Lift (corner up-sweep, "sori") — global over the plan of one roof
+// Lift (corner up-sweep, Jiangnan "嫩戗发戗起翘") — global over the plan of one roof
 // ---------------------------------------------------------------------------
-export function makeLift(ex, ez, L, f0 = 0.3, pw = 2.3, cap = 1.45) {
+export function makeLift(ex, ez, L, f0 = 0.25, pw = 2.1, cap = 2.4) {
   if (!L) return () => 0;
+  const boost = 1.55;
   return (x, z) => {
     const px = Math.max(0, (Math.abs(x) - ex * f0) / (ex * (1 - f0)));
     const pz = Math.max(0, (Math.abs(z) - ez * f0) / (ez * (1 - f0)));
-    return L * Math.min(cap, Math.pow(px, pw) * Math.pow(pz, pw));
+    const t = px * pz;
+    const kick = t > 0.35 ? Math.pow((t - 0.35) / 0.65, 2.6) * 0.5 : 0;
+    return (L * boost) * Math.min(cap, Math.pow(px, pw) * Math.pow(pz, pw) + kick);
   };
 }

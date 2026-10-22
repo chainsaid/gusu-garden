@@ -242,18 +242,18 @@ export function floorHooks({ axis = 'z', plank = 0.242, base = 'vec3(0.105, 0.04
 
 export function makeHeroMats(ctx) {
   const { mat } = ctx;
-  const lac = (o, cc = 0.4, ccr = 0.22, rough = 0.42) => {
+  const lac = (o, cc = 0.2, ccr = 0.35, rough = 0.55) => {
     const m = mat.phys({ color: 0xffffff, roughness: rough, metalness: 0, clearcoat: cc, clearcoatRoughness: ccr }, lacquerHooks(o));
     return withClearcoatMod(m);
   };
   const H = {};
-  H.col = lac({ grain: 'v', edge: false, fine: true, base: 'vec3(0.46, 0.064, 0.026)', ccFollow: 0.85 }, 0.2, 0.3);
-  H.red = lac({ grain: 'h', edge: true, fine: true, ccFollow: 0.7 });
-  H.rafter = lac({ grain: 'h', edge: false, wear: 0.7 });
-  H.redDark = lac({ base: 'vec3(0.30, 0.040, 0.020)', grain: 'h', edge: true, wear: 0.8 }, 0.3, 0.3, 0.5);
-  H.gold = mat.std({ color: 0xffffff, roughness: 0.25, metalness: 1.0 }, giltHooks({}));
-  H.cap = mat.std({ color: 0xffffff, roughness: 0.3, metalness: 1.0 }, giltHooks({ base: 'vec3(1.0, 0.72, 0.32)', period: 0.04, amp: 0.8 }));
-  const fl = (axis) => withClearcoatMod(mat.phys({ color: 0xffffff, roughness: 0.32, metalness: 0, clearcoat: 0.6, clearcoatRoughness: 0.12 }, floorHooks({ axis })));
+  H.col = lac({ grain: 'v', edge: false, fine: true, base: 'vec3(0.082, 0.046, 0.028)', ccFollow: 0.85 }, 0.1, 0.4);
+  H.red = lac({ grain: 'h', edge: true, fine: true, base: 'vec3(0.082, 0.046, 0.028)', ccFollow: 0.7 });
+  H.rafter = lac({ grain: 'h', edge: false, base: 'vec3(0.072, 0.040, 0.024)', wear: 0.7 });
+  H.redDark = lac({ base: 'vec3(0.050, 0.028, 0.018)', grain: 'h', edge: true, wear: 0.8 }, 0.1, 0.4, 0.6);
+  H.gold = mat.std({ color: 0xffffff, roughness: 0.55, metalness: 0.6 }, giltHooks({ base: 'vec3(0.08, 0.078, 0.075)' }));
+  H.cap = mat.std({ color: 0xffffff, roughness: 0.55, metalness: 0.6 }, giltHooks({ base: 'vec3(0.08, 0.078, 0.075)', period: 0.04, amp: 0.8 }));
+  const fl = (axis) => withClearcoatMod(mat.phys({ color: 0xffffff, roughness: 0.32, metalness: 0, clearcoat: 0.4, clearcoatRoughness: 0.2 }, floorHooks({ axis, base: 'vec3(0.08, 0.045, 0.025)' })));
   H.floorX = fl('x');
   H.floorZ = fl('z');
   for (const [k, v] of Object.entries(H)) v.name = 'bk.' + k;

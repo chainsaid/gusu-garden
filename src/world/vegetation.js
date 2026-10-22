@@ -11,6 +11,9 @@ import { heroLeafGeo, samaraGeo, buildHeroSpray } from './vegetation-hero.js';
 import { CushionAccum, spow } from './vegetation-core.js';
 import { SHOTS } from '../shots.js';
 import { genMaple, genCherry, genPine, genTiered, padLocal, padNormal, padTopF, BarkAccum, trunkDisp, sampleBranch, envRho, envNormal, randUnit, perpOf, vnoise3 } from './vegetation-tree.js';
+import { buildBamboo } from './vegetation-bamboo.js';
+import { buildBananas } from './vegetation-banana.js';
+import { buildWillows } from './vegetation-willow.js';
 
 const TAU = Math.PI * 2;
 
@@ -1712,6 +1715,11 @@ export async function build(ctx) {
     mm.castShadow = true; mm.receiveShadow = true; mm.name = 'shrub_mounds';
     group.add(mm);
   }
+
+  // Classical Jiangnan Garden flora: Bamboo, Plantains, and Weeping Willows
+  buildBamboo(ctx, group);
+  buildBananas(ctx, group);
+  buildWillows(ctx, group);
 
   // debug: show the atlases on panels at the origin (?vegatlas=1, view cam=0,2,6&look=0,2,0)
   if (typeof location !== 'undefined' && /vegatlas=1/.test(location.search)) {

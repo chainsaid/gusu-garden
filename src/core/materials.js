@@ -325,6 +325,89 @@ PROC.wood = (base = 'vec3(0.24, 0.15, 0.09)', grainAxis = 'x') => {
   };
 };
 
+// Jiangnan chestnut / dark brown tung oil timber (栗壳色桐油木)
+PROC.chestnutWood = (base = 'vec3(0.082, 0.046, 0.028)') => ({
+  fragHead: /* glsl */ `float g_h;`,
+  fragColor: /* glsl */ `
+    {
+      vec3 wp = vWPos; vec3 wn = normalize(vWNrm);
+      float big = n_fbm3(wp * 0.23, 3);
+      float mid = n_fbm3(wp * vec3(1.6, 0.35, 1.6), 3);
+      float vert = 1.0 - abs(wn.y);
+      vec3 gs = mix(vec3(9.0, 9.0, 0.9), vec3(9.0, 0.7, 9.0), vert);
+      float grain = n_snoise3(wp * gs) * 0.5 + n_snoise3(wp * gs * 2.7) * 0.25;
+      vec3 base = ${base};
+      vec3 col = base * (0.86 + 0.18 * big + 0.08 * grain);
+      float wear = smoothstep(0.58, 0.82, n_fbm3(wp * 2.4, 3) * 0.5 + 0.5);
+      col = mix(col, vec3(0.045, 0.024, 0.015), wear * 0.45);
+      float grime = 1.0 - smoothstep(0.0, 1.4, wp.y - 0.0);
+      col *= 1.0 - grime * 0.22 * (0.6 + 0.4 * big);
+      diffuseColor.rgb *= col;
+      g_h = grain * 0.35 + wear * 0.3 + mid * 0.2;
+    }
+  `,
+  fragRough: /* glsl */ `roughnessFactor = clamp(roughnessFactor * (0.85 + 0.25 * (g_h + 0.3)), 0.25, 0.95);`,
+  fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.002);`,
+});
+
+// Jiangnan cyan-grey small roof tiles (小青瓦)
+PROC.cyanTile = () => ({
+  fragHead: /* glsl */ `float g_h;`,
+  fragColor: /* glsl */ `
+    {
+      vec3 wp = vWPos;
+      float n = n_fbm3(wp * 0.6, 3);
+      float f = n_snoise3(wp * 9.0);
+      vec3 col = vec3(0.125, 0.135, 0.145) * (0.85 + 0.22 * n + 0.06 * f);
+      float lichen = smoothstep(0.52, 0.82, n_fbm3(wp * 2.3 + 11.0, 4) * 0.5 + 0.5);
+      col = mix(col, vec3(0.18, 0.19, 0.15), lichen * 0.3);
+      float dust = smoothstep(0.2, 0.9, normalize(vWNrm).y) * (0.5 + 0.5 * n);
+      col = mix(col, vec3(0.16, 0.15, 0.14), dust * 0.12);
+      diffuseColor.rgb *= col;
+      g_h = f * 0.3 + lichen * 0.35;
+    }
+  `,
+  fragRough: /* glsl */ `roughnessFactor = clamp(roughnessFactor + g_h * 0.22, 0.35, 1.0);`,
+  fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0028);`,
+});
+
+// Jiangnan white lime plaster wall with subtle rain streaks and damp base (粉墙)
+PROC.whitePlaster = () => ({
+  fragHead: /* glsl */ `float g_h;`,
+  fragColor: /* glsl */ `
+    {
+      vec3 wp = vWPos;
+      float n = n_fbm3(wp * 0.8, 4);
+      float streak = n_fbm3(wp * vec3(4.0, 0.2, 4.0), 3);
+      vec3 col = vec3(0.86, 0.86, 0.84) * (0.94 + 0.06 * n);
+      col *= 1.0 - smoothstep(0.15, 0.75, streak) * 0.12;
+      float damp = 1.0 - smoothstep(0.0, 0.8, wp.y);
+      col *= 1.0 - damp * 0.15;
+      diffuseColor.rgb *= col;
+      g_h = n_snoise3(wp * 16.0) * 0.4 + n * 0.4;
+    }
+  `,
+  fragRough: /* glsl */ `roughnessFactor = 0.92;`,
+  fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0015);`,
+});
+
+// Weathered wrought iron (熟铁五金件)
+PROC.darkIron = () => ({
+  fragHead: /* glsl */ `float g_h;`,
+  fragColor: /* glsl */ `
+    {
+      vec3 wp = vWPos;
+      float n = n_fbm3(wp * 3.5, 3);
+      vec3 col = vec3(0.08, 0.078, 0.075) * (0.88 + 0.24 * n);
+      diffuseColor.rgb *= col;
+      g_h = n * 0.4;
+    }
+  `,
+  fragRough: /* glsl */ `roughnessFactor = clamp(0.55 + g_h * 0.2, 0.3, 0.9);`,
+  fragMetal: /* glsl */ `metalnessFactor = 0.6;`,
+  fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.002);`,
+});
+
 // ---------------------------------------------------------------------------
 // The shared material library. Use these instances (they are shared so the
 // renderer compiles each program once). Create variants with std()/phys()+PROC.
@@ -333,16 +416,25 @@ let _lib = null;
 export function materials() {
   if (_lib) return _lib;
   const M = {};
-  M.lacquerRed = phys({ color: 0xffffff, roughness: 0.5, metalness: 0, clearcoat: 0.25, clearcoatRoughness: 0.4 }, PROC.lacquer());
-  M.lacquerRedDark = phys({ color: 0xffffff, roughness: 0.55, metalness: 0, clearcoat: 0.15, clearcoatRoughness: 0.5 }, PROC.lacquer('vec3(0.30, 0.040, 0.020)'));
-  M.lacquerOrange = phys({ color: 0xffffff, roughness: 0.5, metalness: 0, clearcoat: 0.25, clearcoatRoughness: 0.4 }, PROC.lacquer('vec3(0.62, 0.13, 0.035)'));
-  M.gold = std({ color: 0xffffff, roughness: 0.24, metalness: 1.0 }, PROC.gold());
-  M.goldBright = std({ color: 0xffffff, roughness: 0.16, metalness: 1.0 }, PROC.gold('vec3(1.0, 0.76, 0.36)'));
-  M.goldLeaf = std({ color: 0xffffff, roughness: 0.32, metalness: 1.0 }, PROC.gold('vec3(1.0, 0.72, 0.32)'));
+  // Jiangnan palette: chestnut brown timber replacing vermilion red
+  M.woodChestnut = phys({ color: 0xffffff, roughness: 0.55, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, PROC.chestnutWood());
+  M.woodChestnutDark = phys({ color: 0xffffff, roughness: 0.6, metalness: 0, clearcoat: 0.08, clearcoatRoughness: 0.5 }, PROC.chestnutWood('vec3(0.050, 0.028, 0.018)'));
+  M.lacquerRed = M.woodChestnut;
+  M.lacquerRedDark = M.woodChestnutDark;
+  M.lacquerOrange = phys({ color: 0xffffff, roughness: 0.55, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, PROC.chestnutWood('vec3(0.11, 0.065, 0.038)'));
+  // Subdued metal fittings: dark iron / aged bronze instead of flashy gold
+  M.iron = std({ color: 0xffffff, roughness: 0.55, metalness: 0.6 }, PROC.darkIron());
+  M.gold = M.iron;
+  M.goldBright = M.iron;
+  M.goldLeaf = M.iron;
   M.bronze = std({ color: 0xffffff, roughness: 0.4, metalness: 1.0 }, PROC.bronze());
   M.blackLacquer = phys({ color: new THREE.Color().setRGB(0.018, 0.016, 0.014), roughness: 0.3, metalness: 0, clearcoat: 1.0, clearcoatRoughness: 0.12 });
-  M.roofTile = std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, PROC.roofTile());
-  M.plaster = std({ color: 0xffffff, roughness: 0.93, metalness: 0 }, PROC.plaster());
+  // Jiangnan cyan tile (小青瓦)
+  M.tileCyan = std({ color: 0xffffff, roughness: 0.48, metalness: 0.05 }, PROC.cyanTile());
+  M.roofTile = M.tileCyan;
+  // Jiangnan white plaster (白粉墙)
+  M.plasterWhite = std({ color: 0xffffff, roughness: 0.92, metalness: 0 }, PROC.whitePlaster());
+  M.plaster = M.plasterWhite;
   M.granite = std({ color: 0xffffff, roughness: 0.8, metalness: 0 }, PROC.granite('0.55'));
   M.graniteMossy = std({ color: 0xffffff, roughness: 0.8, metalness: 0 }, PROC.granite('1.0', 'vec3(0.92, 0.95, 0.9)'));
   M.graniteClean = std({ color: 0xffffff, roughness: 0.75, metalness: 0 }, PROC.granite('0.12', 'vec3(1.08, 1.06, 1.03)'));
@@ -351,8 +443,8 @@ export function materials() {
   M.woodFloorX = phys({ color: 0xffffff, roughness: 0.32, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.2 }, PROC.wood('vec3(0.16, 0.075, 0.04)', 'x'));
   M.woodFloorZ = phys({ color: 0xffffff, roughness: 0.32, metalness: 0, clearcoat: 0.5, clearcoatRoughness: 0.2 }, PROC.wood('vec3(0.16, 0.075, 0.04)', 'z'));
   M.woodDark = std({ color: 0xffffff, roughness: 0.6, metalness: 0 }, PROC.wood('vec3(0.07, 0.04, 0.025)', 'y'));
-  M.latticeGreen = std({ color: 0xffffff, roughness: 0.6, metalness: 0 }, PROC.lacquer('vec3(0.05, 0.16, 0.11)'));
-  M.whitePaint = std({ color: new THREE.Color().setRGB(0.80, 0.78, 0.72), roughness: 0.75 });
+  M.latticeGreen = std({ color: 0xffffff, roughness: 0.6, metalness: 0 }, PROC.chestnutWood('vec3(0.05, 0.12, 0.08)'));
+  M.whitePaint = std({ color: new THREE.Color().setRGB(0.85, 0.85, 0.83), roughness: 0.85 });
   M.lanternGlow = glow([1.0, 0.58, 0.24], 9);
   M.lanternGlowSoft = glow([1.0, 0.62, 0.30], 4);
   M.flame = glow([1.0, 0.62, 0.25], 40);

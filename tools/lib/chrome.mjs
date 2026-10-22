@@ -30,11 +30,12 @@ function candidates() {
         path.join(r, 'Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary'),
         path.join(r, 'Chromium.app/Contents/MacOS/Chromium'),
         path.join(r, 'Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
+        path.join(r, 'Firefox.app/Contents/MacOS/firefox'),
       );
     }
   } else {
     const names = ['google-chrome', 'google-chrome-stable', 'google-chrome-beta', 'google-chrome-unstable',
-      'chromium', 'chromium-browser', 'microsoft-edge', 'microsoft-edge-stable'];
+      'chromium', 'chromium-browser', 'microsoft-edge', 'microsoft-edge-stable', 'firefox'];
     const dirs = [...(process.env.PATH || '').split(path.delimiter).filter(Boolean), '/usr/bin', '/usr/local/bin', '/snap/bin'];
     for (const d of dirs) for (const n of names) list.push(path.join(d, n));
     list.push('/opt/google/chrome/chrome', '/opt/microsoft/msedge/msedge');

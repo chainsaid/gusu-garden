@@ -21,13 +21,12 @@ import { SHOTS, evalShot, SHOT_DUR, FILM_DURATION } from './shots.js';
 //   mode=dev              interactive orbit + shot player
 //   mode=render           offline video render (driven by tools/render.mjs)
 //   post overrides: exp, godrays, dof=1, fstop, focus, ao, bloom
-// ---------------------------------------------------------------------------
 const Q = new URLSearchParams(location.search);
-const W = +Q.get('w') || 1280;
-const H = +Q.get('h') || 720;
+const QUALITY = Q.get('q') || 'preview';
+const W = +Q.get('w') || (QUALITY === 'final' ? 1280 : 960);
+const H = +Q.get('h') || (QUALITY === 'final' ? 720 : 540);
 const MODE = Q.get('mode') || (Q.has('shot') || Q.has('cam') ? 'still' : 'dev');
-const QUALITY = Q.get('q') || (MODE === 'dev' ? 'preview' : 'final');
-const SPP = +Q.get('spp') || (MODE === 'render' ? 8 : MODE === 'still' ? 4 : 1);
+const SPP = +Q.get('spp') || (MODE === 'render' ? 4 : 1);
 
 export const ALL_MODULES = ['terrain', 'pond', 'hall', 'interior', 'pagoda', 'bridge', 'buildings', 'props', 'vegetation'];
 
@@ -59,9 +58,9 @@ scene.add(camera);
 
 const sky = createSky();
 scene.add(sky);
-const sun = createSun(scene, { mapSize: Q.has('smap') ? +Q.get('smap') : (QUALITY === 'preview' ? 2048 : 8192) });
+const sun = createSun(scene, { mapSize: Q.has('smap') ? +Q.get('smap') : (QUALITY === 'preview' ? 1024 : 4096) });
 
-const pipeline = new Pipeline(renderer, { width: W, height: H, msaa: 4, aoSamples: QUALITY === 'preview' ? 10 : 16, dofQuality: QUALITY === 'preview' ? 0 : 1 });
+const pipeline = new Pipeline(renderer, { width: W, height: H, msaa: QUALITY === 'preview' ? 1 : 4, aoSamples: QUALITY === 'preview' ? 6 : 16, dofQuality: QUALITY === 'preview' ? 0 : 1 });
 pipeline.setSun(sun, sunDir, G.uSunColor.value);
 
 // ---------------------------------------------------------------------------
@@ -342,7 +341,7 @@ async function runStill() {
     const spp = +q.get('spp') || SPP;
     const t0 = performance.now();
     renderFrame({ ...v, spp, frameIndex: q.has('fi') ? +q.get('fi') : 1, q });
-    await new Promise((r) => requestAnimationFrame(r));
+    await new Promise((r) => setTimeout(r, 40));
     console.log(`[info] view rendered in ${Math.round(performance.now() - t0)} ms, calls=${renderer.info.render.calls}`);
     return canvas.toDataURL('image/png');
   };
@@ -351,7 +350,7 @@ async function runStill() {
   status('rendering...');
   const t0 = performance.now();
   renderFrame({ getCam, T, tLocal, spp: SPP, frameIndex: 1 });
-  await new Promise((r) => requestAnimationFrame(r));
+  await new Promise((r) => setTimeout(r, 40));
   const info = renderer.info.render;
   window.__info.renderMs = Math.round(performance.now() - t0);
   window.__info.calls = info.calls;

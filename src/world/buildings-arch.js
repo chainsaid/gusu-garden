@@ -371,11 +371,10 @@ export function irimoyaRoof(lb, R) {
     const inner = extrude(rim, 0.05 * s, 0.012 * s, 'onir' + s, 8).translate(0, 0, 0.09 * s);
     return [body, inner];
   };
-  const placeOni = (pos, yaw, s, goldMon = true) => {
+  const placeOni = (pos, yaw, s, goldMon = false) => {
     const [body, inner] = oniGeo(s);
     const mm = m4(pos, [0, yaw, 0]);
     lb.add(body, K.tile, mm); lb.add(inner, K.tile, mm);
-    if (goldMon) lb.add(rosette(0.17 * s, 8, 0.03 * s), K.gold, mm.clone().multiply(m4([0, 0.45 * s, 0.12 * s])));
     // tori-busuma: curved projecting tile on top
     const pts = [];
     for (let i = 0; i <= 8; i++) { const t = i / 8; pts.push(new V3(0, 0.9 * s + Math.sin(t * 1.4) * 0.35 * s, -0.25 * s + t * 0.75 * s)); }
@@ -399,19 +398,19 @@ export function irimoyaRoof(lb, R) {
     const vy = (z) => yFront(sx * xv, z);
     const vpath = linePath([xh, -zj + 0.02], [xh, zj - 0.02], (x, z) => vy(z) - 0.06, 0.12);
     lb.add(sweep(vpath, rectProfile(0.07, R.hafuH || 0.38, -(R.hafuH || 0.38))), K.red);
-    lb.add(sweep(linePath([sx * (xv + 0.05), -zj + 0.02], [sx * (xv + 0.05), zj - 0.02], (x, z) => vy(z) - 0.06, 0.12), rectProfile(0.075, 0.035, -(R.hafuH || 0.38) - 0.005)), K.gold);
     // verge round tile (kerabagawara)
     lb.add(sweep(linePath([sx * (xv - 0.02), -zj], [sx * (xv - 0.02), zj], (x, z) => vy(z) + T.rh * 0.35, 0.12), roundProfile(T.rw * 0.55, 0, 8), { smooth: true }), K.tile);
-    // gold studs on the hafu
+    // studs on the hafu: dark wood
+    const darkMat = K.redDark || K.red;
     for (const zz of [-zj * 0.7, -zj * 0.4, zj * 0.4, zj * 0.7]) {
-      lb.add(rosette(0.055, 6, 0.012, R.lo), K.gold, m4([sx * (xv + 0.072), vy(zz) - 0.06 - (R.hafuH || 0.38) * 0.5, zz], [0, sx * Math.PI / 2, 0]));
+      lb.add(chamferBox(0.03, 0.03, 0.01, 0.003), darkMat, m4([sx * (xv + 0.072), vy(zz) - 0.06 - (R.hafuH || 0.38) * 0.5, zz], [0, sx * Math.PI / 2, 0]));
     }
-    // hafu ends: gold end fittings
+    // hafu ends: wood fittings
     for (const sz of [-1, 1]) {
       const zz = sz * (zj - 0.12);
-      lb.add(chamferBox(0.085, (R.hafuH || 0.38) + 0.02, 0.22, 0.008), K.gold, m4([xh, vy(zz) - 0.06 - (R.hafuH || 0.38) / 2, zz]));
+      lb.add(chamferBox(0.085, (R.hafuH || 0.38) + 0.02, 0.22, 0.008), darkMat, m4([xh, vy(zz) - 0.06 - (R.hafuH || 0.38) / 2, zz]));
     }
-    // gegyo at the apex
+    // gegyo at the apex: wood
     const gs = R.gegyo || 0.6;
     const gsh = new THREE.Shape();
     gsh.moveTo(0, 0.05 * gs);
@@ -422,8 +421,7 @@ export function irimoyaRoof(lb, R) {
     gsh.bezierCurveTo(-0.38 * gs, -0.26 * gs, -0.45 * gs, -0.18 * gs, -0.55 * gs, -0.22 * gs);
     gsh.bezierCurveTo(-0.5 * gs, -0.05 * gs, -0.25 * gs, 0.0, 0, 0.05 * gs);
     const gg = extrude(gsh, 0.05, 0.012, 'gegyo' + gs, 10);
-    lb.add(gg, K.gold, m4([sx * (xv + 0.08), vy(0) - 0.06 - (R.hafuH || 0.38) * 0.6, 0], [0, sx * Math.PI / 2, 0]));
-    lb.add(rosette(0.11, 8, 0.02), K.gold, m4([sx * (xv + 0.11), vy(0) - 0.06 - (R.hafuH || 0.38) * 0.95, 0], [0, sx * Math.PI / 2, 0]));
+    lb.add(gg, darkMat, m4([sx * (xv + 0.08), vy(0) - 0.06 - (R.hafuH || 0.38) * 0.6, 0], [0, sx * Math.PI / 2, 0]));
     // verge soffit (underside of the gable overhang)
     const vfaces = [];
     for (const [O, a, n] of [[[0, ez], [1, 0], [0, -1]], [[0, -ez], [-1, 0], [0, 1]]]) {
@@ -502,14 +500,13 @@ export function railing(lb, pts, y0, S) {
       for (let k = 1; k < n; k++) posts.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n, 'mid']);
     }
   }
-  // posts with giboshi
+  // posts: Jiangnan wooden baluster with lotus finial (苏式莲瓣望柱头)
+  const darkPost = K.redDark || K.red;
   for (const p of posts) {
-    const yTop = y0 + H + 0.06;
+    const yTop = y0 + H + 0.04;
     lb.add(chamferBox(pw, yTop - y0, pw, 0.012), K.red, m4([p[0], (y0 + yTop) / 2, p[1]]));
-    lb.add(chamferBox(pw + 0.03, 0.03, pw + 0.03, 0.006), K.gold, m4([p[0], yTop + 0.012, p[1]]));
-    lb.add(giboshi(pw * 0.58, S.gibSeg || 40), K.gib, m4([p[0], yTop + 0.025, p[1]]));
-    // gold bands at rail junctions
-    for (const yy of [y0 + H - 0.05, y0 + (S.midY || 0.5), y0 + 0.07]) lb.add(chamferBox(pw + 0.016, 0.045, pw + 0.016, 0.006), K.gold, m4([p[0], yy, p[1]]));
+    lb.add(chamferBox(pw + 0.02, 0.025, pw + 0.02, 0.005), darkPost, m4([p[0], yTop + 0.012, p[1]]));
+    lb.add(lathe([[0, 0], [pw * 0.42, 0], [pw * 0.46, 0.022], [pw * 0.38, 0.055], [pw * 0.18, 0.09], [0, 0.11]], 12, 'lotusFinial'), darkPost, m4([p[0], yTop + 0.025, p[1]]));
   }
   // rails
   for (let i = 0; i < pts.length - 1; i++) {
@@ -528,10 +525,10 @@ export function railing(lb, pts, y0, S) {
       const t = k / n; const x = a[0] + dx * t, z = a[1] + dz * t;
       const isPost = posts.some((p) => Math.hypot(p[0] - x, p[1] - z) < 0.2);
       if (isPost) continue;
-      lb.add(lathe([[0.03, 0], [0.034, 0.02], [0.026, 0.05], [0.036, 0.12], [0.04, 0.17], [0.03, 0.2], [0.03, 0.26]], 10, 'tsuka'), K.red,
-        m4([x, y0 + (S.midY || 0.5) + 0.04, z], [0, 0, 0], [1, (H - 0.05 - (S.midY || 0.5) - 0.04) / 0.26, 1]));
+      lb.add(chamferBox(0.04, H - 0.05 - (S.midY || 0.5) - 0.04, 0.04, 0.005), K.red,
+        m4([x, (y0 + (S.midY || 0.5) + y0 + H - 0.05) / 2, z], [0, yaw, 0]));
     }
-    // panel boards with gold plates
+    // panel boards
     const segs = posts.filter((p) => {
       const t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / (L * L);
       const dist = Math.abs((p[0] - a[0]) * dz - (p[1] - a[1]) * dx) / L;
@@ -544,23 +541,9 @@ export function railing(lb, pts, y0, S) {
       const tc = (t0 + t1) / 2; const x = a[0] + dx * tc, z = a[1] + dz * tc;
       const ph = (S.midY || 0.5) - 0.12 - 0.04;
       lb.add(chamferBox(0.03, ph, len, 0.006), K.redDark, m4([x, y0 + 0.12 + ph / 2, z], [0, yaw, 0]));
-      if (K.relief) {
-        const ya = y0 + (S.midY || 0.5) + 0.044, yb = y0 + H - 0.088;
-        lb.add(chamferBox(0.016, yb - ya, len - 0.01, 0.003), K.relief, m4([x, (ya + yb) / 2, z], [0, yaw, 0]));
-        // small vermilion posts subdividing long panels
-        const ns = Math.max(1, Math.round(len / 0.7));
-        for (let q = 1; q < ns; q++) {
-          const tq = t0 + (t1 - t0) * (q / ns);
-          lb.add(chamferBox(0.04, yb - ya, 0.045, 0.006), K.red, m4([a[0] + dx * tq, (ya + yb) / 2, a[1] + dz * tq], [0, yaw, 0]));
-        }
-      }
       if (S.panelGold !== false) {
         const gw = Math.min(len * 0.55, 0.5);
-        const nx = dz / L, nz = -dx / L;
-        for (const s of [-1, 1]) {
-          lb.add(chamferBox(0.008, ph * 0.62, gw, 0.002), K.relief || K.gold, m4([x + nx * 0.018 * s, y0 + 0.12 + ph / 2, z + nz * 0.018 * s], [0, yaw, 0]));
-          lb.add(rosette(ph * 0.24, 8, 0.008, S.lo), K.gold, m4([x + nx * 0.022 * s, y0 + 0.12 + ph / 2, z + nz * 0.022 * s], [0, Math.atan2(nx * s, nz * s), 0]));
-        }
+        lb.add(chamferBox(0.012, ph * 0.55, gw, 0.002), K.red, m4([x, y0 + 0.12 + ph / 2, z], [0, yaw, 0]));
       }
     }
   }

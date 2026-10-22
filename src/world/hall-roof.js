@@ -33,11 +33,13 @@ export function makeProfile(s0, s1, D, k = 1.5) {
   return { P, dP, arc, dOf, D, s0, s1 };
 }
 
-// Roof warp (sori): lift toward the corners + outward plan flare.
-// L = c(ux) * c(uz), c(u) = ((u-u0)/(1-u0))^pw : zero inside the wall
-// rectangle, 1 at the eave corner; lifts y by A*L and pushes the corner out by B*L.
-export function makeWarp(ex, ez, A, B, u0 = 0.7, pw = 2.0) {
-  const c = (u) => { const t = clamp((u - u0) / (1 - u0), 0, 1.18); return Math.pow(t, pw); };
+// Roof warp: Jiangnan sori with faqiang upturn (飞檐戗角高翘).
+// L = c(ux) * c(uz): zero inside wall bounds, dramatically sweeping upward and outward at eave corners.
+export function makeWarp(ex, ez, A, B, u0 = 0.68, pw = 2.2) {
+  const c = (u) => {
+    const t = clamp((u - u0) / (1 - u0), 0, 1.3);
+    return Math.pow(t, pw) + 0.42 * Math.pow(Math.max(t - 0.4, 0) / 0.9, 3.2);
+  };
   return (x, y, z, out) => {
     const L = c(Math.abs(x) / ex) * c(Math.abs(z) / ez);
     out[0] = x + Math.sign(x) * B * L;
@@ -454,7 +456,7 @@ export function buildIrimoyaRidges(acc, T, mats) {
     const dir = v3.norm(v3.sub(pe, pp));
     const dirH = v3.norm([0, 0, dir[2]]);
     void dir;
-    onigawara(tile, gold, basis(v3.add(pe, [0, -0.12, 0]), v3.cross([0, 1, 0], dirH), [0, 1, 0], dirH), 0.9, 1.15, 0.24, { hornLen: 0.62, goldEdge: true });
+    onigawara(tile, gold, basis(v3.add(pe, [0, -0.12, 0]), v3.cross([0, 1, 0], dirH), [0, 1, 0], dirH), 0.9, 1.15, 0.24, { horn: false, goldEdge: false });
     // hip ridge from the junction to the eave corner
     const hp = [];
     const m = 14;
@@ -466,7 +468,7 @@ export function buildIrimoyaRidges(acc, T, mats) {
     // onigawara at the corner end of the hip (faces diagonally outward)
     const he = hp[hp.length - 1];
     const hd = v3.norm([sx, 0, sz]);
-    onigawara(tile, gold, basis(v3.add(he, [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.82, 1.05, 0.22, { hornLen: 0.7, goldEdge: true });
+    onigawara(tile, gold, basis(v3.add(he, [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.82, 1.05, 0.22, { horn: false, goldEdge: false });
     // small gold kirikane crest on the hip end tile
   }
 }
