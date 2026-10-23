@@ -17,7 +17,7 @@ export function buildLand(ctx, F) {
   const Cd = [(DOM.maxX + DOM.minX) / 2, (DOM.maxZ + DOM.minZ) / 2];
 
   // ---- angular samples (denser in the directions the film looks) ----
-  const NA = ctx.quality === 'preview' ? 1024 : 2048;
+  const NA = ctx.quality === 'realtime' ? 512 : ctx.quality === 'preview' ? 1024 : 2048;
   const wAz = (adeg) => {
     const a = ((adeg % 360) + 360) % 360;
     // main sector: -30 (ESE) .. 240 (SW) through north

@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { Acc, polyStack, petalBand, lathe, roofCap, taperTube, scrollPoints, extrude, basis, mat4, TAU, fbm3 } from './props-geo.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { seg as dseg, cnt } from '../core/detail.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const T = (pat, glow, moss) => [pat, glow, moss, 0];
@@ -187,7 +188,7 @@ function curls(S, roof, n, { R0 = 0.036, t0 = 0.86, moss = 0.6 } = {}) {
 
 function hoju(S, y, s = 1, moss = 0.5) {
   // small upward lotus + onion jewel
-  petalBand(S, { profile: [[0.06 * s, y], [0.085 * s, y + 0.012 * s], [0.11 * s, y + 0.035 * s], [0.12 * s, y + 0.055 * s]], N: 8, depth: 0.011 * s, dir: 1, rows2: true, tipCurl: 0.004 * s, seg: 80, rows: 10, tag: T(0, 0, moss) });
+  petalBand(S, { profile: [[0.06 * s, y], [0.085 * s, y + 0.012 * s], [0.11 * s, y + 0.035 * s], [0.12 * s, y + 0.055 * s]], N: 8, depth: 0.011 * s, dir: 1, rows2: true, tipCurl: 0.004 * s, seg: dseg(80), rows: cnt(10), tag: T(0, 0, moss) });
   const yb = y + 0.035 * s;
   lathe(S, [[0.0, yb], [0.06 * s, yb + 0.004 * s], [0.082 * s, yb + 0.022 * s], [0.096 * s, yb + 0.05 * s], [0.098 * s, yb + 0.072 * s],
     [0.09 * s, yb + 0.1 * s], [0.07 * s, yb + 0.13 * s], [0.042 * s, yb + 0.162 * s], [0.018 * s, yb + 0.188 * s], [0.004 * s, yb + 0.205 * s], [0.0, yb + 0.21 * s]], 32, T(0, 0, moss));
@@ -226,14 +227,14 @@ function variantA(S, P) {
     { a: 0.44, y: 0.42, tag: T(0, 0, 1.0) }, { a: 0.36, y: 0.42 },
   ] });
   // kaeribana (down-turned lotus)
-  petalBand(S, { profile: [[0.415, 0.418], [0.422, 0.436], [0.41, 0.475], [0.365, 0.525], [0.29, 0.56], [0.2, 0.578]], N: 10, depth: 0.044, dir: -1, tipCurl: 0.014, seg: 110, rows: 14, tag: T(0, 0, 0.42) });
+  petalBand(S, { profile: [[0.415, 0.418], [0.422, 0.436], [0.41, 0.475], [0.365, 0.525], [0.29, 0.56], [0.2, 0.578]], N: 10, depth: 0.044, dir: -1, tipCurl: 0.014, seg: dseg(110), rows: cnt(14), tag: T(0, 0, 0.42) });
   lathe(S, [[0.19, 0.574], [0.205, 0.585], [0.205, 0.6], [0.19, 0.612], [0.17, 0.614]], 40, T(0, 0, 0.8));
   // sao with fushi rings
   lathe(S, [[0.17, 0.612], [0.168, 0.626], [0.152, 0.642], [0.141, 0.664], [0.137, 0.72], [0.133, 0.9], [0.13, 1.02],
     [0.14, 1.026], [0.149, 1.036], [0.149, 1.046], [0.139, 1.056], [0.134, 1.06], [0.146, 1.066], [0.155, 1.077], [0.155, 1.092], [0.146, 1.102], [0.134, 1.107],
     [0.139, 1.112], [0.149, 1.122], [0.149, 1.132], [0.14, 1.142], [0.128, 1.148], [0.124, 1.25], [0.121, 1.40], [0.123, 1.44], [0.133, 1.462], [0.148, 1.475], [0.16, 1.486], [0.165, 1.5]], 44, T(0, 0, 0.22));
   // chudai: upward lotus then hex block with koza-ma
-  petalBand(S, { profile: [[0.16, 1.495], [0.2, 1.507], [0.27, 1.532], [0.33, 1.566], [0.37, 1.605], [0.388, 1.636]], N: 12, depth: 0.034, dir: 1, tipCurl: 0.016, seg: 120, rows: 13, tag: T(0, 0, 0.5) });
+  petalBand(S, { profile: [[0.16, 1.495], [0.2, 1.507], [0.27, 1.532], [0.33, 1.566], [0.37, 1.605], [0.388, 1.636]], N: 12, depth: 0.034, dir: 1, tipCurl: 0.016, seg: dseg(120), rows: cnt(13), tag: T(0, 0, 0.5) });
   polyStack(S, { n, rot, rc: 0.008, sideSeg: 4, profile: [
     { a: 0.30, y: 1.636, tag: T(0, 0, 0.1) }, { a: 0.40, y: 1.636, tag: T(4, 0, 0.4), sub: 2 }, { a: 0.40, y: 1.77 }, { a: 0.388, y: 1.782, tag: T(0, 0, 0.9) },
     { a: 0.345, y: 1.782, tag: T(0, 0, 0.45) }, { a: 0.345, y: 1.80 }, { a: 0.333, y: 1.81, tag: T(0, 0, 0.8) }, { a: 0.27, y: 1.81 },
@@ -272,13 +273,13 @@ function variantB(S, P) {
     { a: 0.405, y: 0.205, tag: T(1, 0, 0.45), sub: 2 }, { a: 0.405, y: 0.355 }, { a: 0.418, y: 0.362, tag: T(0, 0, 0.5) }, { a: 0.418, y: 0.38 },
     { a: 0.405, y: 0.388, tag: T(0, 0, 1.0) }, { a: 0.33, y: 0.388 },
   ] });
-  petalBand(S, { profile: [[0.385, 0.386], [0.392, 0.402], [0.38, 0.44], [0.335, 0.49], [0.26, 0.522], [0.18, 0.538]], N: 10, depth: 0.044, dir: -1, tipCurl: 0.014, seg: 110, rows: 14, tag: T(0, 0, 0.42) });
+  petalBand(S, { profile: [[0.385, 0.386], [0.392, 0.402], [0.38, 0.44], [0.335, 0.49], [0.26, 0.522], [0.18, 0.538]], N: 10, depth: 0.044, dir: -1, tipCurl: 0.014, seg: dseg(110), rows: cnt(14), tag: T(0, 0, 0.42) });
   // square shaft: base moulding, carved faces, capital
   polyStack(S, { n, rot, rc: 0.014, sideSeg: 4, profile: [
     { a: 0.0, y: 0.532, tag: T(0, 0, 0.6) }, { a: 0.175, y: 0.532, tag: T(0, 0, 0.5) }, { a: 0.175, y: 0.565 }, { a: 0.163, y: 0.575, tag: T(0, 0, 0.8) },
     { a: 0.148, y: 0.575, tag: T(2, 0, 0.25), sub: 3 }, { a: 0.138, y: 1.17, tag: T(0, 0, 0.6) }, { a: 0.16, y: 1.17, tag: T(0, 0, 0.4) }, { a: 0.16, y: 1.205 }, { a: 0.172, y: 1.212 }, { a: 0.172, y: 1.232 }, { a: 0.0, y: 1.232 },
   ] });
-  petalBand(S, { profile: [[0.15, 1.228], [0.2, 1.24], [0.28, 1.265], [0.345, 1.30], [0.385, 1.34], [0.398, 1.365]], N: 12, depth: 0.036, dir: 1, tipCurl: 0.016, seg: 120, rows: 13, tag: T(0, 0, 0.5) });
+  petalBand(S, { profile: [[0.15, 1.228], [0.2, 1.24], [0.28, 1.265], [0.345, 1.30], [0.385, 1.34], [0.398, 1.365]], N: 12, depth: 0.036, dir: 1, tipCurl: 0.016, seg: dseg(120), rows: cnt(13), tag: T(0, 0, 0.5) });
   polyStack(S, { n, rot, rc: 0.01, sideSeg: 4, profile: [
     { a: 0.3, y: 1.365, tag: T(0, 0, 0.1) }, { a: 0.405, y: 1.365, tag: T(4, 0, 0.4), sub: 2 }, { a: 0.405, y: 1.505 }, { a: 0.392, y: 1.516, tag: T(0, 0, 0.9) },
     { a: 0.36, y: 1.516, tag: T(0, 0, 0.45) }, { a: 0.36, y: 1.535 }, { a: 0.348, y: 1.545, tag: T(0, 0, 0.8) }, { a: 0.3, y: 1.545 },

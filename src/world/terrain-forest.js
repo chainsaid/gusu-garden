@@ -8,6 +8,7 @@
 import { leafAtlas } from './terrain-tex.js';
 import { smoothstep, clamp, lerp } from './terrain-field.js';
 import { CANOPY } from './terrain-land.js';
+import { gap, dens, isRealtime } from '../core/detail.js';
 
 // ---- template geometry helpers --------------------------------------------
 class Tpl {
@@ -265,7 +266,7 @@ export function buildForest(ctx, F) {
     }
     // small canopy gaps (windthrow, rock, wet hollows) so the forest is not an even carpet
     if (kind !== 'shrub') fd *= 0.55 + 0.45 * smoothstep(-0.5, 0.05, F.noise.f3(x / 26 + 9.3, z / 26 - 4.1, 2));
-    if (R.next() > fd * 0.98) return;
+    if (R.next() > fd * dens(0.98)) return;
     const ground = F.landHeight(x, z);
     const cap = F.treeTopCap(x, z) - ground;
     if (cap < 2.6) return;
@@ -300,7 +301,7 @@ export function buildForest(ctx, F) {
     trees.push({ x, z, y: ground - 0.15, H, wf, conifer, sp, kind, rot: R.range(0, Math.PI * 2), v: R.int(0, 1), rnd: R.next(), exp: 1, gb: F.noise.f1(x / 26, z / 26, 2) });
   }
   // near ring: dense jittered grid
-  const S1 = 5.0, NEAR = 105;
+  const S1 = gap(5.0), NEAR = 105;
   for (let x = F.R.minX - NEAR; x <= F.R.maxX + NEAR; x += S1) {
     for (let z = F.R.minZ - NEAR; z <= F.R.maxZ + NEAR; z += S1) {
       const px = x + R.range(-0.45, 0.45) * S1, pz = z + R.range(-0.45, 0.45) * S1;
@@ -309,7 +310,7 @@ export function buildForest(ctx, F) {
     }
   }
   // understory / forest-edge shrubs
-  const S0 = 4.2;
+  const S0 = gap(4.2);
   for (let x = F.R.minX - 65; x <= F.R.maxX + 65; x += S0) {
     for (let z = F.R.minZ - 65; z <= F.R.maxZ + 65; z += S0) {
       const px = x + R.range(-0.45, 0.45) * S0, pz = z + R.range(-0.45, 0.45) * S0;
@@ -323,7 +324,7 @@ export function buildForest(ctx, F) {
   // low evergreen belt (azalea / sasa / pieris clumps) along the outside of the corridor, just
   // beyond the gravel walk: gives the ground round the cloister texture and relief from the air
   {
-    const S3 = 1.7, gx = F.L.gate.center[0];
+    const S3 = gap(1.7), gx = F.L.gate.center[0];
     for (let x = F.R.minX - 11; x <= F.R.maxX + 11; x += S3) {
       for (let z = F.R.minZ - 11; z <= F.R.maxZ + 11; z += S3) {
         const px = x + R.range(-0.45, 0.45) * S3, pz = z + R.range(-0.45, 0.45) * S3;
@@ -338,7 +339,7 @@ export function buildForest(ctx, F) {
     }
   }
   // mid ring
-  const S2 = 10.5, RM = CANOPY.full - 40;
+  const S2 = gap(10.5), RM = CANOPY.full - 40;
   for (let x = C[0] - RM; x <= C[0] + RM; x += S2) {
     for (let z = C[1] - RM; z <= C[1] + RM; z += S2) {
       const px = x + R.range(-0.45, 0.45) * S2, pz = z + R.range(-0.45, 0.45) * S2;
@@ -449,5 +450,6 @@ export function buildForest(ctx, F) {
     tris += (geo.index.count / 3) * list.length;
   }
   group.userData.stats = { trees: trees.length, tris: Math.round(tris), meshes: buckets.size };
+  if (isRealtime() && ctx.noRefl) ctx.noRefl.push(group); // distant treeline is invisible in pond reflections
   return group;
 }

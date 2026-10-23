@@ -396,12 +396,18 @@ export function buildWater(ctx, site, U) {
   const normal = new THREE.Vector3(0, 1, 0);
   const planePt = new THREE.Vector3(0, waterY, 0);
   let busy = false;
+  let reflTick = 0;
 
   mesh.onBeforeRender = (renderer, scene, camera) => {
     if (busy) return;
     camPos.setFromMatrixPosition(camera.matrixWorld);
     if (camPos.y <= waterY + 0.005) { RU.uReflOn.value = 0; return; }
     busy = true;
+    // realtime: reuse the previous reflection frame every other frame — the scene is
+    // static, the camera slow, and the rippled normal hides the one-frame lag
+    const reuse = quality === 'realtime' && (reflTick++ & 1) === 1;
+    const noRefl = scene.userData.noRefl;
+    if (!reuse) {
     // mirrored position
     const mirPos = camPos.clone(); mirPos.y = 2 * waterY - camPos.y;
     rot.extractRotation(camera.matrixWorld);
@@ -443,11 +449,13 @@ export function buildWater(ctx, site, U) {
     renderer.autoClear = true;
     renderer.clear(true, true, true);
     renderer.render(scene, reflCam);
+    if (noRefl) for (const g of noRefl) g.visible = true;
     renderer.autoClear = prevAutoClear;
     SKY_UNIFORMS.uSunDisc.value = prevDisc;
     renderer.shadowMap.autoUpdate = prevShadowAuto;
     renderer.setRenderTarget(prevRT);
     mesh.visible = true;
+    }
     RU.uReflOn.value = 1;
     busy = false;
   };

@@ -2,6 +2,7 @@
 // Stone geometry shared by the paving, kerbs, gutters and stepping stones.
 // ---------------------------------------------------------------------------
 import { smoothstep } from './terrain-field.js';
+import { gap } from '../core/detail.js';
 
 // Bevelled rectangular stone. Local frame: x across (w), z along (d), top at y=0.
 export function slabGeometry(w, d, h, b, rnd, worn, noise) {
@@ -9,7 +10,7 @@ export function slabGeometry(w, d, h, b, rnd, worn, noise) {
   const rows = (len) => {
     const e = [0, 0.1, 0.38, 1.0].map((t) => t * b);
     const a = e.map((v) => -len / 2 + v);
-    const inner = Math.max(1, Math.round((len - 2 * b) / 0.24));
+    const inner = Math.max(1, Math.round((len - 2 * b) / gap(0.24)));
     for (let k = 1; k < inner; k++) a.push(-len / 2 + b + (len - 2 * b) * (k / inner));
     for (let k = e.length - 1; k >= 0; k--) a.push(len / 2 - e[k]);
     return a;

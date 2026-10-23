@@ -92,16 +92,30 @@ function stats(obj) {
 }
 
 function instanced(geo, mat, matrices, { cast = true, receive = true, depth = null, name = '' } = {}) {
-  const im = new THREE.InstancedMesh(geo, mat, Math.max(matrices.length, 1));
-  matrices.forEach((m, i) => im.setMatrixAt(i, m));
-  im.count = matrices.length;
-  im.instanceMatrix.needsUpdate = true;
-  im.castShadow = cast; im.receiveShadow = receive;
-  if (depth) im.customDepthMaterial = depth;
-  im.name = name;
-  im.computeBoundingSphere();
-  im.frustumCulled = matrices.length > 0;
-  return im;
+  // split into ~24 m world-space cells: whole cells behind the camera get frustum-culled
+  const byCell = new Map();
+  for (const m of matrices) {
+    const k = `${Math.floor(m.elements[12] / 24)},${Math.floor(m.elements[14] / 24)}`;
+    let a = byCell.get(k); if (!a) byCell.set(k, a = []);
+    a.push(m);
+  }
+  const mk = (list, nm) => {
+    const im = new THREE.InstancedMesh(geo, mat, Math.max(list.length, 1));
+    list.forEach((m, i) => im.setMatrixAt(i, m));
+    im.count = list.length;
+    im.instanceMatrix.needsUpdate = true;
+    im.castShadow = cast; im.receiveShadow = receive;
+    if (depth) im.customDepthMaterial = depth;
+    im.name = nm;
+    im.computeBoundingSphere();
+    im.frustumCulled = list.length > 0;
+    return im;
+  };
+  if (byCell.size <= 1) return mk(matrices, name);
+  const group = new THREE.Group(); group.name = name;
+  let i = 0;
+  for (const a of byCell.values()) group.add(mk(a, `${name}_${i++}`));
+  return group;
 }
 
 // ---------------------------------------------------------------------------

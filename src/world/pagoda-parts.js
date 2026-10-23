@@ -27,26 +27,42 @@ export class InstSet {
     for (const [key, d] of this.defs) {
       const c = d.arr.length / 16;
       if (!c) continue;
-      const im = new THREE.InstancedMesh(d.geo, d.mat, c);
-      im.instanceMatrix.array.set(d.arr);
-      im.instanceMatrix.needsUpdate = true;
+      // per-instance jitter colors first, in the original order (identical values to the
+      // unchunked build), then split into ~8 m cells so culling drops hidden cells
+      const cols = new Float32Array(c * 3);
       if (d.jitter > 0 && rng) {
-        const col = new Float32Array(c * 3);
         for (let i = 0; i < c; i++) {
           const v = 1 + (rng.float() - 0.5) * 2 * d.jitter;
           const t = d.tint ? rng.float() - 0.5 : 0;
-          col[i * 3] = v * (1 + t * (d.tint ? d.tint[0] : 0));
-          col[i * 3 + 1] = v * (1 + t * (d.tint ? d.tint[1] : 0));
-          col[i * 3 + 2] = v * (1 + t * (d.tint ? d.tint[2] : 0));
+          cols[i * 3] = v * (1 + t * (d.tint ? d.tint[0] : 0));
+          cols[i * 3 + 1] = v * (1 + t * (d.tint ? d.tint[1] : 0));
+          cols[i * 3 + 2] = v * (1 + t * (d.tint ? d.tint[2] : 0));
         }
-        im.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
       }
-      im.castShadow = d.castShadow; im.receiveShadow = d.receiveShadow;
-      im.name = 'pagoda_' + key;
-      im.computeBoundingSphere();
-      im.computeBoundingBox();
-      group.add(im);
-      n++;
+      const cells = new Map();
+      for (let i = 0; i < c; i++) {
+        const k = `${Math.floor(d.arr[i * 16 + 12] / 8)},${Math.floor(d.arr[i * 16 + 14] / 8)}`;
+        let a = cells.get(k); if (!a) cells.set(k, a = []);
+        a.push(i);
+      }
+      const mkChunk = (idx, nm) => {
+        const im = new THREE.InstancedMesh(d.geo, d.mat, idx.length);
+        idx.forEach((i, j) => { for (let e = 0; e < 16; e++) im.instanceMatrix.array[j * 16 + e] = d.arr[i * 16 + e]; });
+        im.instanceMatrix.needsUpdate = true;
+        if (d.jitter > 0 && rng) {
+          const col = new Float32Array(idx.length * 3);
+          idx.forEach((i, j) => { col[j * 3] = cols[i * 3]; col[j * 3 + 1] = cols[i * 3 + 1]; col[j * 3 + 2] = cols[i * 3 + 2]; });
+          im.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
+        }
+        im.castShadow = d.castShadow; im.receiveShadow = d.receiveShadow;
+        im.name = 'pagoda_' + nm;
+        im.computeBoundingSphere();
+        im.computeBoundingBox();
+        group.add(im);
+        n++;
+      };
+      if (cells.size <= 1) mkChunk(Array.from({ length: c }, (_, i) => i), key);
+      else { let ci = 0; for (const a of cells.values()) mkChunk(a, `${key}_${ci++}`); }
     }
     return n;
   }
@@ -127,6 +143,8 @@ export function masuGeo(s, h, footFrac = 0.42, footScale = 0.76, c = 0.012) {
 
 // Bearing block (masu) with a true concave (cove) lower profile, a crisp ledge and a
 // chamfered upper box. Origin at bottom centre, size s x s, height h.
+import { cnt, seg as dseg } from '../core/detail.js';
+
 export function masuCoveGeo(s, h, { footFrac = 0.44, footScale = 0.72, c = 0.012 } = {}) {
   const X = s / 2, hb = h * footFrac, b = X * footScale;
   const ring = (r, y, cc = c) => {
@@ -137,7 +155,7 @@ export function masuCoveGeo(s, h, { footFrac = 0.44, footScale = 0.72, c = 0.012
   const push = (r, y, cc) => { secs.push(ring(r, y, cc)); refs.push(V3(0, y, 0)); };
   push(b - 0.004, 0, c * 0.5);
   push(b, 0.006, c * 0.5);
-  const NC = 6;
+  const NC = cnt(6);
   for (let i = 0; i <= NC; i++) {
     const t = i / NC;
     push(b + (X - 0.006 - b) * Math.pow(t, 2.3), 0.012 + (hb - 0.012) * t, c * 0.6);
@@ -189,14 +207,14 @@ export function capGeo() {
   const fr = new THREE.CylinderGeometry(0.33 * Math.SQRT2 * 0.82, 0.33 * Math.SQRT2, 0.012, 4, 1);
   fr.rotateY(Math.PI / 4); fr.rotateX(Math.PI / 2); fr.translate(0, 0, 0.024);
   parts.push(fr);
-  const boss = new THREE.SphereGeometry(0.17, 8, 2, 0, Math.PI * 2, 0, Math.PI / 2);
+  const boss = new THREE.SphereGeometry(0.17, dseg(8, 3), 2, 0, Math.PI * 2, 0, Math.PI / 2);
   boss.rotateX(Math.PI / 2); boss.scale(1, 1, 0.07); boss.translate(0, 0, 0.029);
   parts.push(boss);
   for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
-    const nail = new THREE.SphereGeometry(0.04, 6, 2, 0, Math.PI * 2, 0, Math.PI / 2);
+    const nail = new THREE.SphereGeometry(0.04, dseg(6, 3), 2, 0, Math.PI * 2, 0, Math.PI / 2);
     nail.rotateX(Math.PI / 2); nail.scale(1, 1, 0.3); nail.translate(sx * 0.37, sy * 0.37, 0.016); parts.push(nail);
   }
-  const lipR = new THREE.TorusGeometry(0.2, 0.022, 3, 12); lipR.scale(1, 1, 0.5); lipR.translate(0, 0, 0.03); parts.push(lipR);
+  const lipR = new THREE.TorusGeometry(0.2, 0.022, dseg(3, 3), dseg(12, 4)); lipR.scale(1, 1, 0.5); lipR.translate(0, 0, 0.03); parts.push(lipR);
   return mergeGeometries(parts.map(cleanGeo));
 }
 

@@ -9,6 +9,7 @@ import { materials, patch, std, phys, glow, PROC, depthMaterialFor } from './cor
 import * as geom from './core/geom.js';
 import { rng } from './core/rng.js';
 import { L } from './layout.js';
+import { setDetailTier } from './core/detail.js';
 import { SHOTS, evalShot, SHOT_DUR, FILM_DURATION } from './shots.js';
 
 // ---------------------------------------------------------------------------
@@ -27,6 +28,10 @@ const W = +Q.get('w') || (QUALITY === 'final' ? 1280 : 960);
 const H = +Q.get('h') || (QUALITY === 'final' ? 720 : 540);
 const MODE = Q.get('mode') || (Q.has('shot') || Q.has('cam') ? 'still' : 'dev');
 const SPP = +Q.get('spp') || (MODE === 'render' ? 4 : 1);
+// ?q=realtime decimates the procedural geometry through src/core/detail.js. This has to
+// run before any world module is (dynamically) imported: some module-level constants
+// (e.g. hall-roof's TILE) read the tier at import time. ?detail=N overrides the scale.
+setDetailTier(QUALITY, +Q.get('detail') || 0);
 
 export const ALL_MODULES = ['terrain', 'pond', 'hall', 'interior', 'pagoda', 'bridge', 'buildings', 'props', 'vegetation'];
 
@@ -39,18 +44,26 @@ canvas.width = W; canvas.height = H;
 canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
 document.body.appendChild(canvas);
 
+// preserveDrawingBuffer is only needed by still mode (canvas.toDataURL for snapshots);
+// keeping it off in real-time modes is a free perf win on iGPUs.
 const renderer = new THREE.WebGLRenderer({
-  canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: true, alpha: false, stencil: false,
+  canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: MODE === 'still', alpha: false, stencil: false,
 });
 renderer.setPixelRatio(1);
-renderer.setSize(W, H, false);
+// internal render scale (?rscale=0.75): RTs + drawing buffer render smaller while the
+// canvas CSS size stays W×H, so the browser upscales — the cheapest way to buy frame rate.
+const RSCALE = Math.min(1, Math.max(0.4, +Q.get('rscale') || 1));
+const RW = Math.round(W * RSCALE), RH = Math.round(H * RSCALE);
+renderer.setSize(RW, RH, false);
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.shadowMap.autoUpdate = true;
+renderer.info.autoReset = false; // post chain does many render() calls per frame; count the whole frame
 if (Q.has('nocheck')) renderer.debug.checkShaderErrors = false;
 
 const scene = new THREE.Scene();
+scene.userData.noRefl = []; // modules register groups here to be hidden during the pond reflection pass
 scene.fog = new THREE.FogExp2(new THREE.Color().setRGB(0.32, 0.35, 0.44), 1.0);
 
 const camera = new THREE.PerspectiveCamera(40, W / H, 0.12, 6000);
@@ -60,7 +73,11 @@ const sky = createSky();
 scene.add(sky);
 const sun = createSun(scene, { mapSize: Q.has('smap') ? +Q.get('smap') : (QUALITY === 'preview' ? 1024 : 4096) });
 
-const pipeline = new Pipeline(renderer, { width: W, height: H, msaa: QUALITY === 'preview' ? 1 : 4, aoSamples: QUALITY === 'preview' ? 6 : 16, dofQuality: QUALITY === 'preview' ? 0 : 1 });
+const pipeline = new Pipeline(renderer, {
+  width: RW, height: RH,
+  msaa: QUALITY === 'preview' ? 1 : 4, aoSamples: QUALITY === 'preview' ? 6 : 16, dofQuality: QUALITY === 'preview' ? 0 : 1,
+  bloomMips: +Q.get('bmips') || (QUALITY === 'preview' ? 4 : 7), // preview: shorter bloom chain = fewer fullscreen passes
+});
 pipeline.setSun(sun, sunDir, G.uSunColor.value);
 
 // ---------------------------------------------------------------------------
@@ -85,9 +102,11 @@ function normalizeResult(res) {
 
 async function buildWorld(names) {
   const results = {};
-  for (const name of names) {
+  for (let mi = 0; mi < names.length; mi++) {
+    const name = names[mi];
     const t0 = performance.now();
-    status(`building ${name}...`);
+    status(`building ${name}... (${mi + 1}/${names.length})`);
+    await new Promise((r) => requestAnimationFrame(r)); // yield so the status text paints
     try {
       const mod = await import(`./world/${name}.js`);
       const res = normalizeResult(await mod.build(ctx));
@@ -215,6 +234,13 @@ function explicitCamera(q = Q) {
 // Render one final frame. getCam(tLocal) returns camera description.
 // shutter: fraction of a frame interval the shutter is open (motion blur).
 let frameCounter = 0;
+// Real-time (dev) mode: the sun is static, so freeze the shadow frustum over the whole
+// site and let the shadow map render once, instead of re-fitting (and re-rendering all
+// casters) every frame while orbiting. `?shadynamic` restores per-camera fitting (film
+// quality); `?shadat=x,y,z` and `?shadr=R` override the frozen region.
+const FROZEN_SHADOW = MODE === 'dev' && !Q.has('shadynamic')
+  ? { center: Q.has('shadat') ? Q.get('shadat').split(',').map(Number) : [7, 0, -1], radius: +Q.get('shadr') || 85 }
+  : null;
 // per-shot exclusion of whole modules from the sun shadow map (e.g. trees outside the hall for the interior shot)
 const _shadowCasters = new Map();
 let _shadowKey = '';
@@ -228,6 +254,7 @@ function setShadowExclusions(list) {
     const off = (list || []).includes(name);
     for (const m of _shadowCasters.get(name)) m.castShadow = !off;
   }
+  sun.shadow.needsUpdate = true; // caster set changed → re-render the shadow map
 }
 
 function renderFrame({ getCam, T, tLocal, dt = 1 / 60, spp = 1, shutter = 0.5, fade = 1, target = null, frameIndex = frameCounter++, q = Q }) {
@@ -237,8 +264,9 @@ function renderFrame({ getCam, T, tLocal, dt = 1 / 60, spp = 1, shutter = 0.5, f
   scene.fog.density = (P.fog ?? 1) * (q.has('fog') ? +q.get('fog') : 1);
   setShadowExclusions(q.has('noshadow') ? q.get('noshadow').split(',') : c0.noShadow);
   P.exposure *= fade;
+  renderer.info.reset(); // frame boundary: accumulate calls/tris across all sub-passes
   pipeline.beginFrame();
-  const shadow = c0.shadow || { center: [c0.look.x, c0.look.y * 0.3, c0.look.z], radius: 60 };
+  const shadow = FROZEN_SHADOW || c0.shadow || { center: [c0.look.x, c0.look.y * 0.3, c0.look.z], radius: 60 };
   // all sub-frame sampling patterns depend ONLY on the sub-frame index k, never on the frame
   // index, so static surfaces are bit-identical frame to frame (no shadow / AA / AO flicker)
   const W8 = spp > 1 ? aaWeights(spp) : [1];
@@ -286,11 +314,45 @@ async function main() {
   const skyClone = createSky();
   skyScene.add(skyClone);
   if (!Q.has('nopc')) {
-    // compile every program in parallel (KHR_parallel_shader_compile) before the first render
+    // Progressive shader compilation (dev mode). A full compileAsync waits for all ~350
+    // programs ≈ 87 s cold on integrated GPUs. Instead: frustum-select what shot 0 can
+    // see (union over three time samples), DETACH everything else from the graph —
+    // three's compile() walks the whole graph with scene.traverse, so visible=false is
+    // not enough — compile the subset with the parallel-compile hint, re-attach, and
+    // initiate the remaining programs in the background while preroll/playback runs.
+    // ?fullcompile restores wait-for-everything (film modes always do).
     const tp = performance.now();
     applyCamera(camera, { pos: new THREE.Vector3(10, 4, 30), look: new THREE.Vector3(10, 3, 0), focal: 24 });
-    try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('compileAsync failed', e); }
-    console.log('[info] parallel compile ms', Math.round(performance.now() - tp));
+    if (Q.has('fullcompile') || MODE !== 'dev') {
+      try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('compileAsync failed', e); }
+      console.log('[info] parallel compile ms', Math.round(performance.now() - tp));
+    } else {
+      const isDrawable = (o) => o.isMesh || o.isInstancedMesh || o.isPoints || o.isLine;
+      const camPath = [0, SHOT_DUR * 0.5, SHOT_DUR * 0.999].map((tf) => { const c = evalShot(0, tf); return new THREE.Vector3(...c.pos); });
+      const vis = new Set();
+      scene.traverse((o) => {
+        if (!isDrawable(o) || vis.has(o) || !o.geometry || o.material === null) return;
+        const g = o.geometry;
+        if (!g.boundingSphere) g.computeBoundingSphere();
+        const s = g.boundingSphere;
+        // generous distance cut: near the shot-0 camera path, or simply huge (terrain/sky)
+        for (const p of camPath) {
+          const d = Math.hypot(s.center.x - p.x, s.center.y - p.y, s.center.z - p.z) - s.radius;
+          if (d < 25) { vis.add(o); break; }
+        }
+      });
+      const detached = [];
+      scene.traverse((o) => {
+        if (!isDrawable(o) || vis.has(o)) return;
+        detached.push({ o, p: o.parent, i: o.parent.children.indexOf(o) });
+      });
+      for (const d of detached) d.p.remove(d.o);
+      try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('compileAsync failed', e); }
+      for (const d of detached) { d.p.children.splice(Math.min(d.i, d.p.children.length), 0, d.o); d.o.parent = d.p; }
+      window.__progCompile = true; // preroll skipped: the background compile covers later shots
+      console.log('[info] subset compile ms', Math.round(performance.now() - tp), `meshes ${vis.size}/${vis.size + detached.length}`);
+      renderer.compileAsync(scene, camera).catch(() => {}); // remaining programs compile during playback
+    }
   }
   const tc0 = performance.now();
   scene.environment = captureEnvironment(renderer, skyScene, new THREE.Vector3(0, 2, 0), { size: 256 });
@@ -313,10 +375,45 @@ async function main() {
   scene.traverse((o) => { if (o.isMesh) { meshes++; const g = o.geometry; const n = g.index ? g.index.count / 3 : g.attributes.position.count / 3; tris += n * (o.isInstancedMesh ? o.count : 1); } });
   window.__info = { gpu, buildMs: Math.round(buildMs), meshes, tris: Math.round(tris) };
   console.log('[info]', JSON.stringify(window.__info));
+  // ?probe=tris: where do the triangles actually live? Aggregate per mesh (instanced
+  // meshes count every instance), keyed by "<topGroup>/<objectName>", and log the top 30.
+  if (Q.has('probe')) {
+    const top = (o) => { let p = o; while (p.parent && p.parent !== scene) p = p.parent; return p.name || '?'; };
+    const per = {};
+    scene.traverse((o) => {
+      if (!o.isMesh) return;
+      const n = (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1);
+      const k = `${top(o)}/${o.name || o.material?.name || o.constructor.name}#${o.id}`;
+      per[k] = (per[k] || 0) + n;
+    });
+    const rows = Object.entries(per).sort((a, b) => b[1] - a[1]);
+    console.log('[info] tris-by-object', JSON.stringify(Object.fromEntries(rows.slice(0, 30).map(([k, v]) => [k, Math.round(v / 1000) + 'k']))));
+  }
 
+  await prerollShots();
   if (MODE === 'still') return runStill();
   if (MODE === 'render') return runRender();
   return runDev();
+}
+
+// Render every shot once before playback. Each shot can pull in material / post program
+// variants the earlier shots never touched; rendering them here (into an offscreen target)
+// compiles all of them during load, which is what turns the multi-second hitches seen at
+// shot transitions into load-time cost. `?nopre` disables it.
+async function prerollShots() {
+  if (Q.has('nopre') || MODE === 'still') return;
+  if (window.__progCompile) return; // progressive compile: later shots compile in the background instead
+  const rt = new THREE.WebGLRenderTarget(8, 8, { type: THREE.UnsignedByteType, depthBuffer: false });
+  const t0 = performance.now();
+  for (let i = 0; i < SHOTS.length; i++) {
+    status(`warming shots ${i + 1}/${SHOTS.length}...`);
+    await new Promise((r) => requestAnimationFrame(r)); // let the status text paint
+    const tLocal = SHOT_DUR * 0.5;
+    renderFrame({ getCam: (t) => evalShot(i, t), T: i * SHOT_DUR + tLocal, tLocal, spp: 1, target: rt, frameIndex: 1000 + i });
+  }
+  renderer.setRenderTarget(null);
+  rt.dispose();
+  console.log('[info] shot preroll ms', Math.round(performance.now() - t0));
 }
 
 function viewFromQuery(q) {
@@ -402,6 +499,16 @@ function runDev() {
   controls.update();
   let playing = Q.has('play'), shot = -1, tLocal = 0, last = performance.now();
   const free = { focal: 35 };
+  // optional dynamic resolution (?autores): track frame time, scale the internal
+  // resolution within [0.5, RSCALE] to hold an interactive frame rate; CSS size unchanged
+  const adapt = Q.has('autores');
+  let scale = RSCALE, emaMs = 16, adjCool = 30;
+  const applyScale = (s) => {
+    scale = s;
+    const w = Math.round(W * s), h = Math.round(H * s);
+    renderer.setSize(w, h, false);
+    pipeline.setSize(w, h);
+  };
   window.addEventListener('keydown', (e) => {
     if (e.key >= '0' && e.key <= '9') { shot = (+e.key + 9) % 10; tLocal = 0; playing = true; }
     if (e.key === ' ') playing = !playing;
@@ -415,6 +522,14 @@ function runDev() {
   function loop() {
     const now = performance.now();
     const dt = Math.min((now - last) / 1000, 0.1); last = now;
+    if (adapt) {
+      emaMs = emaMs * 0.92 + Math.min(dt, 0.05) * 1000 * 0.08;
+      if (--adjCool <= 0) {
+        if (emaMs > 26 && scale > 0.5) { applyScale(Math.max(0.5, scale * 0.9)); adjCool = 50; }
+        else if (emaMs < 13 && scale < RSCALE) { applyScale(Math.min(RSCALE, scale * 1.08)); adjCool = 50; }
+        else adjCool = 20;
+      }
+    }
     if (playing && shot >= 0) { tLocal += dt; if (tLocal > SHOT_DUR) { shot = (shot + 1) % SHOTS.length; tLocal = 0; } }
     if (shot >= 0) {
       const T = shot * SHOT_DUR + tLocal;
@@ -425,7 +540,8 @@ function runDev() {
       const c = { pos: camera.position.clone(), look: controls.target.clone(), focal: free.focal, focusDist: 20, fstop: 8, post: {} };
       renderFrame({ getCam: () => c, T, tLocal: T, spp: 1 });
     }
-    if (hud) hud.textContent = shot >= 0 ? `shot ${shot + 1}/10  ${SHOTS[shot].name}  t=${tLocal.toFixed(2)}` : 'free cam (keys 1-0 play shots, space pause, c copy cam)';
+    const base = shot >= 0 ? `shot ${shot + 1}/10  ${SHOTS[shot].name}  t=${tLocal.toFixed(2)}` : 'free cam (keys 1-0 play shots, space pause, c copy cam)';
+    if (hud) hud.textContent = adapt ? `${base}  |  ${Math.round(1000 / Math.max(emaMs, 1))}fps  ${(scale * 100) | 0}%` : base;
     requestAnimationFrame(loop);
   }
   loop();

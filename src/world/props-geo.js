@@ -6,6 +6,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
+import { seg as dseg } from '../core/detail.js';
 
 export const TAU = Math.PI * 2;
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -384,7 +385,7 @@ export function fixOutward(geo) {
 }
 
 // Lathe (around Y) from [[r,y]...] bottom->top. Smooth normals.
-export function lathe(acc, profile, seg = 32, tag = null, m = null, relFn = null) {
+export function lathe(acc, profile, seg = dseg(32), tag = null, m = null, relFn = null) {
   const pts = profile.map(([r, y]) => new THREE.Vector2(Math.max(r, 0), y));
   const g = new THREE.LatheGeometry(pts, seg);
   acc.addGeo(g, m, tag, relFn);
@@ -392,7 +393,7 @@ export function lathe(acc, profile, seg = 32, tag = null, m = null, relFn = null
 }
 
 // Lathe with a hard edge at every profile point flagged with a 3rd element `1`.
-export function latheHard(acc, profile, seg = 32, tag = null, m = null) {
+export function latheHard(acc, profile, seg = dseg(32), tag = null, m = null) {
   let cur = [profile[0]];
   for (let i = 1; i < profile.length; i++) {
     cur.push(profile[i]);

@@ -10,6 +10,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { cnt } from '../core/detail.js';
 
 const TAU = Math.PI * 2;
 const sm = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
@@ -260,7 +261,7 @@ export function lotusFlower(r, { open = 1, hi = true, S = 1.3, petalScale = 1, m
       m.identity();
     }
     // stamens: dense ring around the receptacle base, arching outward
-    const ns = macro ? 240 : hi ? 160 : 34;
+    const ns = macro ? cnt(240) : hi ? cnt(160) : cnt(34);
     const so = sm(0.18, 1.0, open);
     const d1 = new THREE.Vector3(), d2 = new THREE.Vector3();
     for (let k = 0; k < ns; k++) {

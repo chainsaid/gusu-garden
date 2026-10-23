@@ -11,6 +11,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { seg as dseg } from '../core/detail.js';
 
 const TAU = Math.PI * 2;
 const PART = 10;
@@ -108,7 +109,7 @@ export function kanaguBand(r, type = 'eye', hero = true) {
   if (_cache.has(key)) return _cache.get(key);
   const D = KANAGU[type];
   const { H, nLap, L, w } = D;
-  const seg = hero ? 192 : 96;
+  const seg = hero ? dseg(192) : dseg(96);
   const rField = r + FIELD;
   const parts = [];
   const half = (top) => {

@@ -52,11 +52,12 @@ export const DEFAULT_POST = {
 };
 
 export class Pipeline {
-  constructor(renderer, { width, height, msaa = 4, aoSamples = 16, dofQuality = 1 } = {}) {
+  constructor(renderer, { width, height, msaa = 4, aoSamples = 16, dofQuality = 1, bloomMips = 7 } = {}) {
     this.r = renderer;
     this.msaa = msaa;
     this.aoSamples = aoSamples;
     this.dofQuality = dofQuality;
+    this.bloomMipsN = bloomMips;
     this.quad = new FullScreenQuad(null);
     this._build();
     this.setSize(width, height);
@@ -573,7 +574,7 @@ export class Pipeline {
     this.godB = rt(hw, hh);
     this.bloomMips = [];
     let bw = w, bh = h;
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < this.bloomMipsN; i++) {
       bw = Math.max(1, Math.ceil(bw / 2)); bh = Math.max(1, Math.ceil(bh / 2));
       this.bloomMips.push(rt(bw, bh));
     }

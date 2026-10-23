@@ -8,6 +8,7 @@
 import { cbox, beam, lathe, extrude, sweep, bar, xf, basis, mul, v3, clamp, lerp, sstep, circlePts } from './hall-lib.js';
 import { onigawara, tileDisc, rosette, gegyo, kaerumata, bez, kanagu } from './hall-orn.js';
 import { carveSideGable } from './hall-gable.js';
+import { gap, cnt } from '../core/detail.js';
 import { rafterCap, cornerPlate } from './hall-detail.js';
 // orthonormal end-face frame for a member ending at p0 pointing along dir (+Z = dir)
 const endFrame = (p0, dir) => { const side = v3.norm(v3.cross([0, 1, 0], dir)); const up = v3.cross(dir, side); return basis(p0, side, up, dir); };
@@ -87,7 +88,7 @@ const inExcl = (F, a, pad = 0) => F.excl.some(([a0, a1]) => a > a0 - pad && a < 
 // ---------------------------------------------------------------------------
 // tiles
 // ---------------------------------------------------------------------------
-export const TILE = { S: 0.335, r0: 0.097, L: 0.355, dR: 0.008, panT: 0.024, dip: 0.038 };
+export const TILE = { S: gap(0.335), r0: 0.097, L: 0.355, dR: 0.008, panT: 0.024, dip: 0.038 };
 
 function samples(prof, d0, d1) {
   const L = TILE.L;
@@ -108,7 +109,7 @@ function samples(prof, d0, d1) {
 // Generic row emitters working on a "row geometry" callback rowPt(s) -> {p, n, t}
 // (t = across unit vector). Used by both straight faces and the karahafu.
 export function emitRound(ms, smp, rowPt, R, hide, opts = {}) {
-  const J = 7; const r0 = opts.r0 || TILE.r0; const dR = TILE.dR;
+  const J = Math.max(3, cnt(7)); const r0 = opts.r0 || TILE.r0; const dR = TILE.dR;
   let prev = null; const jit = new Map();
   ms.begin(null);
   for (const [s, ph, k] of smp) {
@@ -281,7 +282,7 @@ export function buildEaves(acc, T, mats, opts = {}) {
       for (const [a0, a1] of ex) { if (a0 - 0.15 > cur) spans.push([cur, a0 - 0.15]); cur = Math.max(cur, a1 + 0.15); }
       if (cur < aLim) spans.push([cur, aLim]); }
     // rafters
-    const sp = E.spacing || 0.3;
+    const sp = gap(E.spacing || 0.3);
     const K = Math.floor(aLim / sp);
     for (let k = -K; k <= K; k++) {
       const a = k * sp;

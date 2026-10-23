@@ -6,6 +6,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { Acc, polyStack, petalBand, lathe, roofCap, taperTube, scrollPoints, superLathe, extrude, basis, mat4, TAU } from './props-geo.js';
+import { seg as dseg } from '../core/detail.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const BR = (sw = 1, piv = 0) => [0, 0, sw, piv];
@@ -170,7 +171,7 @@ function sailShape(W, Lh) {
   return s;
 }
 
-export function buildBell({ seg = 22 } = {}) {
+export function buildBell({ seg = dseg(22) } = {}) {
   const M = new Acc();
   M.addGeo(new THREE.TorusGeometry(0.016, 0.0042, 6, 12), mat4([0, -0.018, 0], [0, Math.PI / 2, 0]), GD(1));
   M.addGeo(new THREE.TorusGeometry(0.013, 0.0048, 6, 12, Math.PI), mat4([0, -0.058, 0], [0, 0, 0], [1, 1.65, 1]), GD(1));

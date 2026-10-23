@@ -5,6 +5,7 @@
 // "rounded" chamfers and a post-hoc world warp (roof sori).
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
+import { seg as dseg } from '../core/detail.js';
 
 class FBuf {
   constructor(n = 1 << 14) { this.a = new Float32Array(n); this.n = 0; }
@@ -279,7 +280,7 @@ export function beam(ms, p0, p1, w, h, c = 0.015, up = [0, 1, 0], opts = {}) {
 
 // Surface of revolution about local +Y. profile: [[r,y],...]. Hard corners
 // (normal turn > hardDeg) get split normals. opts.seg, opts.phase, opts.arc
-export function lathe(ms, X, profile, seg = 16, opts = {}) {
+export function lathe(ms, X, profile, seg = dseg(16), opts = {}) {
   const hardCos = Math.cos(((opts.hardDeg ?? 32) * Math.PI) / 180);
   const n = profile.length;
   const segN = [];

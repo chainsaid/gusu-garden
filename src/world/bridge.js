@@ -18,6 +18,8 @@
 // Vertex colours carry per-piece data (grain mode, grime, random tint).
 // ---------------------------------------------------------------------------
 
+import { seg as dseg } from '../core/detail.js';
+
 export async function build(ctx) {
   const { THREE, L, geom, mat } = ctx;
   const { Builder, mat4 } = geom;
@@ -659,7 +661,7 @@ export async function build(ctx) {
     for (let i = 0; i < n; i++) pts.push(ptTh(t0 + ((t1 - t0) * i) / (n - 1), off, x));
     return pts;
   }
-  const rbox = (w, h, d, r, seg = 2) => new RBox(w, h, d, seg, Math.min(r, Math.min(w, h, d) * 0.45));
+  const rbox = (w, h, d, r, seg = dseg(2, 1)) => new RBox(w, h, d, seg, Math.min(r, Math.min(w, h, d) * 0.45));
 
   // cheap deterministic 3D value noise for rough stone
   const hash3 = (x, y, z) => { let h = (x * 374761393 + y * 668265263 + z * 1274126177) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -740,7 +742,7 @@ export async function build(ctx) {
     p.closePath(); return p;
   }
   // extrude a shape toward +z (thickness t) with a soft bevel; result sits on z = 0..t
-  function relief(shape, t, bevel, segs = 2) {
+  function relief(shape, t, bevel, segs = dseg(2, 1)) {
     const g = new THREE.ExtrudeGeometry(shape, { depth: Math.max(t - bevel * 2, 0.0005), bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelOffset: -bevel, bevelSegments: segs, curveSegments: 6, steps: 1 });
     g.translate(0, 0, bevel);
     return g;

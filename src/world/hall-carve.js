@@ -9,6 +9,7 @@
 //  - beamMotif: discrete symmetric gilt motif for a beam face
 // ---------------------------------------------------------------------------
 import { lathe, xf, mul, clamp } from './hall-lib.js';
+import { seg as dseg } from '../core/detail.js';
 
 const TAU = Math.PI * 2;
 
@@ -57,7 +58,7 @@ export function ridge2(ms, X, pts, wf, hf, J = 5, opts = {}) {
 }
 
 // small dome (bead / boss) at (x,y) on the plane
-export function bead(ms, X, x, y, r, h = r, seg = 10, z0 = 0) {
+export function bead(ms, X, x, y, r, h = r, seg = dseg(10), z0 = 0) {
   lathe(ms, mul(X, xf([x, y, z0], 0, Math.PI / 2)), [[0, 0], [r, 0], [r * 0.92, h * 0.42], [r * 0.66, h * 0.8], [r * 0.3, h * 0.97], [0, h]], seg, { hardDeg: 60 });
 }
 

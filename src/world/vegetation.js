@@ -14,6 +14,7 @@ import { genMaple, genCherry, genPine, genTiered, padLocal, padNormal, padTopF, 
 import { buildBamboo } from './vegetation-bamboo.js';
 import { buildBananas } from './vegetation-banana.js';
 import { buildWillows } from './vegetation-willow.js';
+import { cnt, dens, gap, lod, isRealtime } from '../core/detail.js';
 
 const TAU = Math.PI * 2;
 
@@ -651,20 +652,44 @@ class InstAccum {
     this.col.push(col[0], col[1], col[2]);
     this.n++;
   }
-  build(THREE, geo, mat, dm, name, { castShadow = true, receiveShadow = true } = {}) {
+  // cell > 0: split instances into an XZ grid of InstancedMeshes inside a Group so
+  // frustum culling (view + shadow pass) can drop off-screen chunks. A single mesh
+  // spanning the whole site has a huge bounding sphere and is effectively never culled.
+  build(THREE, geo, mat, dm, name, { castShadow = true, receiveShadow = true, cell = 0 } = {}) {
     if (!this.n) return null;
-    const g = geo.clone();
-    g.setAttribute('aFol', new THREE.InstancedBufferAttribute(new Float32Array(this.fol), 4));
-    g.setAttribute('aBend', new THREE.InstancedBufferAttribute(new Float32Array(this.bend), 3));
-    const im = new THREE.InstancedMesh(g, mat, this.n);
-    im.instanceMatrix = new THREE.InstancedBufferAttribute(new Float32Array(this.m), 16);
-    im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.col), 3);
-    im.castShadow = castShadow; im.receiveShadow = receiveShadow;
-    if (dm) im.customDepthMaterial = dm;
-    im.computeBoundingSphere();
-    im.computeBoundingBox && im.computeBoundingBox();
-    im.name = name;
-    return im;
+    const make = (idx, nm) => {
+      const n = idx.length;
+      const m = new Float32Array(n * 16), fo = new Float32Array(n * 4), be = new Float32Array(n * 3), co = new Float32Array(n * 3);
+      for (let j = 0; j < n; j++) {
+        const i16 = idx[j] * 16, i4 = idx[j] * 4, i3 = idx[j] * 3;
+        for (let k = 0; k < 16; k++) m[j * 16 + k] = this.m[i16 + k];
+        for (let k = 0; k < 4; k++) fo[j * 4 + k] = this.fol[i4 + k];
+        for (let k = 0; k < 3; k++) { be[j * 3 + k] = this.bend[i3 + k]; co[j * 3 + k] = this.col[i3 + k]; }
+      }
+      const g = geo.clone();
+      g.setAttribute('aFol', new THREE.InstancedBufferAttribute(fo, 4));
+      g.setAttribute('aBend', new THREE.InstancedBufferAttribute(be, 3));
+      const im = new THREE.InstancedMesh(g, mat, n);
+      im.instanceMatrix = new THREE.InstancedBufferAttribute(m, 16);
+      im.instanceColor = new THREE.InstancedBufferAttribute(co, 3);
+      im.castShadow = castShadow; im.receiveShadow = receiveShadow;
+      if (dm) im.customDepthMaterial = dm;
+      im.computeBoundingSphere();
+      im.computeBoundingBox && im.computeBoundingBox();
+      im.name = nm;
+      return im;
+    };
+    if (cell <= 0) return make(Array.from({ length: this.n }, (_, i) => i), name);
+    const buckets = new Map();
+    for (let i = 0; i < this.n; i++) {
+      const key = Math.floor(this.m[i * 16 + 12] / cell) + ',' + Math.floor(this.m[i * 16 + 14] / cell);
+      let b = buckets.get(key); if (!b) buckets.set(key, b = []);
+      b.push(i);
+    }
+    const group = new THREE.Group();
+    group.name = name;
+    for (const [key, idx] of buckets) group.add(make(idx, name + '_' + key.replace(',', '_')));
+    return group;
   }
 }
 
@@ -868,7 +893,7 @@ export async function build(ctx) {
     for (let i = 0; i < branches.length; i++) {
       const b = branches[i];
       if (b.rads[0] < 0.0018) continue;
-      if (!opt.hero && b.level >= 4 && b.rads[0] < 0.0046) continue; // far trees: fine twigs are hidden by foliage
+      if (b.level >= 4 && b.rads[0] < (isRealtime() ? 0.0058 : opt.hero ? 0 : 0.0046)) continue; // fine twigs are hidden by foliage
       const isTrunk = b.level === 0;
       const disp = isTrunk ? trunkDisp({ seed: seed % 97, bump: kind === 'pine' ? 0.07 : 0.05, flare: kind === 'pine' ? 0.5 : kind === 'cherry' ? 0.45 : 0.35, roots: 5, flareH: 0.45, flute: kind === 'maple' ? 0.05 : 0.025, fluteN: kind === 'maple' ? 4 : 7 })
         : b.rads[0] > 0.05 ? trunkDisp({ seed: (seed + i) % 97, bump: 0.05, flare: 0, flute: kind === 'maple' ? 0.035 : 0.01, fluteN: 3 }) : null;
@@ -927,8 +952,8 @@ export async function build(ctx) {
     const leanV = spec.lean ? V3(spec.lean[0], 0, spec.lean[1]) : V3(rng.range(-0.5, 0.5), 0, rng.range(-0.5, 0.5));
     const tiered = spec.style !== 'shell';
     const tree = tiered
-      ? genTiered(rng, { species: 'maple', h: spec.h, base, lean: leanV, spread: spec.spread ?? (red ? 0.8 : 0.68), detail: spec.detail ?? 1, sx: spec.sx, sz: spec.sz, leaders: spec.leaders, crownBase: spec.crownBase ?? (red ? 0.2 : 0.3), padR: spec.padR, gaps: spec.gaps, twigDens: spec.twigDens, keepOut: KEEP, trunkFrac: spec.trunkFrac, widest: spec.widest, droop: spec.droop, squash: spec.squash, lobes: spec.lobes })
-      : genMaple(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? (red ? 0.7 : 0.62), detail: spec.detail ?? 1, sx: spec.sx, sz: spec.sz, leaders: spec.leaders, shellDensity: spec.shellDensity ?? (red ? 5.0 : 3.8), tiers: red ? 1.1 : 1.6, maxTwig: spec.maxTwig, leafLen: spec.leafLen, twigWobble: spec.twigWobble, keepOut: KEEP });
+      ? genTiered(rng, { species: 'maple', h: spec.h, base, lean: leanV, spread: spec.spread ?? (red ? 0.8 : 0.68), detail: spec.detail ?? lod(1), sx: spec.sx, sz: spec.sz, leaders: spec.leaders, crownBase: spec.crownBase ?? (red ? 0.2 : 0.3), padR: spec.padR, gaps: spec.gaps, twigDens: spec.twigDens, keepOut: KEEP, trunkFrac: spec.trunkFrac, widest: spec.widest, droop: spec.droop, squash: spec.squash, lobes: spec.lobes })
+      : genMaple(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? (red ? 0.7 : 0.62), detail: spec.detail ?? lod(1), sx: spec.sx, sz: spec.sz, leaders: spec.leaders, shellDensity: spec.shellDensity ?? (red ? dens(5.0) : dens(3.8)), tiers: red ? 1.1 : 1.6, maxTwig: spec.maxTwig, leafLen: spec.leafLen, twigWobble: spec.twigWobble, keepOut: KEEP });
     const flexOf = addBark('maple', tree.branches, tree.rT, spec.id * 31 + 5, { red, hero: spec.hero, flexK: spec.flexK });
     tree.flexOf = flexOf;
     const env = tree.env;
@@ -1060,8 +1085,8 @@ export async function build(ctx) {
     const leanV = spec.lean ? V3(spec.lean[0], 0, spec.lean[1]) : V3(rng.range(-0.4, 0.4), 0, rng.range(-0.4, 0.4));
     const tiered = spec.style !== 'shell';
     const tree = tiered
-      ? genTiered(rng, { species: 'cherry', h: spec.h, base, lean: leanV, spread: spec.spread ?? 0.8, detail: spec.detail ?? 1, leaders: spec.leaders, padR: spec.padR, gaps: spec.gaps ?? 0.36, twigDens: spec.twigDens ?? 3.2, keepOut: KEEP })
-      : genCherry(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? 0.88, detail: spec.detail ?? 1, keepOut: KEEP });
+      ? genTiered(rng, { species: 'cherry', h: spec.h, base, lean: leanV, spread: spec.spread ?? 0.8, detail: spec.detail ?? lod(1), leaders: spec.leaders, padR: spec.padR, gaps: spec.gaps ?? 0.36, twigDens: spec.twigDens ?? 3.2, keepOut: KEEP })
+      : genCherry(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? 0.88, detail: spec.detail ?? lod(1), keepOut: KEEP });
     const flexOf = addBark('cherry', tree.branches, tree.rT, spec.id * 17 + 3, { hero: spec.hero });
     const env = tree.env;
     const cs = spec.clusterSize ?? 0.36;
@@ -1353,7 +1378,7 @@ export async function build(ctx) {
     placed.push({ x, z, r });
     // every third green fill maple is turning: amber-gold crowns with orange tips (aerial palette)
     const turning = type === 'maple' && ((Math.floor(x * 7.3) + Math.floor(z * 3.1)) % 3 + 3) % 3 === 0;
-    specs.push({ id: id++, type, x, z, h, detail: 0.6, ...(turning ? { autumn: 0.5, gpal: GOLD_PAL } : {}), leafSize: type === 'maple' ? 0.26 : type === 'mapleRed' ? 0.22 : undefined, shellDensity: type === 'maple' ? 2.4 : 3.0, nodeSpacing: 0.075, tuftSize: 0.42, tuftDensity: 50, clusterSize: 0.42, nBranches: type === 'pine' ? Math.round(2.5 + h * 0.3) : undefined, hStart: type === 'pine' ? 0.36 : undefined, reach: type === 'pine' ? 1.12 : undefined, padScale: type === 'pine' ? 0.86 : undefined });
+    specs.push({ id: id++, type, x, z, h, detail: 0.6, ...(turning ? { autumn: 0.5, gpal: GOLD_PAL } : {}), leafSize: type === 'maple' ? 0.26 : type === 'mapleRed' ? 0.22 : undefined, shellDensity: dens(type === 'maple' ? 2.4 : 3.0), nodeSpacing: gap(0.075), tuftSize: 0.42, tuftDensity: dens(50), clusterSize: 0.42, nBranches: type === 'pine' ? Math.round(2.5 + h * 0.3) : undefined, hStart: type === 'pine' ? 0.36 : undefined, reach: type === 'pine' ? 1.12 : undefined, padScale: type === 'pine' ? 0.86 : undefined });
   }
 
   // debug: ?vegsolo=maple:10,pine:7 -> only these trees, in a row along x at z=0, no shrubs
@@ -1482,7 +1507,7 @@ export async function build(ctx) {
   const tTrees = performance.now();
 
   // ------------------------------------------------------------ shrubs
-  const moundGeoBase = new THREE.IcosahedronGeometry(1, 2);
+  const moundGeoBase = new THREE.IcosahedronGeometry(1, cnt(2));
   const mounds = [];
   const SR = ctx.rng('veg-shrubs');
   const addMound = (x, z, r, kind = 'azalea', hRatio = 0.62) => {
@@ -1685,15 +1710,20 @@ export async function build(ctx) {
   const fGeo = frondGeo(THREE);
   // (fern texture is a single image: frond uvs span 0..1 and aFol.w = 0 adds no cell offset)
   const parts = [
-    fol.maple.build(THREE, leafGeo, folMaple.m, folMaple.dm, 'leaves_maple'),
+    fol.maple.build(THREE, leafGeo, folMaple.m, folMaple.dm, 'leaves_maple', { cell: 22 }),
     fol.mapleHero.build(THREE, leafGeo, folMapleHero.m, folMapleHero.dm, 'leaves_maple_hero'),
-    fol.mapleFar.build(THREE, leafGeo, folMapleFar.m, folMapleFar.dm, 'leaves_maple_far'),
-    fol.pine.build(THREE, tGeo, folPine.m, folPine.dm, 'needles_pine'),
-    fol.blossom.build(THREE, cGeo, folBlossom.m, folBlossom.dm, 'blossom_cherry'),
-    fol.shrub.build(THREE, sGeo, folShrub.m, folShrub.dm, 'leaves_shrub'),
-    fol.fern.build(THREE, fGeo, folFern.m, folFern.dm, 'fronds_fern'),
+    fol.mapleFar.build(THREE, leafGeo, folMapleFar.m, folMapleFar.dm, 'leaves_maple_far', { cell: 26 }),
+    fol.pine.build(THREE, tGeo, folPine.m, folPine.dm, 'needles_pine', { cell: 22 }),
+    fol.blossom.build(THREE, cGeo, folBlossom.m, folBlossom.dm, 'blossom_cherry', { cell: 22 }),
+    fol.shrub.build(THREE, sGeo, folShrub.m, folShrub.dm, 'leaves_shrub', { cell: 22 }),
+    fol.fern.build(THREE, fGeo, folFern.m, folFern.dm, 'fronds_fern', { cell: 22 }),
   ];
-  for (const p of parts.concat(heroParts)) if (p) { p.onBeforeRender = (r, scene) => refreshShadowRange(scene); group.add(p); }
+  const hookShadow = (o) => { o.onBeforeRender = (r, scene) => refreshShadowRange(scene); };
+  for (const p of parts.concat(heroParts)) {
+    if (!p) continue;
+    if (p.isGroup) p.children.forEach(hookShadow); else hookShadow(p);
+    group.add(p);
+  }
   {
     const cg = cores.toGeometry(THREE);
     if (cg) {

@@ -6,6 +6,7 @@
 import { MOSS_GLSL, TG_GLSL } from './terrain-glsl.js';
 import { fernTexture } from './terrain-tex.js';
 import { clamp, lerp, smoothstep } from './terrain-field.js';
+import { seg as dseg, cnt, isRealtime } from '../core/detail.js';
 
 export function buildCover(ctx, F, stones) {
   const { THREE } = ctx;
@@ -18,20 +19,35 @@ export function buildCover(ctx, F, stones) {
   const col = new THREE.Color();
   const inst = (list, geo, mat, name, cast = true) => {
     if (!list.length) return null;
-    const im = new THREE.InstancedMesh(geo, mat, list.length);
-    list.forEach((o, i) => {
-      e.set(o.rx || 0, o.ry || 0, o.rz || 0, 'YXZ'); q.setFromEuler(e);
-      m4.compose(pv.set(o.x, o.y, o.z), q, sv.set(o.sx, o.sy, o.sz));
-      im.setMatrixAt(i, m4);
-      if (o.c) { col.setRGB(o.c[0], o.c[1], o.c[2]); im.setColorAt(i, col); }
-    });
-    im.instanceMatrix.needsUpdate = true;
-    if (im.instanceColor) im.instanceColor.needsUpdate = true;
-    im.computeBoundingSphere();
-    im.castShadow = cast; im.receiveShadow = true;
-    im.name = name;
-    group.add(im);
-    return im;
+    // split into ~24 m world-space cells so frustum culling can drop hidden cells
+    const byCell = new Map();
+    for (const o of list) {
+      const k = `${Math.floor(o.x / 24)},${Math.floor(o.z / 24)}`;
+      let a = byCell.get(k); if (!a) byCell.set(k, a = []);
+      a.push(o);
+    }
+    const mk = (sub, nm) => {
+      const im = new THREE.InstancedMesh(geo, mat, sub.length);
+      sub.forEach((o, i) => {
+        e.set(o.rx || 0, o.ry || 0, o.rz || 0, 'YXZ'); q.setFromEuler(e);
+        m4.compose(pv.set(o.x, o.y, o.z), q, sv.set(o.sx, o.sy, o.sz));
+        im.setMatrixAt(i, m4);
+        if (o.c) { col.setRGB(o.c[0], o.c[1], o.c[2]); im.setColorAt(i, col); }
+      });
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      im.computeBoundingSphere();
+      im.castShadow = cast; im.receiveShadow = true;
+      im.name = nm;
+      group.add(im);
+      return im;
+    };
+    if (byCell.size <= 1) return mk(list, name);
+    const g2 = new THREE.Group(); g2.name = name;
+    let i = 0;
+    for (const a of byCell.values()) g2.add(mk(a, `${name}_${i++}`));
+    group.add(g2);
+    return g2;
   };
   const trees = F.trees;
   const cherries = trees.filter((t) => t.type === 'cherry');
@@ -50,7 +66,7 @@ export function buildCover(ctx, F, stones) {
     const y = F.heightAt(x, z);
     moss.push({ x, y: y - r * 0.18, z, ry: R.range(0, 6.28), sx: r * R.range(0.9, 1.25), sy: r * R.range(0.32, 0.55), sz: r * R.range(0.8, 1.1) });
   };
-  for (let i = 0; i < 26000 && moss.length < 1500; i++) {
+  for (let i = 0; i < 26000 && moss.length < cnt(1500); i++) {
     const x = rx(), z = rz();
     if (F.sdRect(x, z) > -0.5) continue;
     const m = F.mossAt(x, z);
@@ -59,7 +75,7 @@ export function buildCover(ctx, F, stones) {
     addMoss(x, z, R.range(0.06, 0.2));
   }
   // broad, low cushions inside the moss beds (relief that the grazing sun models from the air)
-  for (let i = 0; i < 40000 && moss.length < 2900; i++) {
+  for (let i = 0; i < 40000 && moss.length < cnt(2900); i++) {
     const x = rx(), z = rz();
     if (F.sdRect(x, z) > -3.2) continue;
     const m = F.mossAt(x, z);
@@ -89,7 +105,7 @@ export function buildCover(ctx, F, stones) {
     }
   }
   {
-    const geo = new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const geo = new THREE.SphereGeometry(1, dseg(10), dseg(5), 0, Math.PI * 2, 0, Math.PI * 0.55);
     const pa = geo.attributes.position;
     const rr = ctx.rng('mossgeo');
     const ph = [rr.range(0, 6), rr.range(0, 6), rr.range(0, 6)];
@@ -139,7 +155,7 @@ export function buildCover(ctx, F, stones) {
     if (inPond(x, z, 0.5) || onPath(x, z, 0.35) || !free(x, z)) return;
     ferns.push({ x, y: F.heightAt(x, z) - 0.02, z, ry: R.range(0, 6.28), rx: R.range(-0.08, 0.08), rz: R.range(-0.08, 0.08), sx: s, sy: s * R.range(0.85, 1.1), sz: s });
   };
-  for (let i = 0; i < 40000 && ferns.length < 760; i++) {
+  for (let i = 0; i < 40000 && ferns.length < cnt(760); i++) {
     const x = rx(), z = rz();
     const d = F.sdRect(x, z);
     let p = 0;
@@ -226,7 +242,7 @@ export function buildCover(ctx, F, stones) {
   // 3. sedge / grass tufts (pond shore, bed edges, forest edge)
   // =========================================================================
   const grass = [];
-  for (let i = 0; i < 70000 && grass.length < 3400; i++) {
+  for (let i = 0; i < 70000 && grass.length < cnt(3400); i++) {
     const x = rx(), z = rz();
     if (onPath(x, z, 0.12) || !free(x, z)) continue;
     const sp = F.sdPondEff(x, z);
@@ -247,7 +263,7 @@ export function buildCover(ctx, F, stones) {
   {
     const P = [], N = [], U = [], I = [];
     const rr = ctx.rng('grassgeo');
-    const blades = 18;
+    const blades = cnt(18);
     for (let b = 0; b < blades; b++) {
       const a = rr.range(0, 6.28), lean = rr.range(0.2, 0.75), L = rr.range(0.5, 1.0), w = rr.range(0.01, 0.017);
       const ox = rr.range(-0.05, 0.05), oz = rr.range(-0.05, 0.05);
@@ -320,7 +336,7 @@ export function buildCover(ctx, F, stones) {
     const warm = R.range(0.95, 1.08);
     peb.push({ x, y: y + s * 0.05, z, ry: R.range(0, 6.28), rx: R.range(-0.2, 0.2), rz: R.range(-0.2, 0.2), sx: s * R.range(0.9, 1.5), sy: s * R.range(0.35, 0.6), sz: s, c: [g * warm, g, g / warm] });
   };
-  for (let i = 0; i < 60000 && peb.length < 2600; i++) {
+  for (let i = 0; i < 60000 && peb.length < cnt(2600); i++) {
     const x = rx(), z = rz();
     const dR = F.sdRect(x, z);
     if (dR > -0.2 && dR < 3.0) continue;
@@ -542,7 +558,7 @@ export function buildCover(ctx, F, stones) {
   }
   // petals on gravel / moss under & downwind of the cherries
   for (const t of cherries) {
-    for (let i = 0; i < 700; i++) {
+    for (let i = 0; i < cnt(700); i++) {
       const a = R.range(0, 6.28), rr = Math.abs(R.gauss(0, 4.2));
       const x = t.x + Math.cos(a) * rr + 1.5, z = t.z + Math.sin(a) * rr + 0.8;
       if (inPond(x, z, 0.1) || onPath(x, z, 0.0) || !free(x, z)) continue;
@@ -558,7 +574,7 @@ export function buildCover(ctx, F, stones) {
     return [0.16, 0.07, 0.03];
   };
   for (const t of maples) {
-    for (let i = 0; i < 380; i++) {
+    for (let i = 0; i < cnt(380); i++) {
       const a = R.range(0, 6.28), rr = Math.abs(R.gauss(0, 3.4));
       const x = t.x + Math.cos(a) * rr + 1.0, z = t.z + Math.sin(a) * rr;
       if (inPond(x, z, 0.1) || !free(x, z)) continue;
@@ -625,5 +641,6 @@ export function buildCover(ctx, F, stones) {
   }
 
   group.userData.stats = { rocks: rocks.length, moss: moss.length, ferns: ferns.length, grass: grass.length, pebbles: peb.length, petals: petals.length, leaves: leaves.length };
+  if (isRealtime() && ctx.noRefl) ctx.noRefl.push(group); // centimetre-scale cover is invisible in pond reflections
   return group;
 }

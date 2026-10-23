@@ -10,6 +10,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { makeNoise, clamp, smooth } from './pond-util.js';
+import { dens } from '../core/detail.js';
 
 const TAU = Math.PI * 2;
 
@@ -382,7 +383,7 @@ export function planLotus(ctx, site) {
   ];
   for (const c of colonies) {
     const area = Math.PI * c.rx * c.rz * 1.7;
-    const tries = Math.round(area * c.d * 16);
+    const tries = Math.round(area * c.d * dens(16));
     const so = r.range(0, 100);
     for (let t = 0; t < tries; t++) {
       const gx = r.range(-1.35, 1.35), gz = r.range(-1.35, 1.35);
@@ -454,7 +455,7 @@ export function planLotus(ctx, site) {
   ];
   for (const c of lilyPatches) {
     const area = Math.PI * c.rx * c.rz;
-    const tries = Math.round(area * c.d * 14);
+    const tries = Math.round(area * c.d * dens(14));
     const so = r.range(0, 100);
     for (let t = 0; t < tries; t++) {
       const [gx, gz] = r.disc();

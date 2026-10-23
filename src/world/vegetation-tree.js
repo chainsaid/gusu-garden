@@ -5,6 +5,7 @@
 // pd = path distance from the root (metres) per point -> wind flex.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
+import { dens } from '../core/detail.js';
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const UP = V3(0, 1, 0);
@@ -285,7 +286,7 @@ export function genMaple(rng, o) {
   }
   // full, lumpy, layered outer shell of leaf sprays
   const made = shellFill(rng, branches, twigs, env, {
-    density: (o.shellDensity ?? 4.2) * (0.6 + 0.4 * det), clump: o.clump ?? 0.4, clumpFreq: 0.5, tiers: o.tiers ?? 1.6,
+    density: (o.shellDensity ?? dens(4.2)) * (0.6 + 0.4 * det), clump: o.clump ?? 0.4, clumpFreq: 0.5, tiers: o.tiers ?? 1.6,
     depth0: 0.8, depth1: 1.0, minDirY: -0.45, minY: base.y + 1.2, twigR: 0.0038, leafLen: o.leafLen ?? 0.5, minLevel: 2, maxTwig: o.maxTwig, keepOut: o.keepOut,
   });
   return { branches, twigs, env, rT, shellSprays: made };
@@ -704,7 +705,7 @@ export function genTiered(rng, o) {
   for (let i = branches.length - 1; i >= 0; i--) if (branches[i].dead) branches.splice(i, 1);
 
   // ------------------------------------------------------------ twigs fanning inside each pad
-  const twigDens = o.twigDens ?? (cherry ? 4.5 : 4.0);
+  const twigDens = o.twigDens ?? (cherry ? dens(4.5) : dens(4.0));
   const det = o.detail ?? 1;
   for (const P of pads) {
     const limb = P.limb;

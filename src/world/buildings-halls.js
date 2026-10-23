@@ -7,6 +7,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LB, m4, beamM, chamferBox, block, lathe, colBand, ornBand, rosette, giboshi, sweep, rectProfile, roundProfile, tileParams, tileCapGeos, makeLift, extrude, hash3, armGeo, ni, kibanaGeo, scrollPlate } from './buildings-kit.js';
 import { eaves, bracketSet, column, irimoyaRoof, railing, loopPath, linePath, ridgeProfile } from './buildings-arch.js';
 import { kanaguBand } from './buildings-kanagu.js';
+import { gap, seg as dseg } from '../core/detail.js';
 
 const V3 = THREE.Vector3;
 
@@ -586,9 +587,9 @@ function karaKohai(lb, K, o) {
   }
   // round-tile ribs running down both flanks, with gilt-mon end caps
   const [cd, cg] = tileCapGeos(0.062, 1);
-  for (let z = zb + 0.14; z < zf - 0.06; z += 0.27) {
+  for (let z = zb + 0.14; z < zf - 0.06; z += gap(0.27)) {
     const pts = [];
-    for (let i = 0; i <= 36; i++) { const x = -W + (2 * W * i) / 36; pts.push(new V3(x, prof(x) + 0.03, z)); }
+    for (let i = 0; i <= dseg(36, 8); i++) { const x = -W + (2 * W * i) / dseg(36, 8); pts.push(new V3(x, prof(x) + 0.03, z)); }
     lb.add(sweep(pts, roundProfile(0.062, 0, 6), { smooth: true }), K.tile);
     for (const s of [-1, 1]) lb.add(cd, K.tile, m4([s * (W + 0.005), prof(W) + 0.03, z], [0, s * Math.PI / 2, 0])), lb.add(cg, K.cap, m4([s * (W + 0.005), prof(W) + 0.03, z], [0, s * Math.PI / 2, 0]));
   }

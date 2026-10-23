@@ -11,6 +11,7 @@ export function createSun(scene, { mapSize = 4096 } = {}) {
   const sun = new THREE.DirectionalLight(ENV.sunColor.clone(), ENV.sunIntensity);
   sun.name = 'sun';
   sun.castShadow = true;
+  sun.shadow.autoUpdate = false; // rendered on demand: fitSunShadow re-fits only when its frustum/sun dir changes
   sun.shadow.mapSize.set(mapSize, mapSize);
   sun.shadow.bias = -0.00015;
   sun.shadow.normalBias = 0.025;
@@ -44,7 +45,15 @@ export function fitSunShadow(sun, center, radius, jitter = null) {
   cam.near = 400 - radius * 1.6; cam.far = 400 + radius * 1.6;
   if (cam.near < 1) cam.near = 1;
   cam.updateProjectionMatrix();
-  sun.shadow.needsUpdate = true;
+  // Re-render the shadow map only when the frustum or sun direction actually changed
+  // (per-light autoUpdate=false + needsUpdate). Static sun + static frustum = the whole
+  // shadow pass becomes a once-only cost in real-time mode; offline modes keep updating
+  // because jitter changes the direction every sub-frame.
+  const key = `${center.x.toFixed(2)},${center.y.toFixed(2)},${center.z.toFixed(2)}|${radius.toFixed(2)}|${d.x.toFixed(5)},${d.y.toFixed(5)},${d.z.toFixed(5)}`;
+  if (sun.userData.shadowKey !== key) {
+    sun.userData.shadowKey = key;
+    sun.shadow.needsUpdate = true;
+  }
 }
 
 // Render a cube map at `position` of everything in `scene` (or just the sky) and

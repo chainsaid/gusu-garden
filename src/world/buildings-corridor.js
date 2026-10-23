@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { LB, m4, beamM, chamferBox, block, lathe, colBand, sweep, rectProfile, roundProfile, roofSurface, tileCapGeos, tileParams, armGeo, extrude, rosette, hash3, buildIx } from './buildings-kit.js';
 import { ridgeProfile, rafterField, linePath } from './buildings-arch.js';
+import { gap } from '../core/detail.js';
 
 export const CW = 2.68;          // tile eave half width
 const TIP = 0.08;                // rafter tip line inset from the tile eave
@@ -192,7 +193,7 @@ function roofPackage(lb, K, faces, T, { rafSp = 0.26 } = {}) {
     lb.add(cd, K.tile, mm); lb.add(cg, K.cap, mm);
   }
   const sf = faces.map((F) => ({ ...F, y0: 0, prof: yRT, dmin: (u) => Math.max(TIP, F.dmin ? F.dmin(u) : 0) }));
-  const s = roofSurface(sf, null, () => 0, { flip: true, du: 0.4, dd: 0.4 }).geo;
+  const s = roofSurface(sf, null, () => 0, { flip: true, du: gap(0.4), dd: gap(0.4) }).geo;
   s.deleteAttribute('color');
   lb.add(s, K.soffit);
   rafterField(lb, faces, { sp: rafSp, w: RAF[0], h: RAF[1], yBot: yRB, dStart: TIP, mat: K.red, capMat: K.capPaint, lo: true });

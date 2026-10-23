@@ -8,6 +8,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import * as PP from './pagoda-parts.js';
+import { seg as dseg, gap } from '../core/detail.js';
 import { woodProc, capGoldProc, goldProc, tileProc } from './pagoda-mat.js';
 
 const { V3 } = PP;
@@ -287,8 +288,8 @@ export async function build(ctx) {
     for (let j = 0; j < 4; j++) {
       const jy = (j % 2) * 0.01;
       for (const x of [-a, -a / 3, a / 3]) {
-        B.add(new THREE.CylinderGeometry(rc * 0.97, rc, Hc, 24, 1), MT.red, m4(j, x, F + Hc / 2, a));
-        B.add(new THREE.CylinderGeometry(rc + 0.014, rc + 0.016, 0.1, 24, 1), MT.gold, m4(j, x, F + 0.05, a));
+        B.add(new THREE.CylinderGeometry(rc * 0.97, rc, Hc, dseg(24), 1), MT.red, m4(j, x, F + Hc / 2, a));
+        B.add(new THREE.CylinderGeometry(rc + 0.014, rc + 0.016, 0.1, dseg(24), 1), MT.gold, m4(j, x, F + 0.05, a));
         if (i === 0) {
           B.add(new THREE.CylinderGeometry(0.42, 0.46, 0.16, 24, 1), MT.granite, m4(j, x, F - 0.08, a));
         }
@@ -526,19 +527,19 @@ export async function build(ctx) {
         const hi = pr(x) - 0.07;
         const p = lo + (hi - lo) * v;
         return V3(x, hTop(x, p) - 0.001, p);
-      }, 64, 4, V3(0, -1, 0)), MT.soffit);
+      }, dseg(64), 4, V3(0, -1, 0)), MT.soffit);
       addG(j, PP.gridSurface((u, v) => {
         const x = -Xi + 2 * Xi * u, X = Math.abs(x);
         const hi = pj(x);
         const lo = Math.min(Math.max(p3 - 0.12 * k, X), hi);
         const p = lo + (hi - lo) * v;
         return V3(x, jTop(x, p) - 0.001, p);
-      }, 64, 3, V3(0, -1, 0)), MT.soffit);
+      }, dseg(64), 3, V3(0, -1, 0)), MT.soffit);
       // step band where the flying rafters start (facing out)
       addG(j, PP.gridSurface((u, v) => {
         const x = -Xi + 2 * Xi * u; const p = pj(x);
         return V3(x, jTop(x, p) - 0.002 + v * (JD + 0.004), p);
-      }, 64, 1, V3(0, 0, 1)), MT.soffit);
+      }, dseg(64), 1, V3(0, 0, 1)), MT.soffit);
       // fascia (kayaoi), mitred on the diagonals
       {
         const secs = [];
@@ -635,7 +636,7 @@ export async function build(ctx) {
   // ROOF: hongawara tiling, disc eave tiles, hip ridges with onigawara
   // =====================================================================
   function roof(s) {
-    const tp = 0.29, Ls = 0.295;
+    const tp = gap(0.29), Ls = gap(0.295);
     const n = Math.floor((s.Xc - 0.14) / tp);
     const e = 0.02;
     const nrm = (x, p) => {

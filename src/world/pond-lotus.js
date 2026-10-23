@@ -16,6 +16,7 @@ import { POND_GLSL, UW_FRAGEND } from './pond-water.js';
 import { makeNoise, clamp, smooth, pointInPoly } from './pond-util.js';
 import { lotusFlower, lotusSpent, fallenPetal } from './pond-lotusgeo.js';
 import { LEAK_UNIFORM, LEAK_COV, LEAK_SHOT } from './pond-lotusplan.js';
+import { seg as dseg, cnt } from '../core/detail.js';
 import { sampleBeads, buildBeads, DROP_GLSL } from './pond-beads.js';
 
 const TAU = Math.PI * 2;
@@ -845,11 +846,11 @@ export function buildLotus(ctx, site, U, plan) {
     { cup: 0.25, wave: 0.11, droop: 0.06, ruffle: 0.04, nR: 13, lip: 0.0 },
     { cup: 0.3, wave: 0.06, droop: 0.28, ruffle: 0.03, nR: 10, fold: 0.2, lip: 0.02 },
   ];
-  const geoHi = eVariants.map((v) => leafGeometry(r, { ...v, seg: 56, rings: 11 }));
-  const geoLo = eVariants.map((v) => leafGeometry(r, { ...v, seg: 30, rings: 6 }));
-  const geoMacro = eVariants.map((v) => leafGeometry(r, { ...v, seg: 104, rings: 22 }));
-  const geoF = [leafGeometry(r, { seg: 30, rings: 4, floating: true, wave: 0.04 }), leafGeometry(r, { seg: 30, rings: 4, floating: true, wave: 0.06 })];
-  const geoFHero = leafGeometry(r, { seg: 112, rings: 22, floating: true, wave: 0.05 });
+  const geoHi = eVariants.map((v) => leafGeometry(r, { ...v, seg: dseg(56), rings: cnt(11) }));
+  const geoLo = eVariants.map((v) => leafGeometry(r, { ...v, seg: dseg(30), rings: cnt(6) }));
+  const geoMacro = eVariants.map((v) => leafGeometry(r, { ...v, seg: dseg(104), rings: cnt(22) }));
+  const geoF = [leafGeometry(r, { seg: dseg(30), rings: cnt(4), floating: true, wave: 0.04 }), leafGeometry(r, { seg: dseg(30), rings: cnt(4), floating: true, wave: 0.06 })];
+  const geoFHero = leafGeometry(r, { seg: dseg(112), rings: cnt(22), floating: true, wave: 0.05 });
   const geoLily = [lilyPadGeometry(r), lilyPadGeometry(r), lilyPadGeometry(r)];
 
   const meshes = [];

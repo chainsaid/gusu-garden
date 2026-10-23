@@ -11,7 +11,7 @@ export function buildGround(ctx, F) {
   const { CELL, NX, NZ, gMoss, gSoil, gRake, gH, gPath } = grid;
 
   // ---- mesh (vertices on every 2nd mask cell) ----
-  const STEP = 2;
+  const STEP = ctx.quality === 'realtime' ? 4 : 2;
   const nx = Math.floor((NX - 1) / STEP) + 1, nz = Math.floor((NZ - 1) / STEP) + 1;
   const dx = CELL * STEP;
   const skirt = 1;
