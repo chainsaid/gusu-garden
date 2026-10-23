@@ -342,6 +342,7 @@ async function main() {
     // ?fullcompile restores wait-for-everything (film modes always do).
     const tp = performance.now();
     applyCamera(camera, { pos: new THREE.Vector3(10, 4, 30), look: new THREE.Vector3(10, 3, 0), focal: 24 });
+    window.__shaderMin = Q.get('probe') === 'shadersize' ? 20000 : 0;
     if (Q.get('probe') === 'compilemod') {
       // per-module compile attribution: keep one module attached at a time, compile, time
       // it. The distribution shows which modules' shaders eat the compile floor.

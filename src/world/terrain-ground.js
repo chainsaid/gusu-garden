@@ -4,6 +4,7 @@
 // distance mask texture (moss edge, soil edge, rake obstacle distance).
 // ---------------------------------------------------------------------------
 import { TG_GLSL, MOSS_GLSL, NEAR_GLSL } from './terrain-glsl.js';
+import { isRealtime } from '../core/detail.js';
 
 export function buildGround(ctx, F) {
   const { THREE } = ctx;
@@ -118,6 +119,55 @@ export function buildGround(ctx, F) {
 }
 
 function groundHooks(uniforms, NL, NT) {
+  // tg_rakeView/tg_rakeAvg integrate the furrow profile with constant-bound loops that
+  // D3D unrolls into ~180 transcendental blocks - the dominant cost of compiling this
+  // shader (and 132 iterations/pixel at runtime). Realtime swaps in a cheap closed-form
+  // stand-in with the same signature; final keeps the full integration.
+  const RT = isRealtime();
+  const rakeMeanFn = RT
+    ? /* glsl */ `
+      float tg_rakeView(float lu, float ly, float vu, float vy, float P, float A){
+        float sl = 2.4 * A / P;
+        float base = inversesqrt(1.0 + sl * sl);
+        float grz = clamp(ly / max(length(vec2(lu, ly)), 1e-3), 0.35, 1.0);
+        return mix(1.0, base * (0.82 + 0.30 * grz), clamp(A * 30.0, 0.0, 1.0));
+      }
+      float tg_rakeAvg(float lu, float ly, float P, float A){
+        return tg_rakeView(lu, ly, 0.0, 1.0, P, A);
+      }
+      `
+    : /* glsl */ `
+      float tg_rakeView(float lu, float ly, float vu, float vy, float P, float A){
+        float acc = 0.0, ws = 0.0;
+        for (int i = 0; i < 12; i++){
+          float u = (float(i) + 0.5) / 12.0 * P;
+          float s = A * (tg_rake(u + 0.002, P) - tg_rake(u - 0.002, P)) / 0.004;
+          float hr = A * tg_rake(u, P);
+          float nl = (ly - s * lu) * inversesqrt(1.0 + s * s);
+          float w = max(vy - s * vu, 0.0);
+          float occ = 0.0, mo = 0.0;
+          if (abs(lu) > 0.02) for (int k = 1; k <= 5; k++){ float t = float(k) / 5.0 * P * 0.95 / abs(lu); occ = max(occ, A * tg_rake(u + t * lu, P) - (hr + t * ly)); }
+          if (abs(vu) > 0.02) for (int k = 1; k <= 5; k++){ float t = float(k) / 5.0 * P * 0.95 / abs(vu); mo = max(mo, A * tg_rake(u + t * vu, P) - (hr + t * vy)); }
+          w *= 1.0 - smoothstep(0.0, A * 0.18, mo);
+          acc += w * max(nl, 0.0) * (1.0 - smoothstep(0.0, A * 0.18, occ));
+          ws += w;
+        }
+        return acc / max(ws, 1e-4) / max(ly, 0.03);
+      }
+      float tg_rakeAvg(float lu, float ly, float P, float A){
+        float acc = 0.0;
+        for (int i = 0; i < 8; i++){
+          float u = (float(i) + 0.5) / 8.0 * P;
+          float s = A * (tg_rake(u + 0.002, P) - tg_rake(u - 0.002, P)) / 0.004;
+          float nl = (ly - s * lu) * inversesqrt(1.0 + s * s);
+          float hr = A * tg_rake(u, P);
+          float occ = 0.0;
+          if (abs(lu) > 0.02) for (int k = 1; k <= 5; k++){ float t = float(k) / 5.0 * P * 0.95 / abs(lu); occ = max(occ, A * tg_rake(u + t * lu, P) - (hr + t * ly)); }
+          acc += max(nl, 0.0) * (1.0 - smoothstep(0.0, A * 0.18, occ));
+        }
+        return acc / 8.0 / max(ly, 0.03);
+      }
+      `;
   return {
     uniforms,
     defines: { NLANT: NL, NTREE: NT },
@@ -176,43 +226,7 @@ function groundHooks(uniforms, NL, NT) {
       }
       // rake profile: rounded furrows
       float tg_rake(float u, float P){ float c = 0.5 + 0.5 * cos(6.2831853 * u / P); return c * c * (3.0 - 2.0 * c); }
-      // unresolved furrows: mean direct light of the raked profile relative to flat ground (lambert on
-      // the furrow flanks x self shadow). Under the grazing sun, furrows running across the light read
-      // much brighter than flat ground, furrows along it slightly darker -> the rake pattern stays
-      // visible from the air as a tone pattern instead of turning into flat grey
-      float tg_rakeAvg(float lu, float ly, float P, float A);
-      // mean radiance of the furrow profile as seen from direction (vu, vy): lambert x sun shadow,
-      // weighted by each facet's projected area toward the viewer and masked by the ridges in front
-      float tg_rakeView(float lu, float ly, float vu, float vy, float P, float A){
-        float acc = 0.0, ws = 0.0;
-        for (int i = 0; i < 12; i++){
-          float u = (float(i) + 0.5) / 12.0 * P;
-          float s = A * (tg_rake(u + 0.002, P) - tg_rake(u - 0.002, P)) / 0.004;
-          float hr = A * tg_rake(u, P);
-          float nl = (ly - s * lu) * inversesqrt(1.0 + s * s);
-          float w = max(vy - s * vu, 0.0);
-          float occ = 0.0, mo = 0.0;
-          if (abs(lu) > 0.02) for (int k = 1; k <= 5; k++){ float t = float(k) / 5.0 * P * 0.95 / abs(lu); occ = max(occ, A * tg_rake(u + t * lu, P) - (hr + t * ly)); }
-          if (abs(vu) > 0.02) for (int k = 1; k <= 5; k++){ float t = float(k) / 5.0 * P * 0.95 / abs(vu); mo = max(mo, A * tg_rake(u + t * vu, P) - (hr + t * vy)); }
-          w *= 1.0 - smoothstep(0.0, A * 0.18, mo);
-          acc += w * max(nl, 0.0) * (1.0 - smoothstep(0.0, A * 0.18, occ));
-          ws += w;
-        }
-        return acc / max(ws, 1e-4) / max(ly, 0.03);
-      }
-      float tg_rakeAvg(float lu, float ly, float P, float A){
-        float acc = 0.0;
-        for (int i = 0; i < 8; i++){
-          float u = (float(i) + 0.5) / 8.0 * P;
-          float s = A * (tg_rake(u + 0.002, P) - tg_rake(u - 0.002, P)) / 0.004;
-          float nl = (ly - s * lu) * inversesqrt(1.0 + s * s);
-          float hr = A * tg_rake(u, P);
-          float occ = 0.0;
-          if (abs(lu) > 0.02) for (int k = 1; k <= 5; k++){ float t = float(k) / 5.0 * P * 0.95 / abs(lu); occ = max(occ, A * tg_rake(u + t * lu, P) - (hr + t * ly)); }
-          acc += max(nl, 0.0) * (1.0 - smoothstep(0.0, A * 0.18, occ));
-        }
-        return acc / 8.0 / max(ly, 0.03);
-      }
+      ${rakeMeanFn}
     `,
     fragColor: /* glsl */ `
     {

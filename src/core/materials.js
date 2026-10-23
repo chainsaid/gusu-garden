@@ -151,6 +151,11 @@ export function patch(mat, o = {}) {
     if (o.fragLight) fs = fs.replace('#include <lights_fragment_end>', `#include <lights_fragment_end>\n${o.fragLight}`);
     if (o.fragEnd) fs = fs.replace('#include <opaque_fragment>', `${o.fragEnd}\n#include <opaque_fragment>`);
     shader.fragmentShader = fs;
+    // ?probe=shadersize: rank the compiled GLSL text (compile-time proxy). main.js sets
+    // window.__shaderMin before the compile block; only the monsters get logged.
+    if (window.__shaderMin && vs.length + fs.length >= window.__shaderMin) {
+      console.log('[info] shader-size', mat.name, vs.length + fs.length, `v${vs.length} f${fs.length}`);
+    }
   };
   const prevKey = mat.customProgramCacheKey;
   mat.customProgramCacheKey = () => key;
