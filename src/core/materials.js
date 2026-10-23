@@ -163,9 +163,23 @@ export function glow(color = [1.0, 0.55, 0.22], intensity = 8, params = {}) {
 // ---------------------------------------------------------------------------
 export const PROC = {};
 
+// Literal-shader-arg -> uniform helpers. PROC variants that differ ONLY in these
+// literals used to emit different GLSL (=> one program per tint!). The GLSL now
+// references a uniform instead, so every variant of a PROC shares ONE program and
+// carries its own value via o.uniforms (patch() merges them per material).
+const v3u = (s) => {
+  const m = /vec3\s*\(([^)]*)\)/.exec(String(s));
+  const n = m ? m[1].split(',').map((x) => parseFloat(x.trim())) : [];
+  const f = (i) => (Number.isFinite(n[i]) ? n[i] : 1);
+  return new THREE.Vector3(f(0), f(1), f(2));
+};
+const U3 = (s) => ({ value: v3u(s) });
+const U1 = (s, d) => ({ value: Number.isFinite(parseFloat(s)) ? parseFloat(s) : d });
+
 // Vermilion lacquered wood (shu-nuri) with weathering, grime and subtle grain.
 PROC.lacquer = (base = 'vec3(0.50, 0.072, 0.028)') => ({
-  fragHead: /* glsl */ `float g_h;`,
+  fragHead: /* glsl */ `float g_h;\nuniform vec3 uTint;`,
+  uniforms: { uTint: U3(base) },
   fragColor: /* glsl */ `
     {
       vec3 wp = vWPos; vec3 wn = normalize(vWNrm);
@@ -175,7 +189,7 @@ PROC.lacquer = (base = 'vec3(0.50, 0.072, 0.028)') => ({
       float vert = 1.0 - abs(wn.y);
       vec3 gs = mix(vec3(9.0, 9.0, 0.9), vec3(9.0, 0.7, 9.0), vert);
       float grain = n_snoise3(wp * gs) * 0.5 + n_snoise3(wp * gs * 2.7) * 0.25;
-      vec3 base = ${base};
+      vec3 base = uTint;
       vec3 col = base * (0.88 + 0.16 * big + 0.05 * grain);
       // sun-faded / chalky patches
       float fade = smoothstep(0.25, 0.75, mid * 0.6 + 0.5 + big * 0.3);
@@ -196,13 +210,14 @@ PROC.lacquer = (base = 'vec3(0.50, 0.072, 0.028)') => ({
 
 // Gold leaf / gilt bronze fittings.
 PROC.gold = (base = 'vec3(1.0, 0.70, 0.30)') => ({
-  fragHead: /* glsl */ `float g_h;`,
+  fragHead: /* glsl */ `float g_h;\nuniform vec3 uTint;`,
+  uniforms: { uTint: U3(base) },
   fragColor: /* glsl */ `
     {
       vec3 wp = vWPos;
       float n = n_fbm3(wp * 3.1, 3);
       float tarnish = smoothstep(0.2, 0.75, n_fbm3(wp * 0.9 + 7.0, 3) * 0.5 + 0.5);
-      vec3 base = ${base};
+      vec3 base = uTint;
       vec3 col = base * (0.92 + 0.12 * n);
       col = mix(col, base * vec3(0.55, 0.42, 0.25), tarnish * 0.35);
       diffuseColor.rgb *= col;
@@ -272,14 +287,15 @@ PROC.plaster = () => ({
 
 // Granite with speckles, lichen and moss on up-facing surfaces. mossAmt 0..1
 PROC.granite = (mossAmt = '0.6', tint = 'vec3(1.0)') => ({
-  fragHead: /* glsl */ `float g_h; float g_moss;`,
+  fragHead: /* glsl */ `float g_h; float g_moss;\nuniform vec3 uTint;\nuniform float uMoss;`,
+  uniforms: { uTint: U3(tint), uMoss: U1(mossAmt, 0.6) },
   fragColor: /* glsl */ `
     {
       vec3 wp = vWPos; vec3 wn = normalize(vWNrm);
       float big = n_fbm3(wp * 0.45, 4);
       float speck = n_snoise3(wp * 38.0);
       float speck2 = n_snoise3(wp * 61.0 + 5.0);
-      vec3 col = vec3(0.34, 0.33, 0.31) * ${tint} * (0.82 + 0.25 * big);
+      vec3 col = vec3(0.34, 0.33, 0.31) * uTint * (0.82 + 0.25 * big);
       col = mix(col, vec3(0.06, 0.06, 0.06), smoothstep(0.55, 0.85, speck) * 0.8);
       col = mix(col, vec3(0.62, 0.60, 0.56), smoothstep(0.6, 0.9, speck2) * 0.6);
       // dark weathering streaks + damp base
@@ -291,7 +307,7 @@ PROC.granite = (mossAmt = '0.6', tint = 'vec3(1.0)') => ({
       // moss: up-facing + crevices noise
       float up = smoothstep(0.15, 0.85, wn.y);
       float mn = n_fbm3(wp * 1.3 + 9.1, 5) * 0.5 + 0.5;
-      g_moss = clamp(smoothstep(0.62 - 0.35 * up * ${mossAmt}, 0.82, mn + up * 0.15) * ${mossAmt}, 0.0, 1.0);
+      g_moss = clamp(smoothstep(0.62 - 0.35 * up * uMoss, 0.82, mn + up * 0.15) * uMoss, 0.0, 1.0);
       vec3 mossCol = mix(vec3(0.045, 0.075, 0.012), vec3(0.12, 0.16, 0.03), n_snoise3(wp * 7.0) * 0.5 + 0.5);
       col = mix(col, mossCol, g_moss);
       diffuseColor.rgb *= col;
@@ -338,7 +354,8 @@ PROC.taihuStone = (mossAmt = '0.65', tint = 'vec3(1.0)') => ({
 PROC.wood = (base = 'vec3(0.24, 0.15, 0.09)', grainAxis = 'x') => {
   const sc = grainAxis === 'x' ? 'vec3(0.4, 14.0, 14.0)' : grainAxis === 'y' ? 'vec3(14.0, 0.4, 14.0)' : 'vec3(14.0, 14.0, 0.4)';
   return {
-    fragHead: /* glsl */ `float g_h;`,
+    fragHead: /* glsl */ `float g_h;\nuniform vec3 uTint;`,
+    uniforms: { uTint: U3(base) },
     fragColor: /* glsl */ `
       {
         vec3 wp = vWPos;
@@ -346,7 +363,7 @@ PROC.wood = (base = 'vec3(0.24, 0.15, 0.09)', grainAxis = 'x') => {
         float ringsRaw = sin(g * 18.0) * 0.5 + 0.5;
         float rings = mix(ringsRaw, 0.5, clamp(fwidth(g * 18.0) * 0.6, 0.0, 1.0));
         float big = n_fbm3(wp * 0.5, 3);
-        vec3 base = ${base};
+        vec3 base = uTint;
         vec3 col = base * (0.75 + 0.35 * rings * (0.6 + 0.4 * big) + 0.15 * big);
         diffuseColor.rgb *= col;
         g_h = rings * 0.5 + g * 0.3;
@@ -359,7 +376,8 @@ PROC.wood = (base = 'vec3(0.24, 0.15, 0.09)', grainAxis = 'x') => {
 
 // Jiangnan chestnut / dark brown tung oil timber (栗壳色桐油木)
 PROC.chestnutWood = (base = 'vec3(0.082, 0.046, 0.028)') => ({
-  fragHead: /* glsl */ `float g_h;`,
+  fragHead: /* glsl */ `float g_h;\nuniform vec3 uTint;`,
+  uniforms: { uTint: U3(base) },
   fragColor: /* glsl */ `
     {
       vec3 wp = vWPos; vec3 wn = normalize(vWNrm);
@@ -368,7 +386,7 @@ PROC.chestnutWood = (base = 'vec3(0.082, 0.046, 0.028)') => ({
       float vert = 1.0 - abs(wn.y);
       vec3 gs = mix(vec3(9.0, 9.0, 0.9), vec3(9.0, 0.7, 9.0), vert);
       float grain = n_snoise3(wp * gs) * 0.5 + n_snoise3(wp * gs * 2.7) * 0.25;
-      vec3 base = ${base};
+      vec3 base = uTint;
       vec3 col = base * (0.86 + 0.18 * big + 0.08 * grain);
       float wear = smoothstep(0.58, 0.82, n_fbm3(wp * 2.4, 3) * 0.5 + 0.5);
       col = mix(col, vec3(0.045, 0.024, 0.015), wear * 0.45);
