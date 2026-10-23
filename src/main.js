@@ -395,9 +395,9 @@ async function main() {
   if (Q.has('probe')) {
     if (Q.get('probe') === 'materials') {
       const reg = matRegistry();
-      let autoN = 0, collide = 0;
-      for (const [nm, e] of reg) { if (nm.startsWith('hook_')) autoN++; if (e.collide) collide++; }
-      console.log('[info] registry: entries=' + reg.size, `autoNamed=${autoN}`, `userNamed=${reg.size - autoN}`, `collisions=${collide}`);
+      let autoN = 0, collide = 0; const collideNames = [];
+      for (const [nm, e] of reg) { if (nm.startsWith('hook_')) autoN++; if (e.collide) { collide++; collideNames.push(nm); } }
+      console.log('[info] registry: entries=' + reg.size, `autoNamed=${autoN}`, `userNamed=${reg.size - autoN}`, `collisions=${collide}`, collideNames.length ? 'names: ' + collideNames.join(', ') : '');
       // program-merge census: group material cache keys by their hook-slot structure.
       // Keys sharing a structure differ only in shader literals -> mergeable via uniforms.
       const SLOTS = ['vertexHead', 'vertexWorld', 'fragHead', 'fragColor', 'fragRough', 'fragMetal', 'fragNormal', 'fragEmissive', 'fragPhysical', 'fragLight', 'fragEnd'];

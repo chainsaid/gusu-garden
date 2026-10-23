@@ -7,6 +7,7 @@ import { MOSS_GLSL, TG_GLSL } from './terrain-glsl.js';
 import { fernTexture } from './terrain-tex.js';
 import { clamp, lerp, smoothstep } from './terrain-field.js';
 import { seg as dseg, cnt, isRealtime } from '../core/detail.js';
+import { chunkedInstanced } from '../core/geom.js';
 
 export function buildCover(ctx, F, stones) {
   const { THREE } = ctx;
@@ -19,35 +20,17 @@ export function buildCover(ctx, F, stones) {
   const col = new THREE.Color();
   const inst = (list, geo, mat, name, cast = true) => {
     if (!list.length) return null;
-    // split into ~24 m world-space cells so frustum culling can drop hidden cells
-    const byCell = new Map();
-    for (const o of list) {
-      const k = `${Math.floor(o.x / 24)},${Math.floor(o.z / 24)}`;
-      let a = byCell.get(k); if (!a) byCell.set(k, a = []);
-      a.push(o);
-    }
-    const mk = (sub, nm) => {
-      const im = new THREE.InstancedMesh(geo, mat, sub.length);
-      sub.forEach((o, i) => {
-        e.set(o.rx || 0, o.ry || 0, o.rz || 0, 'YXZ'); q.setFromEuler(e);
-        m4.compose(pv.set(o.x, o.y, o.z), q, sv.set(o.sx, o.sy, o.sz));
-        im.setMatrixAt(i, m4);
-        if (o.c) { col.setRGB(o.c[0], o.c[1], o.c[2]); im.setColorAt(i, col); }
-      });
-      im.instanceMatrix.needsUpdate = true;
-      if (im.instanceColor) im.instanceColor.needsUpdate = true;
-      im.computeBoundingSphere();
-      im.castShadow = cast; im.receiveShadow = true;
-      im.name = nm;
-      group.add(im);
-      return im;
-    };
-    if (byCell.size <= 1) return mk(list, name);
-    const g2 = new THREE.Group(); g2.name = name;
-    let i = 0;
-    for (const a of byCell.values()) g2.add(mk(a, `${name}_${i++}`));
-    group.add(g2);
-    return g2;
+    const mats = [], cols = new Float32Array(list.length * 3);
+    let hasCol = false;
+    list.forEach((o, i) => {
+      e.set(o.rx || 0, o.ry || 0, o.rz || 0, 'YXZ'); q.setFromEuler(e);
+      m4.compose(pv.set(o.x, o.y, o.z), q, sv.set(o.sx, o.sy, o.sz));
+      mats.push(m4.clone());
+      if (o.c) { col.setRGB(o.c[0], o.c[1], o.c[2]); cols[i * 3] = col.r; cols[i * 3 + 1] = col.g; cols[i * 3 + 2] = col.b; hasCol = true; }
+    });
+    const built = chunkedInstanced(geo, mat, mats, { cell: 24, castShadow: cast, receiveShadow: true, name, colors: hasCol ? cols : null });
+    group.add(built);
+    return built;
   };
   const trees = F.trees;
   const cherries = trees.filter((t) => t.type === 'cherry');

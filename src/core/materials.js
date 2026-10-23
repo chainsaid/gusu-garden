@@ -71,8 +71,14 @@ export function matRegistry() { return REGISTRY; }
 function registerVariant(mat, key) {
   if (!mat.name) mat.name = 'hook_' + key.slice(1, 9);
   const e = REGISTRY.get(mat.name);
-  if (e && e.key !== key) e.collide = true;
-  else if (!e) REGISTRY.set(mat.name, { key, type: mat.type });
+  if (e && e.key !== key) {
+    // a clone of a patched material (e.g. aoVariant) keeps the source name under a new
+    // cache key - disambiguate so every program keeps a unique, attributable name
+    mat.name = mat.name + '_' + key.slice(1, 7);
+    REGISTRY.set(mat.name, { key, type: mat.type });
+    return;
+  }
+  if (!e) REGISTRY.set(mat.name, { key, type: mat.type });
 }
 
 export function patch(mat, o = {}) {

@@ -28,7 +28,7 @@ export class InstSet {
       const c = d.arr.length / 16;
       if (!c) continue;
       // per-instance jitter colors first, in the original order (identical values to the
-      // unchunked build), then split into ~8 m cells so culling drops hidden cells
+      // unchunked build), then hand the whole set to the shared chunked builder (~8 m cells)
       const cols = new Float32Array(c * 3);
       if (d.jitter > 0 && rng) {
         for (let i = 0; i < c; i++) {
@@ -39,30 +39,18 @@ export class InstSet {
           cols[i * 3 + 2] = v * (1 + t * (d.tint ? d.tint[2] : 0));
         }
       }
-      const cells = new Map();
+      const mats = [];
       for (let i = 0; i < c; i++) {
-        const k = `${Math.floor(d.arr[i * 16 + 12] / 8)},${Math.floor(d.arr[i * 16 + 14] / 8)}`;
-        let a = cells.get(k); if (!a) cells.set(k, a = []);
-        a.push(i);
+        const m = new THREE.Matrix4();
+        for (let e = 0; e < 16; e++) m.elements[e] = d.arr[i * 16 + e];
+        mats.push(m);
       }
-      const mkChunk = (idx, nm) => {
-        const im = new THREE.InstancedMesh(d.geo, d.mat, idx.length);
-        idx.forEach((i, j) => { for (let e = 0; e < 16; e++) im.instanceMatrix.array[j * 16 + e] = d.arr[i * 16 + e]; });
-        im.instanceMatrix.needsUpdate = true;
-        if (d.jitter > 0 && rng) {
-          const col = new Float32Array(idx.length * 3);
-          idx.forEach((i, j) => { col[j * 3] = cols[i * 3]; col[j * 3 + 1] = cols[i * 3 + 1]; col[j * 3 + 2] = cols[i * 3 + 2]; });
-          im.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
-        }
-        im.castShadow = d.castShadow; im.receiveShadow = d.receiveShadow;
-        im.name = 'pagoda_' + nm;
-        im.computeBoundingSphere();
-        im.computeBoundingBox();
-        group.add(im);
-        n++;
-      };
-      if (cells.size <= 1) mkChunk(Array.from({ length: c }, (_, i) => i), key);
-      else { let ci = 0; for (const a of cells.values()) mkChunk(a, `${key}_${ci++}`); }
+      const built = chunkedInstanced(d.geo, d.mat, mats, {
+        cell: 8, castShadow: d.castShadow, receiveShadow: d.receiveShadow,
+        name: 'pagoda_' + key, colors: d.jitter > 0 && rng ? cols : null,
+      });
+      group.add(built);
+      n += built.isGroup ? built.children.length : 1;
     }
     return n;
   }
@@ -144,6 +132,7 @@ export function masuGeo(s, h, footFrac = 0.42, footScale = 0.76, c = 0.012) {
 // Bearing block (masu) with a true concave (cove) lower profile, a crisp ledge and a
 // chamfered upper box. Origin at bottom centre, size s x s, height h.
 import { cnt, seg as dseg } from '../core/detail.js';
+import { chunkedInstanced } from '../core/geom.js';
 
 export function masuCoveGeo(s, h, { footFrac = 0.44, footScale = 0.72, c = 0.012 } = {}) {
   const X = s / 2, hb = h * footFrac, b = X * footScale;

@@ -100,6 +100,46 @@ export function instanced(geo, material, matrices, { castShadow = true, receiveS
   return im;
 }
 
+// Spatially chunked instancing: one InstancedMesh per ~cell-sized world region so
+// frustum culling can drop whole regions behind the camera. Shared by props, the
+// pagoda InstSet and terrain cover. terrain-forest keeps its own builder (it carries
+// a per-instance aTree attribute and must preserve RNG draw order).
+// matrices: Matrix4[]; colors: optional Float32Array (3 floats per matrix) aligned to
+// matrices (set as instanceColor). Returns a Group named `name`, or a bare
+// InstancedMesh when everything fits into a single cell.
+export function chunkedInstanced(geo, material, matrices, { cell = 24, castShadow = true, receiveShadow = true, depth = null, name = 'inst', colors = null } = {}) {
+  const byCell = new Map();
+  for (let i = 0; i < matrices.length; i++) {
+    const e = matrices[i].elements;
+    const k = `${Math.floor(e[12] / cell)},${Math.floor(e[14] / cell)}`;
+    let a = byCell.get(k); if (!a) byCell.set(k, a = []);
+    a.push(i);
+  }
+  const mk = (idx, nm) => {
+    const im = new THREE.InstancedMesh(geo, material, Math.max(idx.length, 1));
+    idx.forEach((i, j) => im.setMatrixAt(j, matrices[i]));
+    im.count = idx.length;
+    im.instanceMatrix.needsUpdate = true;
+    if (colors) {
+      const col = new Float32Array(idx.length * 3);
+      idx.forEach((i, j) => { col[j * 3] = colors[i * 3]; col[j * 3 + 1] = colors[i * 3 + 1]; col[j * 3 + 2] = colors[i * 3 + 2]; });
+      im.instanceColor = new THREE.InstancedBufferAttribute(col, 3);
+    }
+    im.castShadow = castShadow; im.receiveShadow = receiveShadow;
+    if (depth) im.customDepthMaterial = depth;
+    im.name = nm;
+    im.computeBoundingSphere();
+    im.computeBoundingBox();
+    im.frustumCulled = idx.length > 0;
+    return im;
+  };
+  if (byCell.size <= 1) return mk(matrices.map((_, i) => i), name);
+  const group = new THREE.Group(); group.name = name;
+  let i = 0;
+  for (const idx of byCell.values()) group.add(mk(idx, `${name}_${i++}`));
+  return group;
+}
+
 // Lathe from [[r,y],...] profile
 export function lathe(profile, seg = 24) {
   return new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(Math.max(r, 0.0001), y)), seg);
