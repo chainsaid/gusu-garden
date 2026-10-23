@@ -58,7 +58,13 @@ export function fitSunShadow(sun, center, radius, jitter = null) {
 
 // Render a cube map at `position` of everything in `scene` (or just the sky) and
 // convert it into a PMREM environment texture.
-export function captureEnvironment(renderer, scene, position, { size = 256, near = 0.5, far = 5000, hideSunDisc = true, layers = null } = {}) {
+const nextFrame = () => new Promise((res) => requestAnimationFrame(() => res()));
+
+// Captures a cube-map environment. Rendered face-by-face (not via CubeCamera.update) so a
+// progress callback can report how far along the 6-face pass is, and so the caller can yield
+// a frame between faces to let a status overlay repaint. `onProgress(done, total)` is called
+// after each of the 6 faces.
+export async function captureEnvironment(renderer, scene, position, { size = 256, near = 0.5, far = 5000, hideSunDisc = true, layers = null, onProgress = null } = {}) {
   const rt = new THREE.WebGLCubeRenderTarget(size, { type: THREE.HalfFloatType, generateMipmaps: false });
   const cubeCam = new THREE.CubeCamera(near, far, rt);
   cubeCam.position.copy(position);
@@ -66,7 +72,14 @@ export function captureEnvironment(renderer, scene, position, { size = 256, near
   const prevDisc = SKY_UNIFORMS.uSunDisc.value;
   if (hideSunDisc) SKY_UNIFORMS.uSunDisc.value = 0.0;
   const prevTarget = renderer.getRenderTarget();
-  cubeCam.update(renderer, scene);
+  const faces = cubeCam.children; // 6 perspective cameras, one per cube face
+  for (let i = 0; i < 6; i++) {
+    renderer.setRenderTarget(rt, i);
+    renderer.clear();
+    renderer.render(scene, faces[i]);
+    if (onProgress) onProgress(i + 1, 6);
+    await nextFrame(); // repaint the status overlay between faces
+  }
   renderer.setRenderTarget(prevTarget);
   SKY_UNIFORMS.uSunDisc.value = prevDisc;
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -76,7 +89,7 @@ export function captureEnvironment(renderer, scene, position, { size = 256, near
   return env;
 }
 
-export function captureSkyEnvironment(renderer, sky) {
+export async function captureSkyEnvironment(renderer, sky) {
   const s = new THREE.Scene();
   const clone = sky.clone();
   s.add(clone);

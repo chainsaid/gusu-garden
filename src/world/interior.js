@@ -570,14 +570,14 @@ function kebutsuGeo() {
 }
 
 // ============================================================================
-function finalizeInterior(ctx, M, S, root) {
+async function finalizeInterior(ctx, M, S, root) {
   if (ctx.quality !== 'final') return; // realtime: no local IBL captures
   // local env map at the sanctum centre so gold reflects the gold interior
   const hidden = [];
   root.traverse((o) => { if ((o.isPoints || /interior-(shafts|smoke)/.test(o.name)) && o.visible) { o.visible = false; hidden.push(o); } });
   try {
     for (let pass = 0; pass < 2; pass++) {
-      const env = ctx.captureEnv(S.probe, { size: 256, near: 0.1 });
+      const env = await ctx.captureEnv(S.probe, { size: 256, near: 0.1 });
       const old = new Set();
       for (const m of M.envList) { if (m.envMap && m.envMap !== env) old.add(m.envMap); m.envMap = env; m.envMapIntensity = (m.userData.envK ?? 1) * (S.envBoost || 2.2); m.needsUpdate = true; }
       old.forEach((t) => t.dispose());

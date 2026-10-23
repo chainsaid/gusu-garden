@@ -347,7 +347,7 @@ export async function build(ctx) {
         // interior IBL: capture a local environment inside the hall twice (bounce)
         let env = null;
         for (let pass = 0; pass < 2; pass++) {
-          const e = c.captureEnv([C[0], C[1] + 5.0, C[2] + 1.0], { size: 128, near: 0.3 });
+          const e = await c.captureEnv([C[0], C[1] + 5.0, C[2] + 1.0], { size: 128, near: 0.3 });
           for (const m of _interiorMats) { m.envMap = e; m.envMapIntensity = 1.0; m.needsUpdate = true; }
           if (env) env.dispose();
           env = e;

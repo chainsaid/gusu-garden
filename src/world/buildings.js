@@ -461,7 +461,7 @@ export async function build(ctx) {
       if (ctx.quality !== 'final' || DBGQ.includes('noenv')) return; // realtime: no local IBL captures (boot-time renders must not stall on unlinked programs)
       for (const L of localSets) {
         try {
-          const env = c.captureEnv(L.pos, { size: 256 });
+          const env = await c.captureEnv(L.pos, { size: 256 });
           for (const m of L.mats) { m.envMap = env; m.needsUpdate = true; }
         } catch (e) { console.error('[buildings] local env failed', e.stack || e); }
       }

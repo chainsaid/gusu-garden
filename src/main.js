@@ -42,7 +42,7 @@ import { SHOTS, evalShot, SHOT_DUR, FILM_DURATION } from './shots.js';
 //   modules=a,b,c          which world modules to load (default: all)
 //   post overrides: exp, godrays, dof=1, fstop, focus, ao, bloom, fog
 const Q = new URLSearchParams(location.search);
-const QUALITY = Q.get('q') || 'preview';
+const QUALITY = Q.get('q') || 'realtime';
 const W = +Q.get('w') || (QUALITY === 'final' ? 1280 : 960);
 const H = +Q.get('h') || (QUALITY === 'final' ? 720 : 540);
 const MODE = Q.get('mode') || (Q.has('shot') || Q.has('cam') ? 'still' : 'dev');
@@ -90,12 +90,12 @@ scene.add(camera);
 
 const sky = createSky();
 scene.add(sky);
-const sun = createSun(scene, { mapSize: Q.has('smap') ? +Q.get('smap') : (QUALITY === 'preview' ? 1024 : 4096) });
+const sun = createSun(scene, { mapSize: Q.has('smap') ? +Q.get('smap') : (QUALITY === 'final' ? 4096 : QUALITY === 'realtime' ? 2048 : 1024) });
 
 const pipeline = new Pipeline(renderer, {
   width: RW, height: RH,
-  msaa: QUALITY === 'preview' ? 1 : 4, aoSamples: QUALITY === 'preview' ? 6 : 16, dofQuality: QUALITY === 'preview' ? 0 : 1,
-  bloomMips: +Q.get('bmips') || (QUALITY === 'preview' ? 4 : 7), // preview: shorter bloom chain = fewer fullscreen passes
+  msaa: QUALITY === 'final' ? 4 : 1, aoSamples: QUALITY === 'final' ? 16 : (QUALITY === 'preview' ? 6 : 8), dofQuality: QUALITY === 'final' ? 1 : 0,
+  bloomMips: +Q.get('bmips') || (QUALITY === 'final' ? 7 : 4), // non-final: shorter bloom chain = fewer fullscreen passes
 });
 pipeline.setSun(sun, sunDir, G.uSunColor.value);
 
@@ -317,7 +317,7 @@ async function main() {
   const names = Q.has('modules') ? Q.get('modules').split(',').filter(Boolean) : ALL_MODULES;
   const t0 = performance.now();
   const built = await buildWorld(names);
-  status('capturing environment...');
+  status('');
 
   // sky-light attenuation volumes (interiors, under roofs) — must be set before the first render
   const vols = [];
@@ -333,13 +333,10 @@ async function main() {
   const skyClone = createSky();
   skyScene.add(skyClone);
   if (!Q.has('nopc')) {
-    // Progressive shader compilation (dev mode). A full compileAsync waits for all ~350
-    // programs ≈ 87 s cold on integrated GPUs. Instead: frustum-select what shot 0 can
-    // see (union over three time samples), DETACH everything else from the graph —
-    // three's compile() walks the whole graph with scene.traverse, so visible=false is
-    // not enough — compile the subset with the parallel-compile hint, re-attach, and
-    // initiate the remaining programs in the background while preroll/playback runs.
-    // ?fullcompile restores wait-for-everything (film modes always do).
+    // Shader compilation is the dominant load cost (~87 s cold on integrated GPUs) and is
+    // dominated by terrain's shaders, which are visible in every shot — so there is no
+    // cheap first-paint subset. We compile everything once, up front, predictably.
+    // ?compilemod keeps one module attached at a time to attribute compile time per module.
     const tp = performance.now();
     applyCamera(camera, { pos: new THREE.Vector3(10, 4, 30), look: new THREE.Vector3(10, 3, 0), focal: 24 });
     window.__shaderMin = Q.get('probe') === 'shadersize' ? 20000 : 0;
@@ -355,39 +352,28 @@ async function main() {
         console.log('[info] compilemod', g.name, Math.round(performance.now() - t), 'ms');
         for (const { c, i } of saved) { scene.children.splice(Math.min(i, scene.children.length), 0, c); c.parent = scene; }
       }
-    } else if (Q.has('fullcompile') || MODE !== 'dev') {
-      try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('compileAsync failed', e); }
-      console.log('[info] parallel compile ms', Math.round(performance.now() - tp));
     } else {
-      const isDrawable = (o) => o.isMesh || o.isInstancedMesh || o.isPoints || o.isLine;
-      const camPath = [0, SHOT_DUR * 0.5, SHOT_DUR * 0.999].map((tf) => { const c = evalShot(0, tf); return new THREE.Vector3(...c.pos); });
-      const vis = new Set();
-      scene.traverse((o) => {
-        if (!isDrawable(o) || vis.has(o) || !o.geometry || o.material === null) return;
-        const g = o.geometry;
-        if (!g.boundingSphere) g.computeBoundingSphere();
-        const s = g.boundingSphere;
-        // generous distance cut: near the shot-0 camera path, or simply huge (terrain/sky)
-        for (const p of camPath) {
-          const d = Math.hypot(s.center.x - p.x, s.center.y - p.y, s.center.z - p.z) - s.radius;
-          if (d < 25) { vis.add(o); break; }
-        }
-      });
-      const detached = [];
-      scene.traverse((o) => {
-        if (!isDrawable(o) || vis.has(o)) return;
-        detached.push({ o, p: o.parent, i: o.parent.children.indexOf(o) });
-      });
-      for (const d of detached) d.p.remove(d.o);
-      try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('compileAsync failed', e); }
-      for (const d of detached) { d.p.children.splice(Math.min(d.i, d.p.children.length), 0, d.o); d.o.parent = d.p; }
-      window.__progCompile = true; // preroll skipped: the background compile covers later shots
-      console.log('[info] subset compile ms', Math.round(performance.now() - tp), `meshes ${vis.size}/${vis.size + detached.length}`);
-      renderer.compileAsync(scene, camera).catch(() => {}); // remaining programs compile during playback
+      status('compiling shaders...');
+      // compileAsync's wait loop yields (setTimeout 10 ms), so the main thread stays
+      // responsive — poll the program cache on a timer and show real link progress.
+      // info.programs IS programCache.programs (live array, grows as programs are created).
+      const compiling = renderer.compileAsync(scene, camera).catch((e) => console.warn('compileAsync failed', e));
+      let pollTimer = null;
+      const tick = () => {
+        const ps = renderer.info.programs || [];
+        let ready = 0;
+        for (const p of ps) { try { if (p.isReady()) ready++; } catch { ready++; } }
+        status(`compiling shaders... (${ready}/${ps.length})`);
+        if (ready < ps.length || ps.length === 0) pollTimer = setTimeout(tick, 120);
+      };
+      tick();
+      try { await compiling; } finally { clearTimeout(pollTimer); }
+      console.log('[info] parallel compile ms', Math.round(performance.now() - tp));
     }
   }
   const tc0 = performance.now();
-  scene.environment = captureEnvironment(renderer, skyScene, new THREE.Vector3(0, 2, 0), { size: 256 });
+  status('capturing sky environment... (0/6)');
+  scene.environment = await captureEnvironment(renderer, skyScene, new THREE.Vector3(0, 2, 0), { size: 256, onProgress: (i, n) => status(`capturing sky environment... (${i}/${n})`) });
   console.log('[info] sky env capture ms', Math.round(performance.now() - tc0));
   scene.environmentIntensity = ENV.envIntensity;
   // scene-wide env capture renders EVERYTHING — under progressive compile it would stall
@@ -397,7 +383,8 @@ async function main() {
     const prevEnv = scene.environment;
     fitSunShadow(sun, new THREE.Vector3(6, 0, 0), 90);
     const tc1 = performance.now();
-    scene.environment = captureEnvironment(renderer, scene, new THREE.Vector3(10, 4, 4), { size: 256 });
+    status('capturing scene environment... (0/6)');
+    scene.environment = await captureEnvironment(renderer, scene, new THREE.Vector3(10, 4, 4), { size: 256, onProgress: (i, n) => status(`capturing scene environment... (${i}/${n})`) });
     renderer.getContext().finish();
     console.log('[info] scene env capture ms', Math.round(performance.now() - tc1));
     prevEnv.dispose();
@@ -428,7 +415,6 @@ async function main() {
 // shot transitions into load-time cost. `?nopre` disables it.
 async function prerollShots() {
   if (Q.has('nopre') || MODE === 'still') return;
-  if (window.__progCompile) return; // progressive compile: later shots compile in the background instead
   const rt = new THREE.WebGLRenderTarget(8, 8, { type: THREE.UnsignedByteType, depthBuffer: false });
   const t0 = performance.now();
   for (let i = 0; i < SHOTS.length; i++) {
