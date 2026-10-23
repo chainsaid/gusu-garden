@@ -342,7 +342,7 @@ export async function build(ctx) {
     anchors,
     showcase,
     finalize: async (c) => {
-      if (c.quality === 'preview') return;
+      if (c.quality !== 'final') return; // preview/realtime: sky env only, no local IBL captures
       try {
         // interior IBL: capture a local environment inside the hall twice (bounce)
         let env = null;

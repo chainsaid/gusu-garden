@@ -458,7 +458,7 @@ export async function build(ctx) {
     object: group,
     anchors,
     finalize: async (c) => {
-      if (ctx.quality === 'preview' || DBGQ.includes('noenv')) return;
+      if (ctx.quality !== 'final' || DBGQ.includes('noenv')) return; // realtime: no local IBL captures (boot-time renders must not stall on unlinked programs)
       for (const L of localSets) {
         try {
           const env = c.captureEnv(L.pos, { size: 256 });

@@ -56,6 +56,25 @@ vec3 n_bumpView(vec3 p, vec3 n, float h, float strength){
 vec3 n_worldNormalFromView(vec3 nv){ return normalize((vec4(nv, 0.0) * viewMatrix).xyz); }
 `;
 
+// ---------------------------------------------------------------------------
+// Variant registry: every patched material is (auto-)named and registered, so GPU
+// programs are attributable in profilers and program histograms (Spector / bench
+// progTop). Explicit names win; unnamed hooked materials get a stable
+// 'hook_<keyhash>' name derived from their cache key, so re-creating the same
+// variant keeps the same name. If two different variants share one name the entry
+// is flagged `collide` (the ?probe=materials census reports it). The registry is a
+// creation-time view: modules that rename materials afterwards (e.g. hall.js) show
+// the new name in program histograms but the registry keeps the creation name.
+// ---------------------------------------------------------------------------
+const REGISTRY = new Map();
+export function matRegistry() { return REGISTRY; }
+function registerVariant(mat, key) {
+  if (!mat.name) mat.name = 'hook_' + key.slice(1, 9);
+  const e = REGISTRY.get(mat.name);
+  if (e && e.key !== key) e.collide = true;
+  else if (!e) REGISTRY.set(mat.name, { key, type: mat.type });
+}
+
 export function patch(mat, o = {}) {
   const parts = [o.vertexHead, o.vertexWorld, o.fragHead, o.fragColor, o.fragRough, o.fragMetal, o.fragNormal, o.fragEmissive, o.fragPhysical, o.fragLight, o.fragEnd, JSON.stringify(o.defines || {})];
   const key = 'p' + hashString(parts.map((s) => s || '').join('|'));
@@ -129,6 +148,7 @@ export function patch(mat, o = {}) {
   };
   const prevKey = mat.customProgramCacheKey;
   mat.customProgramCacheKey = () => key;
+  registerVariant(mat, key);
   mat.needsUpdate = true;
   return mat;
 }
@@ -143,13 +163,15 @@ export function depthMaterialFor(o = {}, base = {}) {
 // ---------------------------------------------------------------------------
 // Convenience factories
 // ---------------------------------------------------------------------------
-export function std(params = {}, proc = null) {
+export function std(params = {}, proc = null, name = '') {
   const m = new THREE.MeshStandardMaterial(params);
+  if (name) m.name = name;
   if (proc) patch(m, proc);
   return m;
 }
-export function phys(params = {}, proc = null) {
+export function phys(params = {}, proc = null, name = '') {
   const m = new THREE.MeshPhysicalMaterial(params);
+  if (name) m.name = name;
   if (proc) patch(m, proc);
   return m;
 }
