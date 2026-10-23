@@ -5,7 +5,8 @@ import { installFog, setAmbientVolumes } from './core/fog.js';
 import { createSky, SKY_UNIFORMS } from './core/sky.js';
 import { createSun, fitSunShadow, captureEnvironment } from './core/lighting.js';
 import { Pipeline, DEFAULT_POST } from './core/post.js';
-import { materials, patch, std, phys, glow, PROC, depthMaterialFor, matRegistry } from './core/materials.js';
+import { materials, patch, std, phys, glow, PROC, depthMaterialFor } from './core/materials.js';
+import * as diag from './core/diag.js';
 import * as geom from './core/geom.js';
 import { rng } from './core/rng.js';
 import { L } from './layout.js';
@@ -16,12 +17,30 @@ import { SHOTS, evalShot, SHOT_DUR, FILM_DURATION } from './shots.js';
 // URL parameters
 //   shot=N&t=sec          still frame from the film (N = 0..9)
 //   cam=x,y,z&look=x,y,z  explicit camera (with focal=mm or fov=deg)
-//   modules=a,b,c         which world modules to load (default: all)
-//   w,h                   resolution     spp=N   sub-frames (AA / motion blur)
-//   q=preview|final       quality preset
-//   mode=dev              interactive orbit + shot player
-//   mode=render           offline video render (driven by tools/render.mjs)
-//   post overrides: exp, godrays, dof=1, fstop, focus, ao, bloom
+//   q=preview|realtime|final  quality preset. realtime decimates geometry via
+//                             src/core/detail.js and MUST be set before world modules
+//                             load (module-level constants like hall-roof's TILE read
+//                             the tier at import - setDetailTier() below enforces it)
+//   detail=N               decimation scale override (0..1)
+//   w,h                    resolution       spp=N   sub-frames (AA / motion blur)
+//   play                   autoplay the shot sequence (dev)
+//   mode=still|render|dev  still view / offline render (tools/render.mjs) / interactive
+//   rscale=0..1            internal render scale (canvas CSS size unchanged)
+//   autores                dynamic resolution to hold the frame rate
+//   smap=N                 sun shadow map size (default 4096, preview 1024)
+//   nopc                   skip shader precompile entirely
+//   fullcompile            wait for ALL shader programs (dev default is progressive:
+//                          shot-0 subset first, remaining programs in background)
+//   nopre                  skip the shot preroll (implied by progressive compile)
+//   envcap / noenvcap      force / skip the scene-wide environment capture
+//   noav                   skip sky-light attenuation volumes
+//   noshadow=a,b,c         exclude whole modules from the sun shadow map
+//   shadynamic             per-camera shadow fitting (film); dev freezes the region
+//   shadat=x,y,z  shadr=R  frozen shadow region override
+//   probe=tris|materials|compilemod  diagnostics (src/core/diag.js)
+//   nocheck                disable shader error checking
+//   modules=a,b,c          which world modules to load (default: all)
+//   post overrides: exp, godrays, dof=1, fstop, focus, ao, bloom, fog
 const Q = new URLSearchParams(location.search);
 const QUALITY = Q.get('q') || 'preview';
 const W = +Q.get('w') || (QUALITY === 'final' ? 1280 : 960);
@@ -390,63 +409,10 @@ async function main() {
   scene.traverse((o) => { if (o.isMesh) { meshes++; const g = o.geometry; const n = g.index ? g.index.count / 3 : g.attributes.position.count / 3; tris += n * (o.isInstancedMesh ? o.count : 1); } });
   window.__info = { gpu, buildMs: Math.round(buildMs), meshes, tris: Math.round(tris) };
   console.log('[info]', JSON.stringify(window.__info));
-  // ?probe=tris: where do the triangles actually live? Aggregate per mesh (instanced
-  // meshes count every instance), keyed by "<topGroup>/<objectName>", and log the top 30.
+  // ?probe=tris|materials: dev diagnostics (see src/core/diag.js)
   if (Q.has('probe')) {
-    if (Q.get('probe') === 'materials') {
-      const reg = matRegistry();
-      let autoN = 0, collide = 0; const collideNames = [];
-      for (const [nm, e] of reg) { if (nm.startsWith('hook_')) autoN++; if (e.collide) { collide++; collideNames.push(nm); } }
-      console.log('[info] registry: entries=' + reg.size, `autoNamed=${autoN}`, `userNamed=${reg.size - autoN}`, `collisions=${collide}`, collideNames.length ? 'names: ' + collideNames.join(', ') : '');
-      // program-merge census: group material cache keys by their hook-slot structure.
-      // Keys sharing a structure differ only in shader literals -> mergeable via uniforms.
-      const SLOTS = ['vertexHead', 'vertexWorld', 'fragHead', 'fragColor', 'fragRough', 'fragMetal', 'fragNormal', 'fragEmissive', 'fragPhysical', 'fragLight', 'fragEnd'];
-      const keys = new Set(); const bySig = new Map(); let mats = 0;
-      scene.traverse((o) => {
-        const list = [];
-        if (o.material) list.push(...(Array.isArray(o.material) ? o.material : [o.material]));
-        if (o.customDepthMaterial) list.push(o.customDepthMaterial);
-        for (const m of list) {
-          if (!m) continue;
-          mats++;
-          const key = m.customProgramCacheKey ? String(m.customProgramCacheKey()) : m.type + ':base';
-          keys.add(key);
-          const p = m.userData.patch;
-          const sig = p ? SLOTS.filter((k) => typeof p[k] === 'string' && p[k].length > 0).join('+') || 'empty' : (p ? 'defines' : 'none');
-          let e = bySig.get(sig);
-          if (!e) { e = { n: 0, keys: new Set(), names: [] }; bySig.set(sig, e); }
-          e.n++; e.keys.add(key);
-          if (m.name && e.names.length < 3) e.names.push(m.name);
-        }
-      });
-      const rows = [...bySig.entries()].sort((a, b) => b[1].keys.size - a[1].keys.size);
-      console.log('[info] material census: materials=' + mats, 'distinctKeys=' + keys.size);
-      for (const [sig, e] of rows.slice(0, 14)) console.log('[info] census', `keys=${e.keys.size}`, `mats=${e.n}`, `slots=[${sig}]`, 'eg:', e.names.join(','));
-      // number fingerprints for the two vegetation families: which literals vary per key
-      const sig2 = bySig.get('vertexHead+vertexWorld');
-      const sig3 = bySig.get('vertexHead+vertexWorld+fragHead+fragColor+fragNormal+fragLight');
-      const dumpNums = (e, tag) => {
-        if (!e) return;
-        for (const key of [...e.keys].slice(0, 16)) {
-          const p = e.byKey.get(key);
-          const s = (p.vertexHead || '') + ' ' + (p.vertexWorld || '');
-          const nums = [...new Set((s.match(/-?\d+\.\d+/g) || []).map(Number))].sort((a, b) => a - b);
-          console.log('[info] nums', tag, key.slice(0, 10), JSON.stringify(nums));
-        }
-      };
-      if (sig2) { sig2.byKey = new Map(); scene.traverse((o) => { const m = o.material; if (!m || !m.userData.patch) return; const k = m.customProgramCacheKey ? String(m.customProgramCacheKey()) : ''; if (sig2.keys.has(k) && !sig2.byKey.has(k)) sig2.byKey.set(k, m.userData.patch); }); dumpNums(sig2, 'wind'); }
-      if (sig3) { sig3.byKey = new Map(); scene.traverse((o) => { const m = o.material; if (!m || !m.userData.patch) return; const k = m.customProgramCacheKey ? String(m.customProgramCacheKey()) : ''; if (sig3.keys.has(k) && !sig3.byKey.has(k)) sig3.byKey.set(k, m.userData.patch); }); dumpNums(sig3, 'foliage'); }
-    }
-    const top = (o) => { let p = o; while (p.parent && p.parent !== scene) p = p.parent; return p.name || '?'; };
-    const per = {};
-    scene.traverse((o) => {
-      if (!o.isMesh) return;
-      const n = (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1);
-      const k = `${top(o)}/${o.name || o.material?.name || o.constructor.name}#${o.id}`;
-      per[k] = (per[k] || 0) + n;
-    });
-    const rows = Object.entries(per).sort((a, b) => b[1] - a[1]);
-    console.log('[info] tris-by-object', JSON.stringify(Object.fromEntries(rows.slice(0, 30).map(([k, v]) => [k, Math.round(v / 1000) + 'k']))));
+    if (Q.get('probe') === 'materials') diag.probeMaterials(scene);
+    else diag.probeTris(scene);
   }
 
   await prerollShots();
