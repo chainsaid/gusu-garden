@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { NOISE } from './glsl.js';
 import { G, WIND_GLSL } from './env.js';
 import { hashString } from './rng.js';
+import { isRealtime } from './detail.js';
 
 // ---------------------------------------------------------------------------
 // patch(material, opts): inject procedural GLSL into any MeshStandard/Physical
@@ -175,6 +176,10 @@ const v3u = (s) => {
 };
 const U3 = (s) => ({ value: v3u(s) });
 const U1 = (s, d) => ({ value: Number.isFinite(parseFloat(s)) ? parseFloat(s) : d });
+// fbm octave count: one octave less at realtime — n_fbm3 is a bounded loop with a runtime
+// break, so this does not shrink the shader (compile time), but it cuts the per-pixel
+// noise cost of every PROC surface by ~1/3 where it matters (integrated GPUs)
+const OC = (n) => (isRealtime() ? Math.max(2, n - 1) : n);
 
 // Vermilion lacquered wood (shu-nuri) with weathering, grime and subtle grain.
 PROC.lacquer = (base = 'vec3(0.50, 0.072, 0.028)') => ({
@@ -234,7 +239,7 @@ PROC.bronze = () => ({
   fragColor: /* glsl */ `
     {
       vec3 wp = vWPos;
-      float n = n_fbm3(wp * 4.0, 4);
+      float n = n_fbm3(wp * 4.0, ${OC(4)});
       g_pat = smoothstep(-0.1, 0.5, n_fbm3(wp * 1.7 + 3.0, 3));
       vec3 bronze = vec3(0.55, 0.36, 0.16) * (0.85 + 0.2 * n);
       vec3 patina = mix(vec3(0.05, 0.045, 0.035), vec3(0.10, 0.16, 0.12), smoothstep(0.3, 0.8, n * 0.5 + 0.5));
@@ -256,7 +261,7 @@ PROC.roofTile = () => ({
       float n = n_fbm3(wp * 0.6, 3);
       float f = n_snoise3(wp * 9.0);
       vec3 col = vec3(0.060, 0.066, 0.078) * (0.85 + 0.25 * n + 0.06 * f);
-      float lichen = smoothstep(0.55, 0.85, n_fbm3(wp * 2.3 + 11.0, 4) * 0.5 + 0.5);
+      float lichen = smoothstep(0.55, 0.85, n_fbm3(wp * 2.3 + 11.0, ${OC(4)}) * 0.5 + 0.5);
       col = mix(col, vec3(0.16, 0.15, 0.11), lichen * 0.35);
       float dust = smoothstep(0.2, 0.9, normalize(vWNrm).y) * (0.5 + 0.5 * n);
       col = mix(col, vec3(0.12, 0.11, 0.10), dust * 0.12);
@@ -274,7 +279,7 @@ PROC.plaster = () => ({
   fragColor: /* glsl */ `
     {
       vec3 wp = vWPos;
-      float n = n_fbm3(wp * 0.8, 4);
+      float n = n_fbm3(wp * 0.8, ${OC(4)});
       float streak = n_fbm3(wp * vec3(3.0, 0.25, 3.0), 3);
       vec3 col = vec3(0.78, 0.75, 0.68) * (0.92 + 0.08 * n);
       col *= 1.0 - smoothstep(0.1, 0.7, streak) * 0.18;
@@ -292,7 +297,7 @@ PROC.granite = (mossAmt = '0.6', tint = 'vec3(1.0)') => ({
   fragColor: /* glsl */ `
     {
       vec3 wp = vWPos; vec3 wn = normalize(vWNrm);
-      float big = n_fbm3(wp * 0.45, 4);
+      float big = n_fbm3(wp * 0.45, ${OC(4)});
       float speck = n_snoise3(wp * 38.0);
       float speck2 = n_snoise3(wp * 61.0 + 5.0);
       vec3 col = vec3(0.34, 0.33, 0.31) * uTint * (0.82 + 0.25 * big);
@@ -302,11 +307,11 @@ PROC.granite = (mossAmt = '0.6', tint = 'vec3(1.0)') => ({
       float streak = n_fbm3(wp * vec3(2.2, 0.35, 2.2), 3);
       col *= 1.0 - smoothstep(0.0, 0.6, streak) * 0.3;
       // lichen blotches (pale yellow-grey)
-      float lich = smoothstep(0.62, 0.78, n_fbm3(wp * 1.9 + 3.3, 4) * 0.5 + 0.5);
+      float lich = smoothstep(0.62, 0.78, n_fbm3(wp * 1.9 + 3.3, ${OC(4)}) * 0.5 + 0.5);
       col = mix(col, vec3(0.42, 0.42, 0.30), lich * 0.45);
       // moss: up-facing + crevices noise
       float up = smoothstep(0.15, 0.85, wn.y);
-      float mn = n_fbm3(wp * 1.3 + 9.1, 5) * 0.5 + 0.5;
+      float mn = n_fbm3(wp * 1.3 + 9.1, ${OC(5)}) * 0.5 + 0.5;
       g_moss = clamp(smoothstep(0.62 - 0.35 * up * uMoss, 0.82, mn + up * 0.15) * uMoss, 0.0, 1.0);
       vec3 mossCol = mix(vec3(0.045, 0.075, 0.012), vec3(0.12, 0.16, 0.03), n_snoise3(wp * 7.0) * 0.5 + 0.5);
       col = mix(col, mossCol, g_moss);
@@ -325,7 +330,7 @@ PROC.taihuStone = (mossAmt = '0.65', tint = 'vec3(1.0)') => ({
     {
       vec3 wp = vWPos; vec3 wn = normalize(vWNrm);
       float vAo = clamp(vColor.r, 0.15, 1.0);
-      float big = n_fbm3(wp * 0.45, 4);
+      float big = n_fbm3(wp * 0.45, ${OC(4)});
       float med = n_fbm3(wp * 2.2 + 2.0, 3);
       float micro = n_snoise3(wp * 32.0);
       vec3 baseCol = vec3(0.55, 0.57, 0.58) * ${tint} * (0.86 + 0.25 * big);
@@ -359,7 +364,7 @@ PROC.wood = (base = 'vec3(0.24, 0.15, 0.09)', grainAxis = 'x') => {
     fragColor: /* glsl */ `
       {
         vec3 wp = vWPos;
-        float g = n_fbm3(wp * ${sc}, 4);
+        float g = n_fbm3(wp * ${sc}, ${OC(4)});
         float ringsRaw = sin(g * 18.0) * 0.5 + 0.5;
         float rings = mix(ringsRaw, 0.5, clamp(fwidth(g * 18.0) * 0.6, 0.0, 1.0));
         float big = n_fbm3(wp * 0.5, 3);
@@ -409,7 +414,7 @@ PROC.cyanTile = () => ({
       float n = n_fbm3(wp * 0.6, 3);
       float f = n_snoise3(wp * 9.0);
       vec3 col = vec3(0.125, 0.135, 0.145) * (0.85 + 0.22 * n + 0.06 * f);
-      float lichen = smoothstep(0.52, 0.82, n_fbm3(wp * 2.3 + 11.0, 4) * 0.5 + 0.5);
+      float lichen = smoothstep(0.52, 0.82, n_fbm3(wp * 2.3 + 11.0, ${OC(4)}) * 0.5 + 0.5);
       col = mix(col, vec3(0.18, 0.19, 0.15), lichen * 0.3);
       float dust = smoothstep(0.2, 0.9, normalize(vWNrm).y) * (0.5 + 0.5 * n);
       col = mix(col, vec3(0.16, 0.15, 0.14), dust * 0.12);
@@ -427,7 +432,7 @@ PROC.whitePlaster = () => ({
   fragColor: /* glsl */ `
     {
       vec3 wp = vWPos;
-      float n = n_fbm3(wp * 0.8, 4);
+      float n = n_fbm3(wp * 0.8, ${OC(4)});
       float streak = n_fbm3(wp * vec3(4.0, 0.2, 4.0), 3);
       vec3 col = vec3(0.86, 0.86, 0.84) * (0.94 + 0.06 * n);
       col *= 1.0 - smoothstep(0.15, 0.75, streak) * 0.12;

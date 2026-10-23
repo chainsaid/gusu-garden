@@ -323,7 +323,19 @@ async function main() {
     // ?fullcompile restores wait-for-everything (film modes always do).
     const tp = performance.now();
     applyCamera(camera, { pos: new THREE.Vector3(10, 4, 30), look: new THREE.Vector3(10, 3, 0), focal: 24 });
-    if (Q.has('fullcompile') || MODE !== 'dev') {
+    if (Q.get('probe') === 'compilemod') {
+      // per-module compile attribution: keep one module attached at a time, compile, time
+      // it. The distribution shows which modules' shaders eat the compile floor.
+      const groups = scene.children.filter((c) => c.type === 'Group' && c.name);
+      for (const g of groups) {
+        const saved = scene.children.filter((c) => c !== g && c.type === 'Group' && c.name).map((c) => ({ c, i: scene.children.indexOf(c) }));
+        for (const { c } of saved) scene.remove(c);
+        const t = performance.now();
+        try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('compileAsync failed', e); }
+        console.log('[info] compilemod', g.name, Math.round(performance.now() - t), 'ms');
+        for (const { c, i } of saved) { scene.children.splice(Math.min(i, scene.children.length), 0, c); c.parent = scene; }
+      }
+    } else if (Q.has('fullcompile') || MODE !== 'dev') {
       try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('compileAsync failed', e); }
       console.log('[info] parallel compile ms', Math.round(performance.now() - tp));
     } else {
@@ -358,7 +370,10 @@ async function main() {
   scene.environment = captureEnvironment(renderer, skyScene, new THREE.Vector3(0, 2, 0), { size: 256 });
   console.log('[info] sky env capture ms', Math.round(performance.now() - tc0));
   scene.environmentIntensity = ENV.envIntensity;
-  if (QUALITY !== 'preview' && !Q.has('noenvcap') && names.length > 3) {
+  // scene-wide env capture renders EVERYTHING — under progressive compile it would stall
+  // on all not-yet-linked programs (measured 117 s). Realtime skips it (sky-only env);
+  // ?envcap forces it. Film modes always capture.
+  if (QUALITY !== 'preview' && !Q.has('noenvcap') && (QUALITY !== 'realtime' || Q.has('envcap')) && names.length > 3) {
     const prevEnv = scene.environment;
     fitSunShadow(sun, new THREE.Vector3(6, 0, 0), 90);
     const tc1 = performance.now();
@@ -403,6 +418,20 @@ async function main() {
       const rows = [...bySig.entries()].sort((a, b) => b[1].keys.size - a[1].keys.size);
       console.log('[info] material census: materials=' + mats, 'distinctKeys=' + keys.size);
       for (const [sig, e] of rows.slice(0, 14)) console.log('[info] census', `keys=${e.keys.size}`, `mats=${e.n}`, `slots=[${sig}]`, 'eg:', e.names.join(','));
+      // number fingerprints for the two vegetation families: which literals vary per key
+      const sig2 = bySig.get('vertexHead+vertexWorld');
+      const sig3 = bySig.get('vertexHead+vertexWorld+fragHead+fragColor+fragNormal+fragLight');
+      const dumpNums = (e, tag) => {
+        if (!e) return;
+        for (const key of [...e.keys].slice(0, 16)) {
+          const p = e.byKey.get(key);
+          const s = (p.vertexHead || '') + ' ' + (p.vertexWorld || '');
+          const nums = [...new Set((s.match(/-?\d+\.\d+/g) || []).map(Number))].sort((a, b) => a - b);
+          console.log('[info] nums', tag, key.slice(0, 10), JSON.stringify(nums));
+        }
+      };
+      if (sig2) { sig2.byKey = new Map(); scene.traverse((o) => { const m = o.material; if (!m || !m.userData.patch) return; const k = m.customProgramCacheKey ? String(m.customProgramCacheKey()) : ''; if (sig2.keys.has(k) && !sig2.byKey.has(k)) sig2.byKey.set(k, m.userData.patch); }); dumpNums(sig2, 'wind'); }
+      if (sig3) { sig3.byKey = new Map(); scene.traverse((o) => { const m = o.material; if (!m || !m.userData.patch) return; const k = m.customProgramCacheKey ? String(m.customProgramCacheKey()) : ''; if (sig3.keys.has(k) && !sig3.byKey.has(k)) sig3.byKey.set(k, m.userData.patch); }); dumpNums(sig3, 'foliage'); }
     }
     const top = (o) => { let p = o; while (p.parent && p.parent !== scene) p = p.parent; return p.name || '?'; };
     const per = {};
