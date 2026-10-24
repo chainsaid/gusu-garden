@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// hall-orn: ornaments — rosettes (六叶), 莲瓣望柱头 post caps, 5-petal mon crest,
+// hall-orn: ornaments — 莲瓣望柱头 post caps, 5-petal mon crest,
 // 蛙股(已替换为荷叶墩) frog-leg struts, 蟇股(已替换为悬鱼) gable pendants, 螭吻 ridge-end ornaments,
 // eave tile end discs. All emitted into an Acc in a given local frame X.
 // Local frame convention for flat ornaments: the ornament faces local +Z,
@@ -9,33 +9,6 @@ import * as THREE from 'three';
 import { cbox, lathe, extrude, sweep, bar, xf, basis, mul, v3, circlePts, clamp, lerp } from './hall-lib.js';
 import { ridge2, scroll, leaf, peony, bead, cloud } from './hall-carve.js';
 import { lotusDisc } from './hall-detail.js';
-
-// Rokuyō / 钉隐 rosette: domed, petal-edged disc facing +Z, radius R.
-export function rosette(ms, X, R = 0.12, petals = 6, h = 0.03) {
-  ms.begin(X);
-  const A = petals * 6, RR = 4;
-  const rows = [];
-  for (let i = 0; i <= RR; i++) {
-    const t = i / RR; const row = [];
-    for (let k = 0; k < A; k++) {
-      const a = (k / A) * Math.PI * 2;
-      const pm = 0.86 + 0.14 * Math.pow(Math.abs(Math.cos((a * petals) / 2)), 0.6);
-      const r = R * pm * t;
-      // dome: centre boss + petal relief
-      const z = h * (0.45 * Math.cos(t * Math.PI * 0.5) + 0.55 * (t < 0.35 ? 1 : Math.max(0, 1 - (t - 0.35) / 0.65) ** 1.5)) + (i === RR ? 0 : 0);
-      const dzdr = -h * 2.2 * t;
-      const n = v3.norm([Math.cos(a) * -dzdr, Math.sin(a) * -dzdr, 1]);
-      row.push(ms.v(r * Math.cos(a), r * Math.sin(a), z, n[0], n[1], n[2]));
-    }
-    rows.push(row);
-  }
-  for (let i = 0; i < RR; i++) for (let k = 0; k < A; k++) {
-    const k1 = (k + 1) % A;
-    if (i === 0) ms.triN(rows[0][k], rows[1][k], rows[1][k1]);
-    else ms.quadN(rows[i][k], rows[i][k1], rows[i + 1][k1], rows[i + 1][k]);
-  }
-  ms.begin(null);
-}
 
 // 莲瓣望柱头 (lotus-bud railing post cap) standing on local origin, total
 // height H, radius R. A necking, a flared ring of lotus petals, then a bud
@@ -199,27 +172,6 @@ export function chiwen(msTile, msGold, X, W = 0.9, H = 1.2, T = 0.22, opts = {})
     const inner = outline.map(([x, y]) => [x * 0.955, y * 0.955 + H * 0.016]);
     extrude(msGold, X, outline, [inner], 0.0, 0.055);
   }
-}
-
-// Kazari-金物: scalloped gilt plate with domed studs. Faces +Z, centred.
-export function kanagu(ms, X, w = 0.3, h = 0.25, t = 0.012, studs = true) {
-  const hw = w / 2, hh = h / 2;
-  const pts = [];
-  // scalloped rectangle: cusps on the short sides
-  const N = 6;
-  pts.push([-hw, -hh], [hw, -hh]);
-  for (let i = 1; i < N; i++) { const s = i / N; const y = -hh + h * s; pts.push([hw + (i % 2 ? -0.025 : 0.0) * (w / 0.3), y]); }
-  pts.push([hw, hh], [-hw, hh]);
-  for (let i = N - 1; i >= 1; i--) { const s = i / N; const y = -hh + h * s; pts.push([-hw - (i % 2 ? -0.025 : 0.0) * (w / 0.3), y]); }
-  extrude(ms, X, pts, [], 0, t);
-  // raised inner border line
-  const ib = [[-hw * 0.82, -hh * 0.78], [hw * 0.82, -hh * 0.78], [hw * 0.82, hh * 0.78], [-hw * 0.82, hh * 0.78]];
-  const ib2 = ib.map(([x, y]) => [x * 0.88, y * 0.84]);
-  extrude(ms, X, ib, [ib2], t, t + 0.006);
-  if (studs) for (const [sx, sy] of [[-0.62, -0.55], [0.62, -0.55], [0.62, 0.55], [-0.62, 0.55]]) {
-    lathe(ms, mul(X, xf([sx * hw, sy * hh, t], 0, Math.PI / 2)), [[0, 0], [Math.min(w, h) * 0.075, 0], [Math.min(w, h) * 0.06, 0.008], [0, 0.013]], 8);
-  }
-  rosette(ms, mul(X, xf([0, 0, t])), Math.min(w, h) * 0.26, 6, 0.018);
 }
 
 // Square gold sleeve fitting (kazari-金物) around a beam end. Frame: beam

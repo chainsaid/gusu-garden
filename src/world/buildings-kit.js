@@ -196,31 +196,6 @@ export function scrollPlate(R) {
   });
 }
 
-// rosette (钉隐 / rokuyo): flower plate facing +z, radius R; origin at back center
-export function rosette(R, petals = 6, thick = 0.012, lo = false) {
-  if (lo) {
-    return cached(`rosl${R},${thick}`, () => {
-      const d = new THREE.CylinderGeometry(R * 0.85, R, thick, 8, 1).rotateX(Math.PI / 2).translate(0, 0, thick / 2);
-      const b = new THREE.ConeGeometry(R * 0.35, R * 0.3, 6, 1).rotateX(Math.PI / 2).translate(0, 0, thick + R * 0.15);
-      return mergeGeometries([ni(d), ni(b)]);
-    });
-  }
-  return cached(`ros${R},${petals},${thick}`, () => {
-    const s = new THREE.Shape();
-    const N = petals * 6;
-    for (let i = 0; i <= N; i++) {
-      const a = (i / N) * Math.PI * 2;
-      const r = R * (0.7 + 0.3 * Math.pow(Math.abs(Math.cos((petals * a) / 2)), 0.6));
-      const x = Math.cos(a) * r, y = Math.sin(a) * r;
-      if (i === 0) s.moveTo(x, y); else s.lineTo(x, y);
-    }
-    const plate = extrude(s, thick, thick * 0.35, null, 2).translate(0, 0, thick / 2);
-    const boss = new THREE.SphereGeometry(R * 0.32, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2).translate(0, 0, thick * 0.9);
-    const ring = new THREE.TorusGeometry(R * 0.5, R * 0.06, 4, 16).translate(0, 0, thick);
-    return mergeGeometries([ni(plate), ni(boss), ni(ring)]);
-  });
-}
-
 // 莲瓣望柱头 (lotus-bud railing post cap). base radius ~ r, origin at bottom.
 // (was: 拟宝珠(已替换为莲瓣望柱头), the Japanese onion finial)
 export function lotusFinial(r = 0.075, seg = 12) {
@@ -230,59 +205,6 @@ export function lotusFinial(r = 0.075, seg = 12) {
     [r * 0.66, 0.302], [r * 0.46, 0.334], [r * 0.28, 0.360], [r * 0.13, 0.380], [0, 0.392],
   ].map(([a, y]) => [a, y * (r / 0.075)]);
   return lathe(P, seg, 'lotusCap' + r);
-}
-
-// gold band wrapping a round column (根卷 / 金物), radius r, height h, origin at bottom
-export function colBand(r, h, seg = 32, studs = 0, lo = false) {
-  if (lo) return cached(`bandl${r},${h},${seg}`, () => lathe([[r, 0], [r + 0.012, 0], [r + 0.016, h * 0.5], [r + 0.012, h], [r, h]], seg));
-  return cached(`band${r},${h},${seg},${studs}`, () => {
-    const t = 0.012;
-    const P = [[r, 0], [r + t, 0], [r + t * 1.6, h * 0.08], [r + t, h * 0.16], [r + t * 0.6, h * 0.18], [r + t * 0.6, h * 0.82],
-      [r + t, h * 0.84], [r + t * 1.6, h * 0.92], [r + t, h], [r, h]];
-    const parts = [ni(lathe(P, seg))];
-    for (let i = 0; i < studs; i++) {
-      const a = (i / studs) * Math.PI * 2;
-      const st = new THREE.SphereGeometry(Math.min(0.018, h * 0.13), 6, 3).scale(1, 1, 0.7);
-      st.translate(0, 0, r + t * 0.6).rotateY(a).translate(0, h * 0.5, 0);
-      parts.push(ni(st));
-    }
-    return mergeGeometries(parts);
-  });
-}
-
-// ornate gold column band (kazari-金物) for gate pillars: beads, recessed field,
-// two rows of studs and vertical leaf plates. origin at bottom.
-export function ornBand(r, h, seg = 40) {
-  return cached(`orn${r},${h},${seg}`, () => {
-    const t = 0.016;
-    const P = [[r, 0], [r + t * 1.2, 0], [r + t * 2.0, h * 0.04], [r + t * 1.2, h * 0.08], [r + t * 0.9, h * 0.09],
-      [r + t * 0.9, h * 0.2], [r + t * 1.5, h * 0.22], [r + t * 0.7, h * 0.24], [r + t * 0.7, h * 0.76], [r + t * 1.5, h * 0.78],
-      [r + t * 0.9, h * 0.8], [r + t * 0.9, h * 0.91], [r + t * 1.2, h * 0.92], [r + t * 2.0, h * 0.96], [r + t * 1.2, h], [r, h]];
-    const parts = [ni(lathe(P, seg))];
-    const ns = Math.round((2 * Math.PI * r) / 0.085);
-    for (const yy of [h * 0.145, h * 0.855]) for (let i = 0; i < ns; i++) {
-      const a = ((i + (yy > h / 2 ? 0.5 : 0)) / ns) * Math.PI * 2;
-      const st = new THREE.SphereGeometry(0.014, 5, 3).scale(1, 1, 0.75);
-      st.translate(0, 0, r + t * 0.9).rotateY(a).translate(0, yy, 0);
-      parts.push(ni(st));
-    }
-    // leaf plates (shippo-like lobed plates) in the recessed field
-    const nl = 8;
-    const leaf = new THREE.Shape();
-    const lh = h * 0.46, lw = Math.min(0.13, (2 * Math.PI * r) / nl * 0.6);
-    leaf.moveTo(0, -lh / 2);
-    leaf.bezierCurveTo(lw * 0.7, -lh * 0.3, lw * 0.6, lh * 0.1, 0, lh / 2);
-    leaf.bezierCurveTo(-lw * 0.6, lh * 0.1, -lw * 0.7, -lh * 0.3, 0, -lh / 2);
-    const lg = new THREE.ExtrudeGeometry(leaf, { depth: 0.006, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1, curveSegments: 3 });
-    for (let i = 0; i < nl; i++) {
-      const a = (i / nl) * Math.PI * 2;
-      const g = lg.clone().translate(0, 0, r + t * 0.7).rotateY(a).translate(0, h * 0.5, 0);
-      parts.push(ni(g));
-      const b = new THREE.SphereGeometry(0.02, 6, 4).scale(1, 1, 0.8).translate(0, 0, r + t * 0.7 + 0.012).rotateY(a + Math.PI / nl).translate(0, h * 0.5, 0);
-      parts.push(ni(b));
-    }
-    return mergeGeometries(parts);
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -536,9 +458,9 @@ export function tileCapGeos(r, detail = 2) {
     const seg = 14;
     const dark = lathe([[0, 0], [r, 0], [r * 1.02, 0.006], [r * 1.0, 0.03], [r * 0.9, 0.032], [r * 0.86, 0.026], [r * 0.62, 0.026], [r * 0.58, 0.03], [0, 0.03]], seg)
       .rotateX(Math.PI / 2);
-    // 巴纹 relief / boss (gold)
-    const gold = lathe([[0, 0.024], [r * 0.5, 0.024], [r * 0.52, 0.034], [r * 0.4, 0.04], [r * 0.18, 0.046], [0, 0.048]], seg).rotateX(Math.PI / 2);
-    return [ni(dark), ni(gold)];
+    // 巴纹 relief / boss
+    const boss = lathe([[0, 0.024], [r * 0.5, 0.024], [r * 0.52, 0.034], [r * 0.4, 0.04], [r * 0.18, 0.046], [0, 0.048]], seg).rotateX(Math.PI / 2);
+    return [ni(dark), ni(boss)];
   });
 }
 

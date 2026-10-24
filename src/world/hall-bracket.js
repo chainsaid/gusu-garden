@@ -3,7 +3,7 @@
 // centre: +X outward (perpendicular to the wall), +Z along the wall, +Y up.
 // ---------------------------------------------------------------------------
 import { cbox, extrude, xf, basis, mul } from './hall-lib.js';
-import { lotusBlock, rosette } from './hall-orn.js';
+import { lotusBlock } from './hall-orn.js';
 
 const C = 0.014; // chamfer
 
@@ -32,17 +32,8 @@ function armX(ms, X, x0, x1, y, z, h = 0.19, w = 0.19) {
   ms.tint = t0;
 }
 
-// gilt end plates (木鼻 金物) on the visible end faces of bracket arms
-function armEndZ(gold, X, x, y, z, half, h = 0.19, w = 0.19) {
-  for (const sz of [-1, 1]) cbox(gold, mul(X, xf([x, y + h * 0.725, z + sz * (half + 0.003)])), w / 2 + 0.005, h * 0.275 + 0.004, 0.005, 0.003);
-}
-function armEndX(gold, X, x1, y, z, h = 0.19, w = 0.19) {
-  cbox(gold, mul(X, xf([x1 + 0.003, y + h * 0.725, z])), 0.005, h * 0.275 + 0.004, w / 2 + 0.005, 0.003);
-}
-
 function makito(red, gold, X, x, y, z, s = 0.15, h = 0.15, goldFace = true) {
   cbox(red, mul(X, xf([x, y + h / 2, z])), s, h / 2, s, C, { taper: [0.8, 0.8] });
-  if (goldFace) cbox(gold, mul(X, xf([x + s + 0.004, y + h * 0.62, z])), 0.005, h * 0.3, s * 0.82, 0.003);
 }
 
 // type: '三手先' (3 steps), '出三斗' (1 step), 'flat' (no projection)
@@ -62,13 +53,11 @@ export function bracketSet(acc, mats, X, type = 'mitesaki', opts = {}) {
   } else {
     // 大斗 (bearing block)
     cbox(red, mul(X, xf([0, 0.13, 0])), 0.34, 0.13, 0.34, C, { taper: [0.8, 0.8] });
-    cbox(gold, mul(X, xf([0.34 + 0.004, 0.17, 0])), 0.005, 0.07, 0.28, 0.003);
     y = 0.26;
   }
   // level 1: lateral arm at wall line + outward arm
   armZ(red, X, 0, y, 0, lat);
-  armEndZ(gold, X, 0, y, 0, lat);
-  if (steps > 0) { armX(red, X, -0.5, P + 0.18, y, 0); armEndX(gold, X, P + 0.18, y, 0); }
+  if (steps > 0) { armX(red, X, -0.5, P + 0.18, y, 0); }
   y += AH;
   makito(red, gold, X, 0, y, -lat + 0.16, 0.15, MH, false);
   makito(red, gold, X, 0, y, lat - 0.16, 0.15, MH, false);
@@ -79,8 +68,7 @@ export function bracketSet(acc, mats, X, type = 'mitesaki', opts = {}) {
     // lateral arm at projection s*P, outward arm continuing
     const xs = s * P;
     armZ(red, X, xs, y, 0, lat * (s === steps ? 1.05 : 0.95));
-    armEndZ(gold, X, xs, y, 0, lat * (s === steps ? 1.05 : 0.95));
-    if (s < steps) { armX(red, X, -0.2 + (s - 1) * P, (s + 1) * P + 0.18, y, 0); armEndX(gold, X, (s + 1) * P + 0.18, y, 0); }
+    if (s < steps) { armX(red, X, -0.2 + (s - 1) * P, (s + 1) * P + 0.18, y, 0); }
     y += AH;
     makito(red, gold, X, xs, y, -lat + 0.16);
     makito(red, gold, X, xs, y, lat - 0.16);
@@ -107,7 +95,7 @@ export function bracketSet(acc, mats, X, type = 'mitesaki', opts = {}) {
 // / 手先桁). Called by the wall builder with world endpoints.
 // p0,p1: wall-line points at column-top height (y of p0/p1 = column top).
 export function bracketBeams(acc, mats, p0, p1, outward, type) {
-  const red = acc.m(mats.bkt || mats.red), gold = acc.m(mats.gold);
+  const red = acc.m(mats.bkt || mats.red);
   const AH = 0.19, P = 0.44;
   const steps = type === 'mitesaki' ? 3 : type === 'demitsudo' ? 1 : 0;
   const levels = [];
@@ -123,8 +111,5 @@ export function bracketBeams(acc, mats, p0, p1, outward, type) {
     red.tint = 2; // gunjō-blue soffit code for the paint shader
     cbox(red, M, L / 2, AH / 2, 0.095, C);
     red.tint = 1;
-    // thin gold 截金 line along the outer face
-    const sgn = side[0] * outward[0] + side[2] * outward[2] > 0 ? 1 : -1;
-    cbox(gold, mul(M, xf([0, -AH * 0.32, sgn * 0.099])), L / 2 - 0.02, 0.012, 0.004, 0.002);
   }
 }

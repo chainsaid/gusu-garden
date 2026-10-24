@@ -7,7 +7,7 @@
 import { xf, mul, basis } from './hall-lib.js';
 import { karakusaBand, beamMotif, peony, scroll, leaf, ridge2, bead, cloud } from './hall-carve.js';
 
-const goldOf = (acc, mats) => acc.m(mats.goldC || mats.goldL || mats.gold);
+const goldOf = (acc, mats) => acc.m(mats.redA || mats.red);
 
 // mirrored pair of frames: plane z = zp (local +Z = out of the panel)
 const pair = (X0) => [X0, mul(X0, xf([0, 0, 0], 0, 0, 0, [-1, 1, 1]))];

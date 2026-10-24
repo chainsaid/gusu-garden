@@ -62,7 +62,7 @@ export function lotusDisc(msTile, msGold, X, R = 0.122, th = 0.05) {
 }
 
 // Scalloped gilt corner plate (w x h), faces +Z, centred, with an engraved
-// (raised) inner rim, nail heads along the border and a central rosette boss.
+// (raised) inner rim, nail heads along the border and a central boss.
 export function cornerPlate(ms, X, w, h, t = 0.008, nails = 3) {
   const hw = w / 2, hh = h / 2;
   const cusp = Math.min(hw, hh) * 0.16;
@@ -101,20 +101,7 @@ export function hinge(ms, X, L = 0.6, h = 0.09, t = 0.007) {
 
 export { circlePts };
 
-// Gilt column band (kazari-金物) with rolled rims and a ring of nail heads,
-// wrapped around a round column of radius r, bottom at y0 (frame X at the axis).
-export function columnBand(ms, X, r, H = 0.2, nails = 12) {
-  const e = r + 0.004;
-  lathe(ms, X, [[e, 0], [e + 0.012, 0.004], [e + 0.014, 0.018], [e + 0.008, 0.024], [e + 0.006, H - 0.024], [e + 0.012, H - 0.018], [e + 0.012, H - 0.004], [e, H]], 32, { hardDeg: 40 });
-  for (let i = 0; i < nails; i++) {
-    const a = (i / nails) * Math.PI * 2 + 0.13;
-    const c = Math.cos(a), s = Math.sin(a);
-    const F = mul(X, xf([c * (e + 0.006), H / 2, s * (e + 0.006)], Math.atan2(c, s)));
-    lathe(ms, mul(F, xf([0, 0, 0], 0, Math.PI / 2)), [[0.016, 0], [0.012, 0.007], [0, 0.011]], 6);
-  }
-}
-
-// Gilt pull ring (kan) on a rosette boss, in the local XY plane facing +Z.
+// Pull ring (铁拉手) on a boss, in the local XY plane facing +Z.
 export function pullRing(ms, X, R = 0.055, tube = 0.008) {
   lathe(ms, mul(X, xf([0, 0, 0], 0, Math.PI / 2)), [[0.04, 0], [0.036, 0.008], [0.022, 0.014], [0.012, 0.024], [0, 0.026]], 10);
   const path = [];

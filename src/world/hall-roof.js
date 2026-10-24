@@ -6,7 +6,7 @@
 // +X east, +Z south/front, +Y up).
 // ---------------------------------------------------------------------------
 import { cbox, beam, lathe, extrude, sweep, bar, xf, basis, mul, v3, clamp, lerp, sstep, circlePts } from './hall-lib.js';
-import { chiwen, tileDisc, rosette, xuanyu, lotusBlock, bez } from './hall-orn.js';
+import { chiwen, tileDisc, xuanyu, lotusBlock, bez } from './hall-orn.js';
 import { carveSideGable } from './hall-gable.js';
 import { gap, cnt } from '../core/detail.js';
 import { rafterCap, cornerPlate } from './hall-detail.js';
@@ -268,7 +268,7 @@ function flyY(E, d) { return E.yF0 + E.sf * d; } // flying rafter TOP at depth d
 
 export function buildEaves(acc, T, mats, opts = {}) {
   const E = T.E;
-  const red = acc.m(mats.red), redD = acc.m(mats.soffit || mats.redDark), gold = acc.m(mats.gold);
+  const red = acc.m(mats.red), redD = acc.m(mats.soffit || mats.redDark);
   const redA = acc.m(mats.redA || mats.red);
   const anchors = { bells: [] };
   for (const F of faceList(T)) {
@@ -294,9 +294,9 @@ export function buildEaves(acc, T, mats, opts = {}) {
       if (dIn > E.dTip + 0.25) {
         const p0 = P(a, E.dTip, rafterY(E, E.dTip) - E.rafH / 2), p1 = P(a, dIn, rafterY(E, dIn) - E.rafH / 2);
         beam(redA, p0, p1, E.rafW, E.rafH, 0.012);
-        // gilt 木鼻 fitting on the tip
+        // plain 木鼻 fitting on the tip
         const dir = v3.norm(v3.sub(p0, p1));
-        rafterCap(gold, endFrame(p0, dir), E.rafW / 2, E.rafH / 2);
+        rafterCap(redA, endFrame(p0, dir), E.rafW / 2, E.rafH / 2);
       }
       // flying rafter (飞椽)
       const dF = Math.min(E.dFly, hd);
@@ -304,7 +304,7 @@ export function buildEaves(acc, T, mats, opts = {}) {
         const p0 = P(a, 0.0, flyY(E, 0) - E.frafH / 2), p1 = P(a, dF, flyY(E, dF) - E.frafH / 2);
         beam(redA, p0, p1, E.frafW, E.frafH, 0.01);
         const dir = v3.norm(v3.sub(p0, p1));
-        rafterCap(gold, endFrame(p0, dir), E.frafW / 2, E.frafH / 2, { sleeve: 0.04 });
+        rafterCap(redA, endFrame(p0, dir), E.frafW / 2, E.frafH / 2, { sleeve: 0.04 });
       }
     }
     // continuous members along the side (subdivided for the warp)
@@ -333,17 +333,6 @@ export function buildEaves(acc, T, mats, opts = {}) {
         if (pts.length > 1) {
           // profile u = outward (S), v = up ; slightly bevelled top edge
           sweep(red, pts, [[-0.075, -hh], [0.075, -hh], [0.075, hh - 0.02], [0.05, hh], [-0.075, hh]], { closed: true, caps: true });
-          const ptsG = along(-0.004, yb + 0.025, 0.07);
-          sweep(gold, ptsG, [[-0.01, -0.025], [0.01, -0.025], [0.01, 0.025], [-0.01, 0.025]], { closed: true, caps: true });
-          const ptsG2 = along(-0.004, yt - 0.018, 0.07);
-          sweep(gold, ptsG2, [[-0.008, -0.016], [0.008, -0.016], [0.008, 0.016], [-0.008, 0.016]], { closed: true, caps: true });
-          // chased gilt corner fittings (sumi-金物) on the fascia next to the hips
-          for (const [aEnd, sg] of [[s0, 1], [s1, -1]]) {
-            if (Math.abs(Math.abs(aEnd) - aLim) > 1e-6) continue;
-            const ac = aEnd + sg * (0.075 + 0.26);
-            const c = P(ac, -0.001, yc);
-            cornerPlate(gold, basis(c, v3.scale(tv, sg), [0, 1, 0], o), 0.46, 2 * hh + 0.012, 0.006, 3);
-          }
         }
       }
       // purlin (挑檐檩) on bracket tips
@@ -391,20 +380,17 @@ export function buildEaves(acc, T, mats, opts = {}) {
       const dir = v3.norm(v3.sub(q0, q1));
       const side = v3.norm(v3.cross(dir, [0, 1, 0]));
       const up = v3.cross(side, dir);
-      // gilt end sleeve + domed cap covering the whole end face (avoids flat sun-mirror faces)
-      const gl = acc.m(mats.goldL || mats.gold);
+      // plain end sleeve + domed cap covering the whole end face
+      const gl = acc.m(mats.redA || mats.red);
       cbox(gl, basis(v3.add(q0, v3.scale(dir, -0.1)), dir, up, side), 0.1, h / 2 + 0.014, w / 2 + 0.014, 0.012);
       const Rc = 0.5 * Math.hypot(w, h) + 0.015;
-      // rimmed rectangular 木鼻 plate over the end face (a round domed / cushion
-      // cap read as a blown-out gold coin in the low sun), rosette boss, corner nails
+      // rimmed rectangular 木鼻 plate over the end face, boss, corner nails
       const Fe = endFrame(q0, dir);
       const ww = w / 2 + 0.016, hh2 = h / 2 + 0.016;
       rafterCap(gl, Fe, ww, hh2, { sleeve: 0, boss: false });
-      // black-lacquered inset inside the gilt frame (covers the end grain, which
-      // was coplanar with the sleeve face) + low rosette boss
+      // black-lacquered inset inside the plain end frame covers the end grain
       const iw = (ww + 0.007) * 0.73, ih = (hh2 + 0.007) * 0.79;
       extrude(acc.m(mats.black), Fe, [[-iw, -ih], [iw, -ih], [iw, ih], [-iw, ih]], [], 0, 0.004, { back: false });
-      rosette(gl, mul(Fe, xf([0, 0, 0.003])), Math.min(w, h) * 0.26, 8, 0.016);
       for (const [nx, ny] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) lathe(gl, mul(Fe, xf([nx * w * 0.36, ny * h * 0.37, 0.001], 0, Math.PI / 2)), [[0.016, 0], [0.012, 0.008], [0, 0.012]], 6);
       // chased gilt plates on the sleeve sides and soffit (seen from below in close-ups)
       const sc = v3.add(q0, v3.scale(dir, -0.1));
@@ -421,7 +407,7 @@ export function buildEaves(acc, T, mats, opts = {}) {
 // ridges & gables for the 歇山 (hip-and-gable) roof
 // ---------------------------------------------------------------------------
 export function buildXieshanRidges(acc, T, mats) {
-  const tile = acc.m(mats.tile), gold = acc.m(mats.goldL || mats.gold);
+  const tile = acc.m(mats.tile);
   const Y = (d) => T.y0 + T.prof.P(d);
   // main ridge (omune)
   const yR = Y(T.ez);
@@ -430,16 +416,11 @@ export function buildXieshanRidges(acc, T, mats) {
   for (let i = 0; i <= 24; i++) mainPath.push([-xr + (2 * xr * i) / 24, yR, 0]);
   const MW = 0.62, ML = 7, MLH = 0.105, MC = 0.2;
   ridgeAlong(tile, mainPath, MW, ML, MLH, MC, 0.75);
-  // decorative gold band along the main ridge (截金 strip under the cap)
-  const mainTop = ML * MLH;
-  for (const s of [-1, 1]) {
-    const pth = mainPath.map((p) => [p[0], p[1] + mainTop - 0.05, s * (MW / 2 - (ML - 1) * 0.012 + 0.014)]);
-    sweep(gold, pth, [[-0.012, -0.022], [0.012, -0.022], [0.012, 0.022], [-0.012, 0.022]], { closed: true, caps: true });
-  }
+
   // 螭吻 at both ends of the main ridge
   for (const s of [-1, 1]) {
     const X = basis([s * (xr + 0.02), yR - 0.25, 0], [0, 0, -s], [0, 1, 0], [s, 0, 0]);
-    chiwen(tile, gold, X, 1.55, 2.05, 0.34, { goldEdge: true });
+    chiwen(tile, null, X, 1.55, 2.05, 0.34);
   }
   // kudarimune (descending verge ridges) and sumimune (hips)
   const dJ = T.ex - T.xb; // depth where verge meets the hip
@@ -457,7 +438,7 @@ export function buildXieshanRidges(acc, T, mats) {
     const dir = v3.norm(v3.sub(pe, pp));
     const dirH = v3.norm([0, 0, dir[2]]);
     void dir;
-    chiwen(tile, gold, basis(v3.add(pe, [0, -0.12, 0]), v3.cross([0, 1, 0], dirH), [0, 1, 0], dirH), 0.9, 1.15, 0.24);
+    chiwen(tile, null, basis(v3.add(pe, [0, -0.12, 0]), v3.cross([0, 1, 0], dirH), [0, 1, 0], dirH), 0.9, 1.15, 0.24);
     // hip ridge from the junction to the eave corner
     const hp = [];
     const m = 14;
@@ -469,7 +450,7 @@ export function buildXieshanRidges(acc, T, mats) {
     // 套兽 at the corner end of the hip (faces diagonally outward)
     const he = hp[hp.length - 1];
     const hd = v3.norm([sx, 0, sz]);
-    chiwen(tile, gold, basis(v3.add(he, [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.82, 1.05, 0.22);
+    chiwen(tile, null, basis(v3.add(he, [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.82, 1.05, 0.22);
     // small gold 截金 crest on the hip end tile
   }
 }
@@ -477,7 +458,7 @@ export function buildXieshanRidges(acc, T, mats) {
 // 山花 (gable) of the 歇山 at x = sx*xg: wall triangle, frame, bargeboards,
 // purlin ends, 悬鱼, verge soffit, gable-foot ridge.
 export function buildXieshanGables(acc, T, mats) {
-  const tile = acc.m(mats.tile), gold = acc.m(mats.gold), red = acc.m(mats.red), redD = acc.m(mats.soffit || mats.redDark), white = acc.m(mats.plaster);
+  const tile = acc.m(mats.tile), red = acc.m(mats.red), redD = acc.m(mats.soffit || mats.redDark), white = acc.m(mats.plaster);
   const redA = acc.m(mats.redA || mats.red);
   const Y = (d) => T.y0 + T.prof.P(d);
   const dg = T.ex - T.xg; // gable base depth
@@ -508,7 +489,6 @@ export function buildXieshanGables(acc, T, mats) {
       let zz = zg; for (let z = 0; z <= zg; z += 0.02) { if (Y(T.ez - z) - under - 0.12 < by + 0.2) { zz = z; break; } }
       if (zz < 0.4) continue;
       beam(redA, face(-zz, by, 0.08), face(zz, by, 0.08), 0.16, 0.26, 0.02);
-      for (const s of [-1, 1]) cbox(gold, xf(face(s * (zz - 0.12), by, 0.08)), 0.1, 0.15, 0.12, 0.006);
     }
     // vertical struts (平植) + diagonal 斜撑
     for (const z of [-zg * 0.62, 0, zg * 0.62]) {
@@ -555,20 +535,12 @@ export function buildXieshanGables(acc, T, mats) {
       }
       const prof = [[-0.09, -0.62], [0.09, -0.62], [0.09, 0], [-0.09, 0]];
       sweep(red, path, prof, { closed: true, caps: true });
-      // gold bottom edging and top edging
-      sweep(gold, path.map((p) => [p[0] + sx * 0.0, p[1] - 0.6, p[2]]), [[-0.105, -0.04], [0.105, -0.04], [0.105, 0.03], [-0.105, 0.03]], { closed: true, caps: true });
-      sweep(gold, path.map((p) => [p[0], p[1] - 0.02, p[2]]), [[-0.1, -0.025], [0.1, -0.025], [0.1, 0.025], [-0.1, 0.025]], { closed: true, caps: true });
-      // 门簪 (nail-head bosses) on the bargeboard where the purlins meet
-      for (const dd of [dJ + 0.6, dJ + (T.ez - dJ) * 0.45, dJ + (T.ez - dJ) * 0.78]) {
-        const z = sz * (T.ez - dd);
-        const y = Y(dd) - 0.07 - 0.31;
-        rosette(gold, basis([sx * (T.xb + 0.142), y, z], [0, 0, 1], [0, 1, 0], [sx, 0, 0]), 0.13, 8, 0.035);
-      }
+      // bargeboard edges
       // 悬鱼 at the lower end of the bargeboard
       const pe = path[path.length - 1];
-      xuanyu(acc.m(mats.red || mats.redA), null, basis([pe[0] + sx * 0.12, pe[1] - 0.05, pe[2]], [0, 0, sz], [0, 1, 0], [sx, 0, 0]).multiply(xf([0, 0, 0], 0, 0, 0, [0.55, 0.7, 1])), 1.0, 0.9, 0.1, acc.m(mats.goldC || mats.gold));
+      xuanyu(acc.m(mats.red || mats.redA), null, basis([pe[0] + sx * 0.12, pe[1] - 0.05, pe[2]], [0, 0, sz], [0, 1, 0], [sx, 0, 0]).multiply(xf([0, 0, 0], 0, 0, 0, [0.55, 0.7, 1])), 1.0, 0.9, 0.1, null);
     }
     // 悬鱼 at the apex
-    xuanyu(acc.m(mats.red || mats.redA), red, mul(basis([sx * (T.xb + 0.16), Y(T.ez) - 0.42, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0]), xf([0, 0, 0])), 2.0, 1.55, 0.14, acc.m(mats.goldC || mats.gold));
+    xuanyu(acc.m(mats.red || mats.redA), red, mul(basis([sx * (T.xb + 0.16), Y(T.ez) - 0.42, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0]), xf([0, 0, 0])), 2.0, 1.55, 0.14, null);
   }
 }

@@ -3,12 +3,11 @@
 // (楼门), bell tower (钟楼), two side halls. Fully procedural.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { LB, m4, chamferBox, block, lathe, rosette, colBand, sweep, rectProfile, tileParams, makeLift, buildIx, hash3, extrude, lotusFinial, kibanaGeo, scrollPlate } from './buildings-kit.js';
+import { LB, m4, chamferBox, block, lathe, sweep, rectProfile, tileParams, makeLift, buildIx, hash3, extrude, lotusFinial, kibanaGeo, scrollPlate } from './buildings-kit.js';
 import { eaves, bracketSet, column, irimoyaRoof, railing, loopPath, linePath } from './buildings-arch.js';
 import { buildCorridor } from './buildings-corridor.js';
 import { buildGate, buildBellPavilion, buildSideHall } from './buildings-halls.js';
 import { makeHeroMats, withClearcoatMod } from './buildings-mat.js';
-import { kanaguHooks } from './buildings-kanagu.js';
 
 const V3 = THREE.Vector3;
 
@@ -62,7 +61,7 @@ function makeMaterials(ctx) {
   const K = {
     red: M.lacquerRed, col: M.lacquerRed, beam: M.lacquerRed, rafter: M.lacquerRed, wood: M.lacquerRed,
     redDark: M.lacquerRedDark, soffit: M.lacquerRedDark,
-    gold: M.gold, cap: M.goldLeaf, gib: M.goldBright,
+    gold: M.blackLacquer, cap: M.lacquerRed, gib: M.lacquerRed,
     tile: M.roofTile, plaster: M.plaster, lattice: M.latticeGreen, stone: M.granite, stoneClean: M.graniteClean,
     floorX: M.woodFloorX, floorZ: M.woodFloorZ, black: M.blackLacquer, bronze: M.bronze, woodRaw: M.woodRaw,
   };
@@ -78,9 +77,7 @@ function makeMaterials(ctx) {
   // hero surfaces: worn urushi lacquer, engraved gilt fittings, lacquered floor
   const H = makeHeroMats(ctx);
   K.col = H.col; K.red = H.red; K.beam = H.rafter; K.rafter = H.rafter; K.wood = H.rafter;
-  K.redDark = H.redDark; K.gold = H.gold; K.cap = H.cap; K.floorX = H.floorX; K.floorZ = H.floorZ;
-  K.kanagu = (typeof location !== 'undefined' && /nokan/.test(location.search)) ? H.gold : mat.std({ color: 0xffffff, roughness: 0.3, metalness: 1.0 }, kanaguHooks(0.3));
-  K.kanagu.name = 'bk.kanagu';
+  K.redDark = H.redDark; K.gold = M.blackLacquer; K.cap = M.lacquerRed; K.floorX = H.floorX; K.floorZ = H.floorZ;
   K.dark = mat.std({ color: new THREE.Color().setRGB(0.025, 0.018, 0.014), roughness: 0.9 });
   K.rope = mat.std({ color: new THREE.Color().setRGB(0.42, 0.33, 0.2), roughness: 0.95 });
   return K;
@@ -88,7 +85,7 @@ function makeMaterials(ctx) {
 
 // Materials re-instanced per building so finalize() can give them a local
 // environment capture (correct reflections/ambient under deep eaves).
-const LOCAL_KEYS = ['kanagu', 'red', 'col', 'beam', 'rafter', 'wood', 'redDark', 'soffit', 'gold', 'cap', 'capPaint', 'gib', 'plaster', 'lattice', 'floorX', 'floorZ', 'black', 'ceiling', 'stoneClean'];
+const LOCAL_KEYS = ['red', 'col', 'beam', 'rafter', 'wood', 'redDark', 'soffit', 'gold', 'cap', 'capPaint', 'gib', 'plaster', 'lattice', 'floorX', 'floorZ', 'black', 'ceiling', 'stoneClean'];
 function localize(ctx, K, keys, sets, center, off, floorY = 0.5) {
   const out = { ...K };
   const made = new Map();
@@ -161,7 +158,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
   // veranda edge beam (檐甲) around the floor
   { const fl = lb.child(m4([0, 0, zc]));
     fl.add(sweep(loopPath(hx - 0.06, hz - 0.06, () => yF - 0.2, 0.5), rectProfile(0.13, 0.205), { closed: true, outward: true }), K.redDark);
-    fl.add(sweep(loopPath(hx - 0.002, hz - 0.002, () => yF - 0.2, 0.5), rectProfile(0.012, 0.03, 0.03), { closed: true, outward: true }), K.gold); }
+    fl.add(sweep(loopPath(hx - 0.002, hz - 0.002, () => yF - 0.2, 0.5), rectProfile(0.012, 0.03, 0.03), { closed: true, outward: true }), K.redA); }
 
   // ---- columns with gold fittings
   for (const x of xs) for (const z of zs) {
@@ -179,21 +176,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
     lb.box(K.red, 2 * cx + 0.5, 0.15, 0.26, [0, yPlate - 0.075, s * cz], [0, 0, 0], 0.015);
     lb.box(K.red, 0.26, 0.15, 2 * cz + 0.5, [s * cx, yPlate - 0.075, 0], [0, 0, 0], 0.015);
   }
-  // gilt nail-cover rosettes (钉隐) along both faces of the head-tie beams
-  // (the inner face of the west beam frames the top of shot 1)
-  for (const s of [-1, 1]) for (const f of [-1, 1]) {
-    for (let i = 0; i < xs.length - 1; i++) for (const t of [1 / 3, 2 / 3]) {
-      const x = xs[i] + (xs[i + 1] - xs[i]) * t;
-      lb.add(rosette(0.055, 8, 0.012), K.gold, m4([x, yColTop - 0.135, s * cz + f * 0.07], [0, f > 0 ? 0 : Math.PI, 0]));
-    }
-    for (let i = 0; i < zs.length - 1; i++) for (const t of [1 / 3, 2 / 3]) {
-      const z = zs[i] + (zs[i + 1] - zs[i]) * t;
-      lb.add(rosette(0.055, 8, 0.012), K.gold, m4([s * cx + f * 0.07, yColTop - 0.135, z], [0, f > 0 ? Math.PI / 2 : -Math.PI / 2, 0]));
-    }
-    // thin gilt edging along the lower arris of each head-tie beam face
-    lb.box(K.gold, 2 * cx - 0.36, 0.014, 0.012, [0, yColTop - 0.262, s * cz + f * 0.072], [0, 0, 0], 0.003);
-    lb.box(K.gold, 0.012, 0.014, 2 * cz - 0.36, [s * cx + f * 0.072, yColTop - 0.262, 0], [0, 0, 0], 0.003);
-  }
+  // Head-tie beam faces remain plain oiled timber; structural pins are concealed.
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     // gold caps on beam ends
 
@@ -213,13 +196,6 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
     if (s < 0) lb.box(K.red, 2 * cx + 0.1, yN1 - yN0, 0.07, [0, (yN0 + yN1) / 2, s * cz + f * (colR + 0.02)], [0, 0, 0], 0.012);
     lb.box(K.red, 0.07, yN1 - yN0, 2 * cz + 0.1, [s * cx + f * (colR + 0.02), (yN0 + yN1) / 2, 0], [0, 0, 0], 0.012);
   }
-  for (const x of xs) for (const z of zs) {
-    if (!(Math.abs(x) === cx || Math.abs(z) === cz)) continue;
-    for (const f of [-1, 1]) {
-      if (z === -cz) lb.add(rosette(0.07, 6, 0.014), K.gold, m4([x, (yN0 + yN1) / 2, z + Math.sign(z) * f * (colR + 0.055)], [0, f * Math.sign(z) > 0 ? 0 : Math.PI, 0]));
-      if (Math.abs(x) === cx) lb.add(rosette(0.07, 6, 0.014), K.gold, m4([x + Math.sign(x) * f * (colR + 0.055), (yN0 + yN1) / 2, z], [0, f * Math.sign(x) > 0 ? Math.PI / 2 : -Math.PI / 2, 0]));
-    }
-  }
   // 栏间: lattice between 腰枋 and kashira-穿枋
   const ranmaY0 = yN1, ranmaY1 = yColTop - 0.27;
   const ranma = (a, b, alongX, off) => {
@@ -235,7 +211,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
   for (let i = 0; i < zs.length - 1; i++) for (const s of [-1, 1]) ranma(zs[i] + colR, zs[i + 1] - colR, false, s * cx);
 
   // ---- bracket sets on the plate
-  const BS = { tiers: 3, proj: [0.45, 0.85], armH: 0.15, armW: 0.12, blockH: 0.12, daito: [0.34, 0.2], mak: [0.19, 0.12], wall: [0.9, 1.12, 1.32], inner: true, goldCaps: true, goldMak: true, goldDaito: true, K: { wood: K.red, gold: K.cap } };
+  const BS = { tiers: 3, proj: [0.45, 0.85], armH: 0.15, armW: 0.12, blockH: 0.12, daito: [0.34, 0.2], mak: [0.19, 0.12], wall: [0.9, 1.12, 1.32], inner: true, K: { wood: K.red, gold: K.red } };
   const sides = [
     { pts: xs.map((x) => [x, cz]), yaw: 0 }, { pts: xs.map((x) => [x, -cz]), yaw: Math.PI },
     { pts: zs.map((z) => [cx, z]), yaw: Math.PI / 2 }, { pts: zs.map((z) => [-cx, z]), yaw: -Math.PI / 2 },
@@ -261,7 +237,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
   const lift = makeLift(exT, ezT, 0.42, 0.45, 2.3);
   const E = eaves(lb, {
     cx, cz, ov, yWall: 5.18, sBase: 0.318, d1: 0.8, rB: [0.095, 0.11], kioiH: 0.09, sFly: 0.18, rF: [0.09, 0.1], sp: 0.25,
-    fasciaH: 0.12, proj: 0.85, lift, twoTier: true, capGold: true,
+    fasciaH: 0.12, proj: 0.85, lift, twoTier: true, capGold: false,
     K: { rafter: K.rafter, soffit: K.soffit, cap: K.cap, beam: K.beam, rafterCap: K.capPaint },
   });
   for (const h of E.hooks) anchors.bells.push({ pos: toWorld(base, h.local), scale: 1.0, rotY: 0 });
@@ -293,7 +269,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
   const DBG = (typeof location !== 'undefined' && new URLSearchParams(location.search).get('bdbg')) || '';
   const roof = DBG.includes('noroof') ? null : irimoyaRoof(lb, {
     ex: exT, ez: ezT, y0, prof, gd: 2.15, ov: 0.6, lift, T,
-    K: { tileVC: K.tileVC, tile: K.tile, gold: K.gold, red: DBG.includes("redg") ? K.lattice : K.red, soffit: K.soffit, plaster: K.plaster, lattice: K.lattice },
+    K: { tileVC: K.tileVC, tile: K.tile, gold: K.red, red: DBG.includes("redg") ? K.lattice : K.red, soffit: K.soffit, plaster: K.plaster, lattice: K.lattice },
     ridge: { w: 0.6, h: 0.55, layers: 6, capR: 0.11, drop: 0.45 }, hip: { w: 0.32, h: 0.32, layers: 4, capR: 0.075, drop: 0.2 },
     chiwen: { s: 0.85 }, xuanyu: 0.62, hafuH: 0.36, capGoldMat: K.cap, gableLattice: true,
   });

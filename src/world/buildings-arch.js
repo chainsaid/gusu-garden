@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------------
 // Architectural assemblies for buildings.js: eaves (rafters, soffits, fascia,
 // corner rafters), bracket sets, 歇山 roof (tiles, ridges, 螭吻,
-// gable, 破风(已移除), 蟇股(已替换为悬鱼)), columns with gold fittings, 栏杆 railings.
+// gable, 破风(已移除), 蟇股(已替换为悬鱼)), plain timber columns and 栏杆 railings.
 // Everything in building-LOCAL coordinates (x along facade, z depth, +z front).
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import {
-  LB, m4, beamM, chamferBox, block, taper, extrude, lathe, armGeo, rosette, lotusFinial, colBand, ornBand,
+  LB, m4, beamM, chamferBox, block, taper, extrude, lathe, armGeo, lotusFinial,
   sweep, rectProfile, roundProfile, roofSurface, tileCapGeos, makeLift, sstep, clamp, hash3, ni,
 } from './buildings-kit.js';
 
@@ -108,10 +108,6 @@ export function eaves(lb, E) {
     pA[1] = yBot(dA) + lift(pA[0], pA[2]) + h / 2; pB[1] = yBot(dB) + lift(pB[0], pB[2]) + h / 2;
     const { m, len, x } = beamM(pA, pB);
     lb.add(chamferBox(len, h, w, E.lo ? 0 : Math.min(0.012, w * 0.12)), K.rafter, m);
-    if (gold) {
-      const mc = beamM([pA[0] - x.x * capT * 0.4, pA[1] - x.y * capT * 0.4, pA[2] - x.z * capT * 0.4], [pA[0] + x.x * capT, pA[1] + x.y * capT, pA[2] + x.z * capT]).m;
-      lb.add(chamferBox(capT * 1.4, h + 0.012, w + 0.012, 0), K.rafterCap || K.cap, mc);
-    }
   };
 
   for (const S of sides) {
@@ -190,7 +186,6 @@ export function eaves(lb, E) {
       const hh = two ? 0.22 : 0.24;
       lb.add(chamferBox(0.2, hh + 0.02, 0.016, 0.004), K.cap, m4([q[0] + dir.x * 0.004, yq - hh / 2, q[1] + dir.z * 0.004], [-pitch, yaw, 0]));
       lb.add(chamferBox(0.2, hh + 0.02, 0.1, 0.004), K.cap, m4([q[0] - dir.x * 0.05, yq - hh / 2, q[1] - dir.z * 0.05], [-pitch, yaw, 0]).multiply(new THREE.Matrix4().makeScale(1.04, 1.04, 1)));
-      lb.add(rosette(0.075, 8, 0.012), K.cap, m4([q[0] + dir.x * 0.012, yq - hh / 2, q[1] + dir.z * 0.012], [-pitch, yaw, 0]));
       hooks.push({ local: [q[0] - dir.x * 0.08, yq - hh - 0.01, q[1] - dir.z * 0.08], corner: [sx, sz] });
     }
   }
@@ -208,26 +203,18 @@ export function bracketSet(lb, frame, S) {
   const b = lb.child(frame);
   const aH = S.armH, aW = S.armW, bH = S.blockH;
   const [dW, dH] = S.daito, [mW] = S.mak;
-  const gold = (pos, w, h, rot = [0, 0, 0]) => b.add(chamferBox(w, h, 0.008, 0), K.gold, m4(pos, rot));
   // 大斗
   b.add(block(dW, dH, dW), K.wood);
-  if (S.goldDaito) gold([0, dH * 0.62, dW / 2 + 0.004], dW * 0.8, dH * 0.5);
   let y = dH;
   const tiers = S.tiers;
   const mak = (x, z, yy, front = false, rotY = 0) => {
     b.add(block(mW, bH, mW), K.wood, m4([x, yy, z], [0, rotY, 0]));
-    if (front && S.goldMak) {
-      const c = Math.cos(rotY), s = Math.sin(rotY);
-      const off = mW / 2 + 0.004;
-      gold([x + s * off, yy + bH * 0.62, z + c * off], mW * 0.78, bH * 0.48, [0, rotY, 0]);
-    }
   };
   const projArm = (L0, L1, yy, rotY = 0, gcap = true) => {
     // arm along local direction rotY (0 -> +z), from -L0 to +L1
     const L = L0 + L1, mid = (L1 - L0) / 2;
     const c = Math.cos(rotY), s = Math.sin(rotY);
     b.add(armGeo(L, aH, aW, S.lo), K.wood, m4([s * mid, yy, c * mid], [0, rotY - Math.PI / 2, 0]));
-    if (gcap && S.goldCaps) gold([s * (L1 + 0.004), yy + aH * 0.55, c * (L1 + 0.004)], aW * 0.85, aH * 0.75, [0, rotY, 0]);
   };
   for (let t = 0; t < tiers; t++) {
     const isLast = t === tiers - 1;
@@ -236,7 +223,6 @@ export function bracketSet(lb, frame, S) {
     const L = S.wall[t];
     if (!S.corner) {
       b.add(armGeo(L, aH, aW, S.lo), K.wood, m4([0, y, 0]));
-      if (S.goldCaps) { gold([L / 2 + 0.004, y + aH * 0.55, 0], aW * 0.85, aH * 0.7, [0, Math.PI / 2, 0]); gold([-L / 2 - 0.004, y + aH * 0.55, 0], aW * 0.85, aH * 0.7, [0, Math.PI / 2, 0]); }
     } else {
       // corner: half arms along -x and -z
       b.add(armGeo(L * 0.5 + 0.1, aH, aW, S.lo), K.wood, m4([-(L * 0.25) + 0.05, y, 0]));
@@ -270,18 +256,14 @@ export function bracketSet(lb, frame, S) {
 }
 
 // ---------------------------------------------------------------------------
-// COLUMN with base stone, gold base band, gold bands at given heights
+// COLUMN with an optional stone base; the timber shaft remains unbanded.
 // ---------------------------------------------------------------------------
 export function column(lb, K, x, z, yb, yt, r, o = {}) {
   lb.add(new THREE.CylinderGeometry(r, r * 1.01, yt - yb, o.seg || 28, 1), K.col, m4([x, (yb + yt) / 2, z]));
-  // top chamfer ring (makigata)
   if (o.base) {
     // stone base (础石) with a round rim
     const R = r * 1.55;
     lb.add(lathe([[0, -0.3], [R * 1.05, -0.3], [R * 1.05, -0.02], [R, 0.0], [r * 1.25, 0.03], [r * 1.12, o.baseH || 0.08], [0, o.baseH || 0.08]], 24, 'soseki' + r), K.stone, m4([x, yb - (o.baseH || 0.08), z]));
-  }
-  for (const band of o.bands || []) {
-    lb.add(band.orn ? ornBand(r, band.h, 40) : colBand(r, band.h, o.seg || 28, band.studs || 0), K.gold, m4([x, band.y, z]));
   }
 }
 
@@ -479,7 +461,6 @@ export function irimoyaRoof(lb, R) {
     for (const zz of [0, -zt * 0.55, zt * 0.55]) {
       const yt = topY(zz);
       lb.add(chamferBox(0.11, yt - yb0 - 0.24, 0.12, 0.012), K.red, m4([fx, (yb0 + 0.24 + yt) / 2, zz]));
-      lb.add(rosette(0.05, 6, 0.01, R.lo), K.gold, m4([fx + sx * 0.06, yTie, zz], [0, sx * Math.PI / 2, 0]));
     }
     for (const sz of [-1, 1]) {
       const pts = linePath([fx, sz * zB], [fx, 0], (x, z) => yFront(gx, z) - 0.31, 0.25);

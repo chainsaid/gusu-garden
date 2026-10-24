@@ -4,9 +4,9 @@
 // bracket-set placement. Hall-local coordinates.
 // ---------------------------------------------------------------------------
 import { cbox, beam, lathe, extrude, sweep, bar, xf, basis, mul, v3, clamp, lerp, sstep } from './hall-lib.js';
-import { rosette, lotusFinial, lotusBlock, kanagu } from "./hall-orn.js";
+import { lotusFinial } from "./hall-orn.js";
 import { bracketSet, bracketBeams } from './hall-bracket.js';
-import { hinge, pullRing, columnBand } from './hall-detail.js';
+import { hinge, pullRing } from './hall-detail.js';
 
 export const HB = {
   pod: { hx: 18, hz: 13.5, h: 1.6 },
@@ -172,7 +172,7 @@ export function buildStairs(acc, mats, R) {
 // generic railing (栏杆) between posts along a polyline of post positions
 // (each [x, yBase, z]); lotus post caps on posts flagged in `gibo` set (indices).
 export function railing(acc, mats, posts, opts = {}) {
-  const red = acc.m(mats.red), gold = acc.m(mats.gold), goldB = acc.m(mats.goldB || mats.gold);
+  const red = acc.m(mats.red);
   const H = opts.h || 0.85, pw = opts.postW || 0.14;
   const gibo = opts.gibo || new Set();
   posts.forEach((p, i) => {
@@ -193,13 +193,7 @@ export function railing(acc, mats, posts, opts = {}) {
     bar(red, [a[0], a[1] + H, a[2]], [b[0], b[1] + H, b[2]], 0.048, 10, true);
     beam(red, [a[0], a[1] + H * 0.5, a[2]], [b[0], b[1] + H * 0.5, b[2]], 0.07, 0.11, 0.01);
     beam(red, [a[0], a[1] + 0.07, a[2]], [b[0], b[1] + 0.07, b[2]], 0.1, 0.1, 0.01);
-    // gold sleeves at rail ends
     const dir = v3.norm(v3.sub(b, a));
-    for (const [p, s] of [[a, 1], [b, -1]]) {
-      const c = v3.add(p, v3.scale(dir, s * (pw / 2 + 0.06)));
-      cbox(gold, basis([c[0], c[1] + H, c[2]], dir, [0, 1, 0], v3.cross(dir, [0, 1, 0])), 0.05, 0.056, 0.056, 0.006);
-      cbox(gold, basis([c[0], c[1] + H * 0.5, c[2]], dir, [0, 1, 0], v3.cross(dir, [0, 1, 0])), 0.05, 0.06, 0.042, 0.005);
-    }
     // small struts between mid and top rails
     const n = Math.max(1, Math.round(L / 0.62));
     for (let k = 1; k < n; k++) {
@@ -277,12 +271,10 @@ export function buildVeranda(acc, mats, R) {
 
 // ------------------------------------------------------- columns
 export function column(acc, mats, x, z, y0, y1, r, opts = {}) {
-  const red = acc.m(mats.redA || mats.red), gold = acc.m(mats.gold), black = acc.m(mats.black);
+  const red = acc.m(mats.redA || mats.red), black = acc.m(mats.black);
   lathe(red, xf([x, y0, z]), [[0, 0], [r, 0], [r * 0.995, (y1 - y0) * 0.5], [r * 0.975, y1 - y0], [0, y1 - y0]], 28, { hardDeg: 20 });
   if (opts.foot) {
     lathe(black, xf([x, y0, z]), [[r + 0.012, 0], [r + 0.012, 0.3], [0, 0.3]], 28);
-    lathe(gold, xf([x, y0 + 0.3, z]), [[r + 0.02, 0], [r + 0.02, 0.035], [0, 0.035]], 28);
-    lathe(gold, xf([x, y0 + 0.05, z]), [[r + 0.018, 0], [r + 0.018, 0.03], [0, 0.03]], 28);
   }
   if (opts.soseki) {
     lathe(acc.m(mats.granite), xf([x, opts.soseki, z]), [[0, 0], [r + 0.3, 0], [r + 0.3, 0.06], [r + 0.2, y0 - opts.soseki - 0.02], [r + 0.05, y0 - opts.soseki], [0, y0 - opts.soseki]], 24);
@@ -293,7 +285,7 @@ export function column(acc, mats, x, z, y0, y1, r, opts = {}) {
 // Wall between two columns. p0,p1 = [x,z] of columns; out = outward unit [x,z].
 // type: panel | open | 竖棂窗 | board | door
 function bay(acc, mats, R, p0, p1, out, type, ctx2) {
-  const red = acc.m(mats.red), redD = acc.m(mats.redDark), gold = acc.m(mats.gold), black = acc.m(mats.black), white = acc.m(mats.plaster);
+  const red = acc.m(mats.red), redD = acc.m(mats.redDark), black = acc.m(mats.black), white = acc.m(mats.plaster), gold = acc.m(mats.gold);
   const redA = acc.m(mats.redA || mats.red);
   const inW = acc.m(mats.intWall), inP = acc.m(mats.intPlaster);
   const r = HB.colR;
@@ -381,7 +373,7 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
       // 5. 门环（中间两扇相遇处加素雅小拉手）
       if (li === 1 || li === 2) {
         const ringU = li === 1 ? u1 - fw - 0.04 : u0 + fw + 0.04;
-        pullRing(gold, M(ringU, (ySkirt + yWaist) / 2, 0.088), 0.038, 0.005);
+        pullRing(black, M(ringU, (ySkirt + yWaist) / 2, 0.088), 0.038, 0.005);
       }
     }
   } else if (type === 'open') {
@@ -423,8 +415,6 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
       panel(red, -half, half, 3.9, 4.06, 0.0, 0.1, 0.012);
     } else {
       panel(red, -half, half, Y.sill1, Y.nag0, 0.07, 0.11, 0.01);
-      for (const s of [-1, 1]) for (let y = Y.sill1 + 0.3; y < Y.nag0 - 0.2; y += 0.3) for (let u = 0.25; u < half - 0.15; u += 0.3)
-        lathe(gold, mul(M(s * u, y, 0.11), xf([0, 0, 0], 0, Math.PI / 2)), [[0, 0], [0.026, 0], [0.022, 0.012], [0, 0.02]], 8);
       panel(red, -0.05, 0.05, Y.sill1, Y.nag0, 0.1, 0.14, 0.008);
     }
   }
@@ -448,19 +438,13 @@ export function buildWalls(acc, mats, R, frontTypes, backTypes, westTypes, eastT
     const edge = Math.abs(x) === 13 || Math.abs(z) === 8.5;
     if (!edge) continue;
     column(acc, mats, x, z, HB.colBase + 0.14, HB.colTop, HB.colR, { foot: true, soseki: HB.colBase - 0.02 });
-    // chased gilt band under the head-tie (kashira穿枋)
-    columnBand(acc.m(mats.gold), xf([x, 7.1, z]), HB.colR * 0.976, 0.2, 14);
   }
-  // rosettes on 腰枋 at each column front
-  // 木鼻 (decorated beam ends) projecting at the corner columns
+  // 木鼻 (plain beam ends) projecting at the corner columns
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     for (const [dx, dz] of [[1, 0], [0, 1]]) {
       const c = [sx * 13, 7.5, sz * 8.5];
       const e = [c[0] + sx * dx * 0.75, 7.5, c[2] + sz * dz * 0.75];
       beam(acc.m(mats.red), c, e, 0.2, 0.3, 0.02);
-      const dir = v3.norm(v3.sub(e, c));
-      cbox(acc.m(mats.gold), basis(v3.add(e, v3.scale(dir, 0.005)), dir, [0, 1, 0], v3.cross(dir, [0, 1, 0])), 0.008, 0.16, 0.11, 0.004);
-      rosette(acc.m(mats.gold), basis(v3.add(e, v3.scale(dir, 0.012)), v3.cross(dir, [0, 1, 0]), [0, 1, 0], dir), 0.09, 6, 0.03);
     }
   }
 }
@@ -492,7 +476,7 @@ export function buildInterior(acc, mats, R) {
 // ------------------------------------------------------- upper storey
 export function buildUpper(acc, mats, R) {
   const U = HB.up;
-  const red = acc.m(mats.red), redD = acc.m(mats.redDark), gold = acc.m(mats.gold), white = acc.m(mats.plaster);
+  const red = acc.m(mats.red), redD = acc.m(mats.redDark), white = acc.m(mats.plaster);
   const redA = acc.m(mats.redA || mats.red);
   const xi = U.xs[U.xs.length - 1], zi = U.zs[U.zs.length - 1];
   for (const x of U.xs) for (const z of U.zs) {
@@ -511,21 +495,20 @@ export function buildUpper(acc, mats, R) {
     const panel = (ms, u0, u1, y0, y1, w0, w1, c = 0.01) => cbox(ms, M((u0 + u1) / 2, (y0 + y1) / 2, (w0 + w1) / 2), (u1 - u0) / 2, (y1 - y0) / 2, (w1 - w0) / 2, c);
     panel(redD, -half, half, U.base, 11.3, -0.05, 0.05, 0.005);
     panel(redA, -L / 2, L / 2, 11.12, 11.34, -0.11, 0.11, 0.012); // sill
-    // 竖棂窗 window with white 障子 backing
+    // 竖棂窗 window with white 明瓦 backing
     panel(white, -half, half, 11.34, 12.28, -0.06, -0.02, 0.004);
     const fw = 0.12;
     panel(red, -half, -half + fw, 11.34, 12.28, -0.06, 0.08, 0.01);
     panel(red, half - fw, half, 11.34, 12.28, -0.06, 0.08, 0.01);
     for (let u = -half + fw + 0.09; u < half - fw - 0.04; u += 0.17) cbox(red, mul(M(u, 11.81, 0.02), xf([0, 0, 0], Math.PI / 4)), 0.03, 0.47, 0.03, 0.004);
-    // 腰枋 + gold
+    // 腰枋 (proud red band)
     panel(redA, -L / 2 - 0.04, L / 2 + 0.04, 12.28, 12.46, U.r - 0.03, U.r + 0.07, 0.015);
     for (const s of [-1, 1]) {
-      panel(gold, s * (L / 2 - U.r - 0.13) - 0.11, s * (L / 2 - U.r - 0.13) + 0.11, 12.27, 12.47, U.r + 0.068, U.r + 0.082, 0.004);
-      rosette(gold, M(s * (L / 2 - U.r - 0.02), 12.37, U.r + 0.08), 0.085, 6, 0.025);
+      panel(redA, s * (L / 2 - U.r - 0.13) - 0.11, s * (L / 2 - U.r - 0.13) + 0.11, 12.27, 12.47, U.r + 0.068, U.r + 0.082, 0.004);
     }
     panel(white, -half, half, 12.46, 12.55, -0.05, 0.05, 0.004);
     panel(redA, -L / 2, L / 2, 12.55, 12.78, -0.1, 0.1, 0.012); // kashiranuki
-    for (const yy of [12.59, 12.74]) panel(gold, -L / 2 + U.r, L / 2 - U.r, yy - 0.007, yy + 0.007, 0.098, 0.107, 0.003);
+    for (const yy of [12.59, 12.74]) panel(redA, -L / 2 + U.r, L / 2 - U.r, yy - 0.007, yy + 0.007, 0.098, 0.107, 0.003);
     panel(redA, -L / 2, L / 2, U.top - 0.15, U.top, -0.12, 0.12, 0.012); // daiwa
     panel(white, -half, half, 12.78, U.top - 0.15, -0.05, 0.05, 0.004);
   }
@@ -548,7 +531,7 @@ export function buildUpper(acc, mats, R) {
       beam(red, [x, by - 0.24, z], [x + dx * (bo + 0.02), by - 0.24, z + dz * (bo + 0.02)], 0.16, 0.18, 0.012);
       beam(red, [x, by - 0.5, z], [x + dx * (bo * 0.6), by - 0.5, z + dz * (bo * 0.6)], 0.14, 0.16, 0.012);
       cbox(red, xf([x + dx * bo * 0.55, by - 0.36, z + dz * bo * 0.55]), 0.09, 0.07, 0.09, 0.01, { taper: [0.8, 0.8] });
-      cbox(gold, xf([x + dx * (bo + 0.025), by - 0.24, z + dz * (bo + 0.025)]), dx ? 0.006 : 0.09, 0.095, dz ? 0.006 : 0.09, 0.003);
+      cbox(red, xf([x + dx * (bo + 0.025), by - 0.24, z + dz * (bo + 0.025)]), dx ? 0.006 : 0.09, 0.095, dz ? 0.006 : 0.09, 0.003);
     }
   }
   // railing

@@ -6,7 +6,7 @@
 // lacquer plaques with carved crests. Hall-local coordinates.
 // ---------------------------------------------------------------------------
 import { cbox, bar, beam, xf, basis, mul, v3 } from './hall-lib.js';
-import { lotusFinial, rosette } from './hall-orn.js';
+import { lotusFinial } from './hall-orn.js';
 import { peony, scroll, ridge2 } from './hall-carve.js';
 
 // posts: [[x, yBase, z], ...]; newel: index of the heavy foot post
@@ -66,5 +66,4 @@ export function stairBalustrade(acc, mats, posts, newel = -1, opts = {}) {
       cbox(red, basis([p[0], p[1] + H * 0.31, p[2]], dir, [0, 1, 0], side), 0.028, H * 0.16, 0.028, 0.005);
     }
   }
-  void rosette;
 }

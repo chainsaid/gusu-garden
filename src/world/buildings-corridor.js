@@ -5,7 +5,7 @@
 // Unit frame: x along the run (0..bay), z across (-z = OUTER side with wall), y up.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { LB, m4, beamM, chamferBox, block, lathe, colBand, sweep, rectProfile, roundProfile, roofSurface, tileCapGeos, tileParams, armGeo, extrude, rosette, hash3, buildIx } from './buildings-kit.js';
+import { LB, m4, beamM, chamferBox, block, lathe, sweep, rectProfile, roundProfile, roofSurface, tileCapGeos, tileParams, armGeo, extrude, hash3, buildIx } from './buildings-kit.js';
 import { ridgeProfile, rafterField, linePath } from './buildings-arch.js';
 import { gap } from '../core/detail.js';
 
@@ -238,8 +238,6 @@ function unitLine(lb, K) {
   k.bezierCurveTo(0.3, kh * 0.55, 0.16, kh * 0.8, 0.12, kh + 0.02); k.lineTo(-0.12, kh + 0.02);
   k.bezierCurveTo(-0.16, kh * 0.8, -0.3, kh * 0.55, -0.42, 0);
   lb.add(extrude(k, 0.11, 0, 'kaeru' + kh.toFixed(3), 3), K.red, m4([0, top, 0], [0, Math.PI / 2, 0]));
-  lb.add(rosette(0.045, 6, 0.01, true), K.cap, m4([0.06, top + kh * 0.35, 0], [0, Math.PI / 2, 0]));
-  lb.add(rosette(0.045, 6, 0.01, true), K.cap, m4([-0.06, top + kh * 0.35, 0], [0, -Math.PI / 2, 0]));
   lb.add(block(0.26, 0.14, 0.26), K.red, m4([0, top + kh + 0.02, 0]));
   lb.add(armGeo(0.9, 0.11, 0.12, true), K.red, m4([0, top + kh + 0.16, 0]));
   // funa肘木 on the column 大斗, along the run
