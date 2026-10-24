@@ -423,24 +423,6 @@ export function smallBellGeo(s = 1) {
   return g;
 }
 
-// gilt rosette nail cover (钉隐) facing +Z, back at z=0, ~0.16 dia
-export function rosetteGeo() {
-  const parts = [];
-  const petals = 8;
-  const shape = new THREE.Shape();
-  for (let i = 0; i < 32; i++) {
-    const a = (i / 32) * Math.PI * 2;
-    const r = 0.06 + 0.016 * Math.pow(Math.abs(Math.cos((a * petals) / 2)), 0.7);
-    if (i === 0) shape.moveTo(Math.cos(a) * r, Math.sin(a) * r); else shape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-  }
-  const g = new THREE.ExtrudeGeometry(shape, { depth: 0.01, bevelEnabled: false, curveSegments: 1 });
-  parts.push(g);
-  const boss = new THREE.SphereGeometry(0.03, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2); boss.rotateX(Math.PI / 2); boss.scale(1, 1, 0.6); boss.translate(0, 0, 0.01);
-  parts.push(boss);
-  const ring = new THREE.TorusGeometry(0.045, 0.005, 3, 16); ring.translate(0, 0, 0.011); parts.push(ring);
-  return mergeClean(parts);
-}
-
 // door stud (dobyo): low dome facing +Z
 export function studGeo() {
   const g = new THREE.SphereGeometry(0.024, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2);

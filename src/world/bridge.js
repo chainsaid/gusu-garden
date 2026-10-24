@@ -1,17 +1,17 @@
 // ---------------------------------------------------------------------------
-// BRIDGE — arched vermilion taiko-bashi across the pond on the hall axis.
+// BRIDGE — arched vermilion garden bridge across the pond on the hall axis.
 //
 // Structure (all in world coordinates, axis x = L.bridge.x, running N-S):
 //   * deck: a circular arc (crown = L.bridge.rise above ground), individual
 //     weathered planks with gaps, nail heads and a worn walking line
 //   * side fascia "arch boards": thick vermilion curved girders whose intrados
 //     deepens toward the banks so the arch springs out of granite abutments,
-//     with a dark capping band on top and ornate gilt kazari-金物 plates
+//     with a dark capping band on top
 //   * railings: posts (dark sleeve + detailed lathe lotus post cap on
-//     every post), oval top rail swept up past the end posts with gilt end caps, flat mid rail with nail
+//     every post), oval top rail swept up past the end posts, flat mid rail with nail
 //     heads, base sill, plumb struts; larger end posts on granite bases
 //   * substructure: inner girders, floor beams, two bents of stacked granite
-//     piers on stepped footings with a vermilion cap beam (gilt end caps)
+//     piers on stepped footings with a vermilion cap beam
 //   * coursed granite abutments + landing slabs adapted to the real shoreline
 //     (queried from the pond module when present)
 // Materials are bridge-specific variants of the shared procedural library.
@@ -518,8 +518,6 @@ export async function build(ctx) {
   });
   gib.name = 'bridgeLotusCap';
   const RIVET = new THREE.SphereGeometry(0.0048, 7, 3, 0, Math.PI * 2, 0, Math.PI / 2); RIVET.rotateX(Math.PI / 2); RIVET.scale(1, 1, 0.75);
-  const TSUKA_BAND = new RBox(0.074, 0.022, 0.074, 1, 0.004);
-  const RIVET_HI = new THREE.SphereGeometry(0.0048, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2); RIVET_HI.rotateX(Math.PI / 2); RIVET_HI.scale(1, 1, 0.75);
 
   // granite (piers, abutments, slabs) with a waterline algae band and wet darkening
   const GP = mat.PROC.granite('0.45', 'vec3(0.62, 0.635, 0.66)');
@@ -598,8 +596,6 @@ export async function build(ctx) {
   }
   // kind 1 = railing member (shu), 0 = fascia / substructure (oxblood)
   const addLac = (g, mode, dirt, m = null, kind = 0) => B.add(paint(g, mode, dirt + 2 * kind, rnd.next()), lac, m);
-  // gold pieces: tint = brightness, matte = extra roughness (punched ground)
-  const addGold = (g, m = null, tint = 1, matte = 0) => B.add(paint(g, tint * (0.93 + 0.1 * rnd.next()), matte, rnd.next()), gold, m);
   const addDark = (g, m = null) => B.add(paint(g, 1, 1, 1), dark, m);
   const addStone = (g, m = null, tone = 1) => { const t = tone * (0.72 + 0.36 * rnd.next()); const w = rnd.next(); return B.add(paint(g, t * (1.0 + 0.06 * w), t * (0.97 + 0.03 * w), t * (0.9 + 0.08 * (1 - w))), granite, m); };
 
@@ -729,157 +725,7 @@ export async function build(ctx) {
     return g;
   }
 
-  // shapes
-  function polarShape(fn, n = 160) {
-    const s = new THREE.Shape();
-    for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; const [x, y] = fn(a); if (i === 0) s.moveTo(x, y); else s.lineTo(x, y); }
-    s.closePath(); return s;
-  }
-  function circlePath(cx, cy, r, n = 20, cw = true) {
-    const p = new THREE.Path();
-    for (let i = 0; i < n; i++) { const a = (cw ? -1 : 1) * (i / n) * Math.PI * 2; const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a); if (i === 0) p.moveTo(x, y); else p.lineTo(x, y); }
-    p.closePath(); return p;
-  }
-  // extrude a shape toward +z (thickness t) with a soft bevel; result sits on z = 0..t
-  function relief(shape, t, bevel, segs = dseg(2, 1)) {
-    const g = new THREE.ExtrudeGeometry(shape, { depth: Math.max(t - bevel * 2, 0.0005), bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelOffset: -bevel, bevelSegments: segs, curveSegments: 6, steps: 1 });
-    g.translate(0, 0, bevel);
-    return g;
-  }
 
-  // ---------------------------------------------------------------- ornaments (local: plate in XY, facing +Z)
-  // large kazari-金物: lobed gilt plate with openwork, raised rosette, boss and 卷草 scrolls
-  function scrollCurve(x0, y0, dir, sgn, len, turns, r0) {
-    const pts = []; let x = x0, y = y0, a = dir;
-    const n1 = 14; const st = len / n1;
-    for (let i = 0; i < n1; i++) { pts.push(new THREE.Vector3(x, y, 0)); a += sgn * 0.05; x += Math.cos(a) * st; y += Math.sin(a) * st; }
-    // volute
-    const cx = x + Math.cos(a + sgn * Math.PI / 2) * r0, cy = y + Math.sin(a + sgn * Math.PI / 2) * r0;
-    const phi0 = Math.atan2(y - cy, x - cx); const n2 = 34;
-    for (let i = 0; i <= n2; i++) {
-      const t = i / n2; const phi = phi0 + sgn * t * turns * Math.PI * 2; const r = r0 * Math.exp(-1.1 * t * turns);
-      pts.push(new THREE.Vector3(cx + Math.cos(phi) * r, cy + Math.sin(phi) * r, 0));
-    }
-    return pts;
-  }
-  // returns [[geometry, matte], ...] in the plate frame (XY plane, relief toward +Z)
-  function ornamentParts(S) {
-    const out = [];
-    const T0 = 0.0055 * S + 0.002;
-    // leaf arm with a trefoil tip and a heart-shaped (inome) opening, pointing +x
-    const leaf = (len, wid, x0) => {
-      const s = new THREE.Shape();
-      s.moveTo(x0, 0);
-      s.bezierCurveTo(x0 + len * 0.1, wid * 1.15, x0 + len * 0.6, wid * 1.2, x0 + len * 0.76, wid * 0.5);
-      s.quadraticCurveTo(x0 + len * 0.84, wid * 0.95, x0 + len * 0.94, wid * 0.46);
-      s.quadraticCurveTo(x0 + len * 1.07, wid * 0.24, x0 + len, 0);
-      s.quadraticCurveTo(x0 + len * 1.07, -wid * 0.24, x0 + len * 0.94, -wid * 0.46);
-      s.quadraticCurveTo(x0 + len * 0.84, -wid * 0.95, x0 + len * 0.76, -wid * 0.5);
-      s.bezierCurveTo(x0 + len * 0.6, -wid * 1.2, x0 + len * 0.1, -wid * 1.15, x0, 0);
-      const h = new THREE.Path();
-      const hx = x0 + len * 0.47, hw = wid * 0.5, hl = len * 0.2;
-      h.moveTo(hx + hl, 0);
-      h.bezierCurveTo(hx + hl * 0.4, hw * 0.95, hx - hl * 0.5, hw * 1.05, hx - hl * 0.6, hw * 0.4);
-      h.quadraticCurveTo(hx - hl * 0.32, 0, hx - hl * 0.6, -hw * 0.4);
-      h.bezierCurveTo(hx - hl * 0.5, -hw * 1.05, hx + hl * 0.4, -hw * 0.95, hx + hl, 0);
-      s.holes.push(h);
-      return s;
-    };
-    const arms = [[0, 0.25, 0.078], [Math.PI, 0.25, 0.078], [Math.PI / 2, 0.15, 0.06], [-Math.PI / 2, 0.15, 0.06]];
-    arms.forEach(([ang, len, wid], i) => {
-      const g = relief(leaf(len * S, wid * S, 0.045 * S), T0 + 0.0004 * (i + 1), 0.0022, 1);
-      g.rotateZ(ang); out.push([g, 2.22]); // punched ground + engraved scrolls
-      // raised midrib + scroll pair (warabi) on each arm, polished
-      const z = T0 + 0.0025;
-      const sc = len / 0.25;
-      for (const sy of [-1, 1]) {
-        const pts = scrollCurve(0.07 * S, sy * 0.012 * S, sy * 0.3, -sy, 0.085 * S * sc, 0.8, 0.03 * S * Math.sqrt(sc)).map((p) => p.setZ(z));
-        const tg = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 28, 0.005 * S + 0.0012, 5, false);
-        tg.rotateZ(ang); out.push([tg, 0]);
-      }
-      // small leaf bud at the tip, polished
-      const bud = relief(polarShape((a) => { const r = (0.02 + 0.006 * Math.cos(a * 3)) * S * Math.sqrt(sc); return [r * Math.cos(a) * 1.2, r * Math.sin(a)]; }, 36), 0.006 * S, 0.0025 * S, 2);
-      bud.translate((0.045 + len * 0.86) * S, 0, T0); bud.rotateZ(ang); out.push([bud, 0]);
-      // rivet at the tip
-      const rv = new THREE.SphereGeometry(0.008 * S + 0.002, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2); rv.rotateX(Math.PI / 2);
-      rv.translate((0.045 + len * 1.01) * S + 0.004, 0, T0 * 0.6); rv.rotateZ(ang); out.push([rv, 0]);
-    });
-    // diagonal small teardrop leaves between the arms
-    for (let k = 0; k < 4; k++) {
-      const ang = Math.PI / 4 + k * Math.PI / 2;
-      const tear = new THREE.Shape();
-      const r0 = 0.07 * S, r1 = 0.15 * S, w = 0.03 * S;
-      tear.moveTo(r0, 0); tear.bezierCurveTo(r0 + 0.02 * S, w * 1.4, r1 - 0.03 * S, w * 0.9, r1, 0); tear.bezierCurveTo(r1 - 0.03 * S, -w * 0.9, r0 + 0.02 * S, -w * 1.4, r0, 0);
-      const g = relief(tear, T0 + 0.003, 0.002, 2); g.rotateZ(ang); out.push([g, 0.1]);
-    }
-    // centre: matte disc, 16-petal chrysanthemum, ring, boss
-    const disc = relief(polarShape((a) => [0.088 * S * Math.cos(a), 0.088 * S * Math.sin(a)], 48), T0, 0.002, 1);
-    out.push([disc, 0.03]);
-    const ros = polarShape((a) => { const r = (0.056 + 0.016 * Math.pow(Math.abs(Math.cos(a * 8)), 0.55)) * S; return [r * Math.cos(a), r * Math.sin(a)]; }, 192);
-    const rg = relief(ros, 0.01 * S, 0.0045 * S, 3); rg.translate(0, 0, T0 - 0.001); out.push([rg, -1]); // dark lacquered chrysanthemum inside the gilt rim
-    const ring = new THREE.TorusGeometry(0.04 * S, 0.0045 * S, 6, 36); ring.translate(0, 0, T0 + 0.009 * S); out.push([ring, 0]);
-    const boss = new THREE.SphereGeometry(0.027 * S, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2); boss.rotateX(Math.PI / 2); boss.scale(1, 1, 0.85); boss.translate(0, 0, T0 + 0.006 * S); out.push([boss, 0]);
-    // beaded ring round the rosette (tama-buchi)
-    for (let k = 0; k < 20; k++) { const a = (k / 20) * Math.PI * 2; const bd = new THREE.SphereGeometry(0.0036 * S + 0.001, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2); bd.rotateX(Math.PI / 2); bd.translate(Math.cos(a) * 0.08 * S, Math.sin(a) * 0.08 * S, T0); out.push([bd, 0]); }
-    return out;
-  }
-  // small square fitting with cut corners and a centre boss (sumikiri 金物)
-  function squarePlate(w, h, t = 0.005) {
-    const c = Math.min(w, h) * 0.18;
-    const s = new THREE.Shape();
-    s.moveTo(-w / 2 + c, -h / 2); s.lineTo(w / 2 - c, -h / 2); s.lineTo(w / 2, -h / 2 + c); s.lineTo(w / 2, h / 2 - c);
-    s.lineTo(w / 2 - c, h / 2); s.lineTo(-w / 2 + c, h / 2); s.lineTo(-w / 2, h / 2 - c); s.lineTo(-w / 2, -h / 2 + c); s.closePath();
-    const out = [[relief(s, t, 0.0015, 1), 0.3]];
-    const inner = new THREE.Shape(); const w2 = w * 0.62, h2 = h * 0.62, c2 = c * 0.6;
-    inner.moveTo(-w2 / 2 + c2, -h2 / 2); inner.lineTo(w2 / 2 - c2, -h2 / 2); inner.lineTo(w2 / 2, -h2 / 2 + c2); inner.lineTo(w2 / 2, h2 / 2 - c2);
-    inner.lineTo(w2 / 2 - c2, h2 / 2); inner.lineTo(-w2 / 2 + c2, h2 / 2); inner.lineTo(-w2 / 2, h2 / 2 - c2); inner.lineTo(-w2 / 2, -h2 / 2 + c2); inner.closePath();
-    const ig = relief(inner, t * 0.6, 0.0012, 1); ig.translate(0, 0, t); out.push([ig, 0]);
-    const boss = new THREE.SphereGeometry(Math.min(w, h) * 0.13, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2); boss.rotateX(Math.PI / 2); boss.scale(1, 1, 0.7); boss.translate(0, 0, t * 1.5); out.push([boss, 0]);
-    return out;
-  }
-  // beam-end fitting (kiguchi 金物): black-lacquer inset framed by the gilt sleeve, a gilt
-  // chrysanthemum boss and corner rivets. returns [[geom, 'gold'|'dark', matte]]
-  function endFitting(w, h) {
-    const out = [];
-    const m = Math.min(w, h) * 0.5;
-    const pnl = new RBox(w * 0.76, h * 0.76, 0.004, 1, 0.0015); pnl.translate(0, 0, 0.002);
-    out.push([pnl, 'dark', 0]);
-    const ros = polarShape((a) => { const r = (0.26 + 0.07 * Math.pow(Math.abs(Math.cos(a * 8)), 0.55)) * m; return [r * Math.cos(a), r * Math.sin(a)]; }, 128);
-    const rg = relief(ros, 0.009, 0.003, 2); rg.translate(0, 0, 0.003); out.push([rg, 'gold', 0.05]);
-    const ring = new THREE.TorusGeometry(0.17 * m, 0.022 * m + 0.001, 5, 28); ring.translate(0, 0, 0.012); out.push([ring, 'gold', 0]);
-    const boss = new THREE.SphereGeometry(0.11 * m, 16, 6, 0, Math.PI * 2, 0, Math.PI / 2); boss.rotateX(Math.PI / 2); boss.scale(1, 1, 0.8); boss.translate(0, 0, 0.011); out.push([boss, 'gold', 0]);
-    // domed rivets in the four corners of the gilt frame
-    for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
-      const rv = new THREE.SphereGeometry(0.075 * m, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2); rv.rotateX(Math.PI / 2); rv.scale(1, 1, 0.7);
-      rv.translate(sx * w * 0.44, sy * h * 0.44, 0.0); out.push([rv, 'gold', 0]);
-    }
-    return out;
-  }
-  // pointed lozenge plate for the post faces
-  function lozengePlate(w, h, t = 0.004, simple = false) {
-    const s = new THREE.Shape(); const n = simple ? 24 : 36;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2; const c = Math.cos(a), si = Math.sin(a);
-      const k = Math.pow(Math.abs(c), 1.6) + Math.pow(Math.abs(si), 1.6);
-      const r = 1 / Math.pow(k, 1 / 1.6) * (1 + 0.08 * Math.cos(a * 6));
-      const x = c * r * w / 2, y = si * r * h / 2; if (i === 0) s.moveTo(x, y); else s.lineTo(x, y);
-    }
-    s.closePath();
-    const out = [[relief(s, t, 0.0015, 1), 0.25]];
-    const boss = new THREE.SphereGeometry(w * 0.16, simple ? 10 : 14, simple ? 4 : 7, 0, Math.PI * 2, 0, Math.PI / 2); boss.rotateX(Math.PI / 2); boss.scale(1, 1, 0.75); boss.translate(0, 0, t); out.push([boss, 0]);
-    if (!simple) { const ring = new THREE.TorusGeometry(w * 0.24, w * 0.025, 5, 20); ring.translate(0, 0, t + 0.0005); out.push([ring, 0]); }
-    return out;
-  }
-  // gold sleeve pendant (downward pointed shield)
-  function pendantPlate(w, h, t = 0.0035) {
-    const s = new THREE.Shape();
-    s.moveTo(-w / 2, 0); s.lineTo(w / 2, 0);
-    s.bezierCurveTo(w / 2, -h * 0.35, w * 0.18, -h * 0.55, 0, -h);
-    s.bezierCurveTo(-w * 0.18, -h * 0.55, -w / 2, -h * 0.35, -w / 2, 0);
-    const out = [[relief(s, t, 0.0012, 1), 0.25]];
-    const boss = new THREE.SphereGeometry(w * 0.11, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2); boss.rotateX(Math.PI / 2); boss.translate(0, -h * 0.38, t); out.push([boss, 0]);
-    return out;
-  }
 
   // ---------------------------------------------------------------- 莲瓣望柱头 (lotus-bud post cap)
   // Lathe profile (local: base on the cap plate at y = 0, scale 1 for a 0.16 m post): foot bead,
@@ -1001,30 +847,8 @@ export async function build(ctx) {
   const CAP_HERO = lotusCapParts(true), CAP_STD = lotusCapParts(false);
 
   function addPostTop(x, yTop, z, w, scale, hero = false) {
-    // sleeve, rims, cap plate, pendants, lotus post cap
+    // lotus-bud post cap (莲瓣望柱头) sits on the plain lacquered post sleeve
     const s = w / PW;
-    addGold(rbox(w + 0.012, 0.115 * s, w + 0.012, 0.004), mat4([x, yTop - 0.0575 * s, z]), 0.95, 2.12);
-    addGold(rbox(w + 0.026, 0.02 * s, w + 0.026, 0.006, 1), mat4([x, yTop - 0.112 * s, z]), 1, 0.04);
-    addGold(rbox(w + 0.022, 0.014 * s, w + 0.022, 0.005, 1), mat4([x, yTop - 0.004 * s, z]), 1, 0.04);
-    addGold(rbox(w + 0.034, 0.016 * s, w + 0.034, 0.006, 1), mat4([x, yTop + 0.008 * s, z]), 1, 0.04);
-    const pend = pendantPlate(w * 0.62, 0.1 * s);
-    for (let k = 0; k < 4; k++) {
-      const ry = k * Math.PI / 2; const off = w / 2 + 0.0005;
-      const px = x + Math.sin(ry) * off, pz = z + Math.cos(ry) * off;
-      for (const [g, mt] of pend) addGold(g, mat4([px, yTop - 0.121 * s, pz], [0, ry, 0]), mt ? 0.88 : 1, mt);
-    }
-    // lozenge on the sleeve faces
-    const loz = lozengePlate(w * 0.5, 0.075 * s, 0.003, true);
-    for (let k = 0; k < 4; k++) {
-      const ry = k * Math.PI / 2; const off = w / 2 + 0.0065;
-      // dark lacquer inlay diamond with a gilt boss
-      for (const [g, mt] of loz) { const M4 = mat4([x + Math.sin(ry) * off, yTop - 0.058 * s, z + Math.cos(ry) * off], [0, ry, 0]); if (mt) addDark(g, M4); else addGold(g, M4); }
-      // domed rivets pinning the sleeve at its upper and lower margins
-      for (const yy of [-0.017, -0.099]) for (const tt of [-0.36, 0.36]) {
-        const M4 = mat4([x + Math.sin(ry) * (w / 2 + 0.006) + Math.cos(ry) * tt * w, yTop + yy * s, z + Math.cos(ry) * (w / 2 + 0.006) - Math.sin(ry) * tt * w], [0, ry, 0]);
-        addGold(hero ? RIVET_HI : RIVET, M4, 1.0, 0.0);
-      }
-    }
     const M = mat4([x, yTop + 0.016 * s, z], [0, rnd.next() * 6.28, 0], scale);
     for (const g of (hero ? CAP_HERO : CAP_STD)) B.add(g, gib, M);
   }
@@ -1180,16 +1004,6 @@ export async function build(ctx) {
     const capH = 0.30, capD = 0.36, capL = 2 * HW + 0.84;
     const capY = capTop - capH / 2;
     addLac(rbox(capL, capH, capD, 0.025, 2), MODE_X, 0.35, mat4([X0, capY, zb]));
-    // gilt end caps on the cap beam
-    for (const side of [-1, 1]) {
-      const xe = X0 + side * (capL / 2);
-      addGold(rbox(0.07, capH + 0.012, capD + 0.012, 0.006), mat4([xe - side * 0.03, capY, zb]), 0.9, 2.06);
-      addGold(rbox(0.018, capH + 0.026, capD + 0.026, 0.006, 1), mat4([xe - side * 0.058, capY, zb]), 1, 0.02);
-      for (const [g, kind, mt] of endFitting(capD + 0.012, capH + 0.012)) {
-        const M4 = mat4([xe + side * 0.0045, capY, zb], [0, side * Math.PI / 2, 0]);
-        if (kind === 'dark') addDark(g, M4); else addGold(g, M4, 1, mt);
-      }
-    }
     // granite capitals, pillars of stacked rough ashlar, stepped footings
     const capitalH = 0.22, capitalW = 0.78;
     const pillarTop = capTop - capH - capitalH;
@@ -1231,19 +1045,11 @@ export async function build(ctx) {
       addStone(stoneBlock(1.1, f1Top - (BOTTOM - 0.5), 1.1, 0.05, 0.016, 0.14, zb * 2 + side, 0.006), mat4([px, (f1Top + BOTTOM - 0.5) / 2, zb], [0, (sr.next() - 0.5) * 0.06, 0]), 0.85);
       addStone(stoneBlock(0.84, footTop - f1Top + 0.01, 0.84, 0.045, 0.012, 0.1, zb * 3 + side, 0.006), mat4([px, (footTop + f1Top) / 2, zb], [0, (sr.next() - 0.5) * 0.05, 0]), 0.88);
     }
-    // vermilion through-tie (穿枋) binding the pillar pair, gilt end caps
+    // vermilion through-tie (穿枋) binding the pillar pair
     {
       const ny = footTop + (pillarTop - footTop) * 0.56;
       const nL = 2 * (1.62 + 0.29 + 0.17);
       addLac(rbox(nL, 0.22, 0.13, 0.015, 2), MODE_X, 0.45, mat4([X0, ny, zb]));
-      for (const side of [-1, 1]) {
-        const xe = X0 + side * nL / 2;
-        addGold(rbox(0.05, 0.232, 0.142, 0.005), mat4([xe - side * 0.02, ny, zb]), 0.9, 0.06);
-        for (const [g, kind, mt] of endFitting(0.142, 0.232)) {
-          const M4 = mat4([xe + side * 0.0055, ny, zb], [0, side * Math.PI / 2, 0]);
-          if (kind === 'dark') addDark(g, M4); else addGold(g, M4, 1, mt);
-        }
-      }
     }
   }
 
@@ -1348,38 +1154,6 @@ export async function build(ctx) {
       const cN = curl(main, true).reverse(), cS = curl(main, false);
       const pts = [...cN, ...main, ...cS];
       addLac(sweep(pts, ellipse(TOP.a, TOP.b, 24)), MODE_ARC, 0.0, null, 1);
-      // gilt end caps: sleeve with a raised rim + domed end
-      const capProf = ellipse(TOP.a + 0.006, TOP.b + 0.006, 24);
-      const rimProf = ellipse(TOP.a + 0.011, TOP.b + 0.011, 24);
-      const endCap = (tip) => {
-        addGold(sweep(tip.slice(-3), capProf, true, false), null, 1, 0.08);
-        const r0 = tip[tip.length - 3], r1 = tip[tip.length - 2];
-        addGold(sweep([r0, r0.clone().lerp(r1, 0.35)], rimProf, true, true), null, 1, 0.02);
-        const p = tip[tip.length - 1], T = p.clone().sub(tip[tip.length - 2]).normalize();
-        const Sx = new THREE.Vector3(1, 0, 0), Nn = new THREE.Vector3(0, -T.z, T.y);
-        const dome = new THREE.SphereGeometry(1, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2);
-        const m = new THREE.Matrix4().makeBasis(Sx, T, Nn).scale(new THREE.Vector3(TOP.a + 0.006, 0.022, TOP.b + 0.006)).setPosition(p);
-        addGold(dome, m, 1, 0.02);
-        const knob = new THREE.SphereGeometry(0.009, 12, 8);
-        addGold(knob, new THREE.Matrix4().makeTranslation(p.x + T.x * 0.02, p.y + T.y * 0.02, p.z + T.z * 0.02), 1, 0);
-      };
-      endCap(cN.slice().reverse());
-      endCap(cS);
-      // gilt ferrules where the top rail enters each post
-      for (let k = 0; k < postZ.length; k++) {
-        const zp = postZ[k]; const w = (k === 0 || k === postZ.length - 1) ? EPW : PW;
-        for (const s2 of [-1, 1]) {
-          if ((k === 0 && s2 < 0) || (k === postZ.length - 1 && s2 > 0)) continue;
-          const za = zp + s2 * (w / 2 - 0.005), zb2 = zp + s2 * (w / 2 + 0.032);
-          addGold(sweep(arcPts(TOP.v, Math.min(za, zb2), Math.max(za, zb2), xr, 0.01), ellipse(TOP.a + 0.006, TOP.b + 0.006, 24)), null, 1, 2.08);
-          // raised rim at the ferrule mouth + a domed nail on its crown
-          const zr0 = zp + s2 * (w / 2 + 0.024), zr1 = zp + s2 * (w / 2 + 0.034);
-          addGold(sweep(arcPts(TOP.v, Math.min(zr0, zr1), Math.max(zr0, zr1), xr, 0.005), ellipse(TOP.a + 0.0105, TOP.b + 0.0105, 24)), null, 1, 0.02);
-          const zn = zp + s2 * (w / 2 + 0.013), thn = thAtZ(zn, TOP.v + TOP.b + 0.006);
-          const cn = ptTh(thn, TOP.v + TOP.b + 0.005, xr);
-          addGold(RIVET, mat4([cn.x, cn.y, cn.z], [thn - Math.PI / 2, 0, 0]), 1, 0);
-        }
-      }
     }
     // posts
     for (let k = 0; k < postZ.length; k++) {
@@ -1391,27 +1165,9 @@ export async function build(ctx) {
       const yBot = isEnd ? LAND_TOP + 0.17 : yAt(zp, BAND.v0) + 0.01;
       addLac(rbox(w, yTop - yBot, w, 0.014, 2), MODE_VERT, 0.0, mat4([xr, (yTop + yBot) / 2, zp]), 1);
       addPostTop(xr, yTop, zp, w, isEnd ? 1.32 : 1.0, side < 0 && k >= 3 && k <= 5);
-      // lozenge plates on outer + inner faces between the rails
-      const yl = (yAt(zp, MID.v1) + yAt(zp, TOP.v - TOP.b)) / 2;
-      const loz = lozengePlate(w * 0.62, 0.15, 0.004, true);
-      for (const fs of [-1, 1]) for (const [g, mt] of loz) addGold(g, mat4([xr + fs * (w / 2 + 0.0005), yl, zp], [0, fs * Math.PI / 2, 0]), mt ? 0.88 : 1, mt);
-      // gilt band where the mid rail meets the post
-      const ym = yAt(zp, (MID.v0 + MID.v1) / 2);
-      for (const fs of [-1, 1]) for (const [g, mt] of squarePlate(w * 0.8, 0.17, 0.004)) addGold(g, mat4([xr + fs * (w / 2 + 0.0005), ym, zp], [0, fs * Math.PI / 2, 0]), mt ? 0.85 : 1, mt);
       if (isEnd) {
-        // granite base + gilt foot band
+        // granite base for the larger end post
         addStone(stoneBlock(0.42, 0.18, 0.42, 0.03, 0.004, 0.08, zp + side), mat4([xr, LAND_TOP + 0.09, zp]), 1.1);
-        addGold(rbox(w + 0.02, 0.09, w + 0.02, 0.006), mat4([xr, yBot + 0.045, zp]), 1, 2.05);
-        addGold(rbox(w + 0.03, 0.016, w + 0.03, 0.006), mat4([xr, yBot + 0.094, zp]));
-      } else {
-        // gilt foot band where the post rises through the sill
-        const ys = yAt(zp, SILL.v1);
-        addGold(rbox(w + 0.014, 0.04, w + 0.014, 0.005, 1), mat4([xr, ys + 0.02, zp]), 0.95, 2.1);
-        addGold(rbox(w + 0.022, 0.009, w + 0.022, 0.004, 1), mat4([xr, ys + 0.043, zp]), 1, 0.02);
-        // square fitting on the dark band below the post
-        const th = thAtZ(zp, -0.065);
-        const c = ptTh(th, -0.065, X0 + side * (BAND.u1 + 0.0005));
-        for (const [g, mt] of squarePlate(0.15, 0.1, 0.005)) addGold(g, mat4([c.x, c.y, c.z], [0, side * Math.PI / 2, side * th]), mt ? 0.85 : 1, mt);
       }
     }
     // struts (tsuka) between posts, lower and upper rows, plus nail heads on the mid rail
@@ -1431,21 +1187,10 @@ export async function build(ctx) {
         const ym = yAt(z, (MID.v0 + MID.v1) / 2);
         for (const fs of [-1, 1]) {
           const fx = xr + fs * (MID.w / 2);
-          const wsh = new THREE.CylinderGeometry(0.027, 0.028, 0.004, 14); wsh.rotateZ(Math.PI / 2);
-          addGold(wsh, mat4([fx + fs * 0.002, ym, z]));
           const hd = new THREE.SphereGeometry(0.017, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2); hd.rotateZ(-fs * Math.PI / 2);
           addDark(hd, mat4([fx + fs * 0.004, ym, z]));
         }
-        // small gilt stud on the band face
-        const tb2 = thAtZ(z, -0.065);
-        const c = ptTh(tb2, -0.065, X0 + side * (BAND.u1 + 0.001));
-        const st = new THREE.SphereGeometry(0.014, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2); st.rotateZ(-side * Math.PI / 2); st.scale(0.7, 1, 1);
-        addGold(st, mat4([c.x, c.y, c.z]));
-        // gilt collars binding the struts to the rails
-        for (const [yb0, yt0] of [[lb, lt], [ub, ut]]) {
-          addGold(TSUKA_BAND, mat4([xr, yb0 + 0.012, z]), 0.92, 2.1);
-          addGold(TSUKA_BAND, mat4([xr, yt0 - 0.012, z]), 0.92, 2.1);
-        }
+
       }
     }
     // forged iron nail heads in two rows along the black capping band (clear of the gilt fittings)
@@ -1455,24 +1200,6 @@ export async function build(ctx) {
       for (const v of [-0.024, -0.106]) {
         const c = ptTh(th, v, X0 + side * (BAND.u1 + 0.0004));
         addDark(RIVET, mat4([c.x, c.y, c.z], [0, side * Math.PI / 2, 0]));
-      }
-    }
-  }
-
-  // ---------------------------------------------------------------- large ornaments on the fascia faces
-  {
-    const orn = ornamentParts(1.22);
-    const ornS = ornamentParts(1.12);
-    const spots = [[0, orn], [0.245, ornS], [-0.245, ornS]];
-    for (const side of [-1, 1]) {
-      for (const [th, parts] of spots) {
-        const zc = ZC + RA * Math.sin(th);
-        if (zc < faceN + 0.6 || zc > faceS - 0.6) continue;
-        const topY = yAt(zc, FT);
-        const d = fasciaDepth(zc);
-        const yc = topY - Math.min(d, 0.95) * 0.5;
-        const x = X0 + side * (HW + 0.0005);
-        for (const [g, matte] of parts) { const M4 = mat4([x, yc, zc], [0, side * Math.PI / 2, side * th]); if (matte < 0) addDark(g, M4); else addGold(g, M4, matte > 0.05 ? 0.78 : 1.0, matte); }
       }
     }
   }

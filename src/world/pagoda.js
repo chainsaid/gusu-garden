@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import * as PP from './pagoda-parts.js';
 import { seg as dseg, gap } from '../core/detail.js';
-import { woodProc, capGoldProc, goldProc, tileProc } from './pagoda-mat.js';
+import { woodProc, tileProc } from './pagoda-mat.js';
 
 const { V3 } = PP;
 
@@ -152,10 +152,7 @@ export async function build(ctx) {
     // 北寺塔: 砖身抹赭黄, 木构髹红棕 (vermilion-red-brown), 铁件乌黑
     red: mat.phys({ color: 0xffffff, roughness: 0.5, metalness: 0, clearcoat: 0.15, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.34, 0.13, 0.06)', C, { wear: 0.8 }), 'wood')),
     redDark: mat.phys({ color: 0xffffff, roughness: 0.55, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.22, 0.085, 0.04)', C, { wear: 0.6 }), 'wood')),
-    iron: mat.std({ color: 0x46464a, roughness: 0.5, metalness: 0.85 }, rig(goldProc('vec3(0.10, 0.10, 0.11)'), 'gold')),
-    gold: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(goldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
-    capGold: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(capGoldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
-    capSatin: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(capGoldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
+    iron: mat.std({ color: 0x46464a, roughness: 0.5, metalness: 0.85 }),
     tile: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(P.roofTile(), 'tile')),
     tileRound: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(tileProc('round'), 'tile')),
     tileFlat: mat.std({ color: 0xffffff, roughness: 0.45, metalness: 0.1 }, rig(tileProc('flat'), 'tile')),
@@ -169,10 +166,6 @@ export async function build(ctx) {
     soffit: mat.std({ color: 0xffffff, roughness: 0.66, metalness: 0 }, rig(woodProc('vec3(0.20, 0.085, 0.045)', C, { wear: 0.0, grime: 0.6, planks: true }), 'wood')),
     // stained red-brown wood of the eave structure (brackets, rafters, purlins)
     wood: mat.phys({ color: 0xffffff, roughness: 0.58, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.26, 0.10, 0.05)', C), 'wood')),
-    goldSatin: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(goldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
-    spireGold: mat.std({ color: 0xffffff, roughness: 0.45, metalness: 0.7 }, rig(goldProc('vec3(0.15, 0.14, 0.13)'), 'gold')),
-    // 鎏金摩尼宝珠 (gilded apex pearl and crescent)
-    pearlGold: mat.std({ color: 0xffffff, roughness: 0.22, metalness: 0.88 }, rig(goldProc('vec3(0.96, 0.74, 0.28)'), 'gold')),
   };
 
   // ---------------------------------------------------------------- helpers
@@ -223,8 +216,8 @@ export async function build(ctx) {
   I.def('arm', PP.armGeo(0.24, 0.14, 1), MT.wood, { jitter: 0.06, tint: [0.1, -0.05, -0.1] });
   I.def('armEye', PP.armEyeGeo(), MT.wood, { jitter: 0.06, tint: [0.1, -0.05, -0.1] });
   I.def('rafter', PP.chamferBox(RW, RH, 1, 0.012), MT.wood, { jitter: 0.09, tint: [0.12, -0.04, -0.12] });
-  I.def('cap', PP.capGeo(), MT.capGold);
-  I.def('capBig', PP.capGeo(), MT.capSatin);
+  I.def('cap', PP.capGeo(), MT.red);
+  I.def('capBig', PP.capGeo(), MT.red);
   const tj = { jitter: 0.14, tint: [-0.12, -0.04, 0.14] };
   I.def('tileR', PP.roundTileGeo(), MT.tileRound, tj);
   I.def('tileRs', PP.roundTileGeo(6, true), MT.tileRound, tj);
@@ -234,8 +227,7 @@ export async function build(ctx) {
   I.def('lip', PP.lipGeo(), MT.tile, tj);
   I.def('noshi', PP.chamferBox(1, 0.048, 0.3, 0.008), MT.tile, { jitter: 0.12, tint: [-0.1, -0.03, 0.12] });
   const nrng = ctx.rng('pagoda-noshi');
-  I.def('stud', PP.studGeo(), MT.gold);
-  I.def('rosette', PP.rosetteGeo(), MT.gold);
+  I.def('stud', PP.studGeo(), MT.iron);
   I.def('lotusCap', PP.lotusFinialGeo(), MT.red);
 
   // =====================================================================
@@ -338,15 +330,10 @@ export async function build(ctx) {
       const nb = (y0, hh) => box(j, MT.red, nx1 - nx0, hh, 0.1, (nx0 + nx1) / 2, y0 + hh / 2, pN, 0, 0.014);
       nb(F, hj);
       nb(F + hL, hn);
-      // 檐枋, projecting past the corners with gilt ends
+      // 檐枋, projecting past the corners with red-lacquer ends
       const kx = h + 0.32 * k;
       box(j, MT.red, 2 * kx, kt - kb + jy * 2, 0.15 * k, 0, F + (kb + kt) / 2, a, 0, 0.012);
       for (const sx of [-1, 1]) capAt(j, V3(sx * kx, F + (kb + kt) / 2, a), V3(sx, 0, 0), 0.15 * k, kt - kb);
-      // iron bosses on the lintel at every column
-      for (const x of cols) {
-        I.add('rosette', m4(j, x, F + hL + hn / 2, pN + 0.05, 0, 0, 0, k * (i === 0 ? 1.15 : 1), k * (i === 0 ? 1.15 : 1), 1));
-        I.add('rosette', m4(j, x, F + hj / 2, pN + 0.05, 0, 0, 0, k * 0.8, k * 0.8, 1));
-      }
       // three bays: the central one carries the door, the flanking two windows
       for (let b = 0; b < 3; b++) {
         const xb0 = -h + b * bay, xb1 = xb0 + bay;
@@ -418,7 +405,7 @@ export async function build(ctx) {
     // For NS = 4 it is sqrt(2), which is what this used to be hard-coded to.
     const sq2 = SEC;
     const mk = (j, x, y, p, sc = 1, syMul = 1) => I.add('makito', m4(j, x, y, p, 0, 0, 0, k * sc, kv * sc * syMul, k * sc));
-    // block with a gilt plate on its outward face
+    // block with a red-lacquer plate on its outward face
     const mkc = (j, x, y, p, sc = 1, syMul = 1) => {
       mk(j, x, y, p, sc, syMul);
       const hh = 0.18 * kv * sc * syMul;
@@ -619,7 +606,7 @@ export async function build(ctx) {
           addG(j, PP.sweep(pts, PP.rectProfile(w, h, 0.02)), MT.wood);
           const E = pts[n], t = V3().subVectors(pts[n], pts[n - 1]).normalize();
           capAt(j, E, t, w, h);
-          // engraved gilt sleeve plates wrapping the rafter end (sides + underside)
+          // engraved red-lacquer sleeve plates wrapping the rafter end (sides + underside)
           {
             const sd = V3().crossVectors(t, UP).normalize();
             const u = V3().crossVectors(sd, t).normalize();
@@ -640,24 +627,24 @@ export async function build(ctx) {
         const u2 = V3().crossVectors(side, t).normalize();
         const hook = E.clone().addScaledVector(t, -0.12).addScaledVector(u2, -0.125 * k - 0.05);
         {
-          // gilt hanger: plate on the rafter underside, bolt heads, and the eye the bell hangs from
+          // iron hanger: plate on the rafter underside, bolt heads, and the eye the bell hangs from
           const pl = E.clone().addScaledVector(t, -0.14).addScaledVector(u2, -0.125 * k - 0.024);
-          B.add(PP.chamferBox(0.13 * k, 0.012, 0.26, 0.004), MT.gold, basisM(j, pl, side, u2, t.clone().negate()));
-          for (const f of [-0.09, 0.09]) B.add(new THREE.SphereGeometry(0.013, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2), MT.gold, basisM(j, pl.clone().addScaledVector(t, f).addScaledVector(u2, -0.005), side, u2.clone().negate(), t));
+          B.add(PP.chamferBox(0.13 * k, 0.012, 0.26, 0.004), MT.iron, basisM(j, pl, side, u2, t.clone().negate()));
+          for (const f of [-0.09, 0.09]) B.add(new THREE.SphereGeometry(0.013, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2), MT.iron, basisM(j, pl.clone().addScaledVector(t, f).addScaledVector(u2, -0.005), side, u2.clone().negate(), t));
           const eyeR = new THREE.TorusGeometry(0.026, 0.0075, 6, 14);
           const th = V3(t.x, 0, t.z).normalize();
-          B.add(eyeR, MT.gold, basisM(j, hook.clone().addScaledVector(u2, 0.024), th, UP, V3().crossVectors(th, UP).normalize()));
+          B.add(eyeR, MT.iron, basisM(j, hook.clone().addScaledVector(u2, 0.024), th, UP, V3().crossVectors(th, UP).normalize()));
         }
         const wp = toWorld(j, hook);
         // sails turned ~25deg off the hip diagonal: a sail facing straight down the diagonal mirrors the low
         // WSW sun into every camera on that diagonal (blown-out white plate)
         anchors.bells.push({ pos: [wp.x, wp.y, wp.z], scale: 1.9 - 0.1 * s.i, rotY: (-j * TAU) / NS - Math.PI / NS + 0.44 });
       }
-      // smaller bell at the middle of each side, hung from a gilt eye under the flying rafters
+      // smaller bell at the middle of each side, hung from an iron eye under the flying rafters
       {
         const pm = pr(0) - 0.32;
         const yh = hTop(0, pm) - RH;
-        B.add(new THREE.TorusGeometry(0.03, 0.008, 5, 12), MT.gold, m4(j, 0, yh - 0.02, pm, 0, Math.PI / 2, 0));
+        B.add(new THREE.TorusGeometry(0.03, 0.008, 5, 12), MT.iron, m4(j, 0, yh - 0.02, pm, 0, Math.PI / 2, 0));
         const wp = toWorld(j, V3(0, yh - 0.045, pm));
         anchors.bells.push({ pos: [wp.x, wp.y, wp.z], scale: 1.3 - 0.06 * s.i, rotY: (-j * TAU) / NS });
       }
@@ -916,7 +903,7 @@ export async function build(ctx) {
   //   3. 仰莲 (Upturned cast-iron lotus collar)
   //   4. 刹杆 (Central mast) with 九重铸铁相轮 (Nine cast-iron rings)
   //   5. 八角华盖 / 宝盖 (Octagonal cast-iron parasol with corner anchor lugs)
-  //   6. 仰月承托鎏金摩尼宝珠 (Gilded Mani pearl resting in a crescent moon cup)
+  //   6. 仰月承托红漆摩尼宝珠 (Mani pearl resting in a crescent moon cup)
   //   7. 刹尖 (Lightning finial needle atop the pearl)
   //   8. 8 根斜拉铁索 (浪风索) connecting the 宝盖 to the 9th-storey hip ridges
   // =====================================================================
@@ -1083,22 +1070,22 @@ export async function build(ctx) {
       anchors.bells.push({ pos: [wp.x, wp.y, wp.z], scale: 1.6, rotY: -ang });
     }
 
-    // ---- 8. 宝顶: 仰月承托鎏金宝珠与避雷刹尖
+    // ---- 8. 宝顶: 仰月承托红漆宝珠与避雷铁刹
     const yFl = yCan + 0.22;
     // Iron neck collar
     B.add(PP.lathe([[0.0001, 0], [0.18, 0], [0.24, 0.08], [0.26, 0.16], [0.20, 0.24], [0.0001, 0.28]], 20), MT.iron, m4(null, 0, yFl, 0));
-    // Upturned lotus / crescent dish in gold
+    // Upturned lotus / crescent dish (red lacquer)
     const dishProf = [[0.0001, 0], [0.34, 0.06], [0.38, 0.16], [0.34, 0.18], [0.18, 0.08], [0.0001, 0.06]];
-    B.add(PP.lathe(dishProf, 24), MT.pearlGold, m4(null, 0, yFl + 0.26, 0));
-    // 鎏金摩尼宝珠 (Gilded Mani Pearl)
+    B.add(PP.lathe(dishProf, 24), MT.red, m4(null, 0, yFl + 0.26, 0));
+    // 摩尼宝珠 (Mani Pearl, red lacquer)
     const yPearl = yFl + 0.60;
     const rPearl = 0.35;
-    B.add(new THREE.SphereGeometry(rPearl, 24, 18), MT.pearlGold, m4(null, 0, yPearl, 0));
+    B.add(new THREE.SphereGeometry(rPearl, 24, 18), MT.red, m4(null, 0, yPearl, 0));
     // 刹尖 (Lightning needle / finial spear atop pearl)
     const yNeedle = yPearl + rPearl;
     const hNeedle = 0.85;
-    B.add(new THREE.CylinderGeometry(0.010, 0.026, hNeedle, 12, 1), MT.pearlGold, m4(null, 0, yNeedle + hNeedle / 2, 0));
-    B.add(new THREE.SphereGeometry(0.035, 10, 8), MT.pearlGold, m4(null, 0, yNeedle + hNeedle, 0));
+    B.add(new THREE.CylinderGeometry(0.010, 0.026, hNeedle, 12, 1), MT.iron, m4(null, 0, yNeedle + hNeedle / 2, 0));
+    B.add(new THREE.SphereGeometry(0.035, 10, 8), MT.iron, m4(null, 0, yNeedle + hNeedle, 0));
     return yNeedle + hNeedle;
   }
 
