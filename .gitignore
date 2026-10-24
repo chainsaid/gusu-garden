@@ -27,6 +27,8 @@ assets_audio/
 
 # build output and tool caches
 dist/
+dist-web/
+web/dist-web/
 .vite/
 *.tsbuildinfo
 .eslintcache

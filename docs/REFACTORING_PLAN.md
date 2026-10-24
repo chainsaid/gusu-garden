@@ -230,6 +230,28 @@ flowchart TD
   - **`hall-orn.js`**：删除 `monCrest`（樱纹家纹）；`hall-body.js` 导入同步
   - **`buildings.js`**：删除 `K.goldRelief`（七宝纹）材质块与 `LOCAL_KEYS` 条目
 
+
+---
+
+## 阶段九：江南生态与纯木作造园深化（2026-10 最新审计落地）
+
+详见专项权威审计指南：[docs/JIANGNAN_LANDSCAPE_AUDIT.md](file:///E:/Programs/gusu-garden/docs/JIANGNAN_LANDSCAPE_AUDIT.md)。
+
+针对用户专项指出的“树木植被偏日式”及全仓隐蔽和风残余，展开四大专项整改：
+
+### 1. 植被生态系统重构（P0-TREE）
+- [ ] **P0-TREE-1** **松树去云片化**：重构 `vegetation-tree.js`，消除 `squash = 0.45` 压扁馒头云片算法与日式庭木（Niwaki）修剪痕迹，改为三维立体、舒展古拙的文人画自然苍松/罗汉松。
+- [ ] **P0-TREE-2** **主殿台阶去对称迎客松**：彻底清理 `vegetation.js` 中 `specs.push({ type: 'pine', x: 1.6, z: -7.0 ... })` 轴线对称迎客仕立松，代以非对称太湖石伴芭蕉/修竹或春华海棠。
+- [ ] **P0-TREE-3** **背景远山去京都化**：修改 `terrain-forest.js`，将 60%~70% 的日本柳杉（Sugi）与扁柏（Hinoki）尖刺针叶树覆盖率大幅压低至 15% 以下，转为以常绿香樟与江南阔叶林为主的柔和丘陵。
+- [ ] **P0-TREE-4** **扩充江南树种池**：引入江南主景大乔木香樟、白玉兰/海棠，丰富庭院四时花木生态。
+
+### 2. 大木作与金属构件清退（P0-WOOD）
+- [ ] **P0-WOOD-1** **清退立柱金具套筒**：删除 `buildings-halls.js` 中大殿柱身的 4 道 `kanaguBand` 与 `colBand(..., K.gold)` 铜皮箍带。
+- [ ] **P0-WOOD-2** **清退全仓六叶/八叶钉隐**：全面拔除 `buildings-halls.js`、`buildings-corridor.js`、`buildings.js`、`buildings-arch.js` 中的 `rosette` 调用。
+
+### 3. 桥梁与水系五金清退（P0-BRIDGE）
+- [ ] **P0-BRIDGE-1** **清退桥身饰金具与猪目镂空**：删除 `bridge.js` 中的 `kazari-金物`、猪目心形镂空与鎏金花盘，回归水磨青石与素面莲瓣望柱质朴风貌。
+
 ---
 
 ## 阶段验收与迭代节奏推荐
