@@ -171,6 +171,8 @@ export async function build(ctx) {
     wood: mat.phys({ color: 0xffffff, roughness: 0.58, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.26, 0.10, 0.05)', C), 'wood')),
     goldSatin: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(goldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
     spireGold: mat.std({ color: 0xffffff, roughness: 0.45, metalness: 0.7 }, rig(goldProc('vec3(0.15, 0.14, 0.13)'), 'gold')),
+    // 鎏金摩尼宝珠 (gilded apex pearl and crescent)
+    pearlGold: mat.std({ color: 0xffffff, roughness: 0.22, metalness: 0.88 }, rig(goldProc('vec3(0.96, 0.74, 0.28)'), 'gold')),
   };
 
   // ---------------------------------------------------------------- helpers
@@ -906,122 +908,198 @@ export async function build(ctx) {
   //   露盘 + 覆钵 + 仰莲 + a slender 刹杆 with nine 相轮 + 宝盖 + 宝顶
   // Segment heights are fractions of P.spireHeight so the whole finial scales.
   // =====================================================================
+  // 塔刹 (Spire) — Northern Song cast-iron spire (建炎万斤铁刹) of Beisi Pagoda.
+  // Real pagoda height is ~76m to the tip of the spire (~15.2m spire height).
+  // Authentic Chinese Buddhist pagoda spire components:
+  //   1. 八角须弥座露盘 (Octagonal Sumeru pedestal, aligns with the 8 roof ridges)
+  //   2. 覆钵 (Cast-iron inverted bowl / dome)
+  //   3. 仰莲 (Upturned cast-iron lotus collar)
+  //   4. 刹杆 (Central mast) with 九重铸铁相轮 (Nine cast-iron rings)
+  //   5. 八角华盖 / 宝盖 (Octagonal cast-iron parasol with corner anchor lugs)
+  //   6. 仰月承托鎏金摩尼宝珠 (Gilded Mani pearl resting in a crescent moon cup)
+  //   7. 刹尖 (Lightning finial needle atop the pearl)
+  //   8. 8 根斜拉铁索 (浪风索) connecting the 宝盖 to the 9th-storey hip ridges
+  // =====================================================================
   function spire() {
     const s4 = S[S.length - 1];
     const Yp = roofY(s4, 0, s4.Rt) - 0.02;
-    const G = MT.spireGold, G2 = MT.gold;   // dark iron, never gilt
     const H = PG.spireHeight;                // 15.2 m
-    const hBase = H * 0.0725;               // 露盘   1.10
-    const hBowl = H * 0.0526;               // 覆钵   0.80
-    const hGap = H * 0.0362;                // 仰莲->刹杆 0.55
-    const hMast = H * 0.7150;               // 刹杆  10.87
-    const hCan = H * 0.0145;                // 宝盖   0.22
-    const hPearl = H * 0.1090;              // 宝顶   1.66
+    const hBase = H * 0.075;                // 露盘八角须弥座 1.14m
+    const hBowl = H * 0.055;                // 覆钵           0.84m
+    const hGap = H * 0.035;                 // 仰莲->刹杆基部  0.53m
+    const hMast = H * 0.710;                // 刹杆与九重相轮 10.79m
+    const hCan = H * 0.020;                 // 宝盖           0.30m
 
-    // ---- 露盘: stepped base, square by tradition even on an octagonal tower
+    // ---- 1. 八角须弥座露盘 (Octagonal Sumeru pedestal, authentic Song-Ming iron spire base)
     const yL = Yp;
-    B.add(PP.chamferBox(2.0, hBase * 0.35, 2.0, 0.04), G, m4(null, 0, yL + hBase * 0.175, 0));
-    B.add(PP.chamferBox(1.8, hBase * 0.12, 1.8, 0.03), G2, m4(null, 0, yL + hBase * 0.47, 0));
-    B.add(PP.chamferBox(1.5, hBase * 0.53, 1.5, 0.03), G2, m4(null, 0, yL + hBase * 0.765, 0));
-    for (let j = 0; j < 4; j++) {
-      box(j, G2, 1.0, hBase * 0.35, 0.04, 0, yL + hBase * 0.765, 0.78, 0, 0.01);
-      B.add(PP.rosetteGeo(), G2, m4(j, 0, yL + hBase * 0.765, 0.80, 0, 0, 0, 1.8, 1.8, 1.8));
+    const sumeruProf = [
+      [0.0001, 0],
+      [1.25, 0],
+      [1.25, hBase * 0.22],
+      [1.18, hBase * 0.26],
+      [0.96, hBase * 0.38],
+      [0.86, hBase * 0.44],
+      [0.84, hBase * 0.58],
+      [0.86, hBase * 0.64],
+      [0.98, hBase * 0.72],
+      [1.18, hBase * 0.82],
+      [1.20, hBase * 0.86],
+      [1.20, hBase * 1.00],
+      [0.0001, hBase * 1.00],
+    ];
+    B.add(PP.lathe(sumeruProf, 8), MT.iron, m4(null, 0, yL, 0, 0, Math.PI / 8, 0));
+    // 束腰间柱/壶门 (relief pilasters on the 8 recessed faces)
+    for (let j = 0; j < 8; j++) {
+      const ang = (j * TAU) / 8;
+      const rw = 0.85;
+      box(null, MT.iron, 2 * rw * TAN * 0.75, hBase * 0.18, 0.04, Math.sin(ang) * rw, yL + hBase * 0.51, Math.cos(ang) * rw, 0, ang, 0, 0.008);
     }
-    // ---- 覆钵 (inverted bowl) with a beaded band
+
+    // ---- 2. 覆钵 (Inverted Bowl / Dome in dark cast iron)
     const yb = yL + hBase;
-    B.add(PP.lathe([[0.0001, 0], [0.70, 0], [0.75, 0.06], [0.74, 0.20], [0.66, 0.42], [0.50, 0.62], [0.30, 0.72], [0.17, 0.78], [0.0001, 0.80]], 40), G2, m4(null, 0, yb, 0));
-    B.add(new THREE.TorusGeometry(0.74, 0.05, 6, 40), G, m4(null, 0, yb + 0.11, 0, Math.PI / 2));
-    // ---- 仰莲 (upward lotus) — two whorls of petals
+    const bowlProf = [
+      [0.0001, 0],
+      [0.80, 0],
+      [0.84, 0.08],
+      [0.82, 0.25],
+      [0.74, 0.48],
+      [0.56, 0.66],
+      [0.34, 0.75],
+      [0.18, 0.80],
+      [0.0001, 0.82],
+    ];
+    B.add(PP.lathe(bowlProf, 32), MT.iron, m4(null, 0, yb, 0));
+    B.add(new THREE.TorusGeometry(0.83, 0.045, 8, 36), MT.iron, m4(null, 0, yb + 0.14, 0, Math.PI / 2));
+
+    // ---- 3. 仰莲 (Upturned lotus collar supporting the mast)
     const yu = yb + hBowl;
-    B.add(PP.lathe([[0.0001, -0.06], [0.20, -0.06], [0.23, 0.09], [0.34, 0.19], [0.0001, 0.20]], 24), G, m4(null, 0, yu - 0.03, 0));
-    for (let r = 0; r < 2; r++) for (let q = 0; q < 12; q++) {
-      const ang = ((q + r * 0.5) / 12) * Math.PI * 2;
-      const pet = new THREE.SphereGeometry(1, 8, 6);
-      pet.scale(0.16, 0.34, 0.06);
-      pet.translate(0, 0.27, 0);
-      pet.rotateX(0.62 - r * 0.28);
-      pet.translate(0, 0, 0.18 + r * 0.06);
-      B.add(pet, r ? G : G2, m4(null, 0, yu + r * 0.06, 0, 0, ang, 0, 1 - r * 0.12, 1 - r * 0.1, 1 - r * 0.12));
+    B.add(PP.lathe([[0.0001, 0], [0.26, 0], [0.32, 0.10], [0.42, 0.22], [0.0001, 0.22]], 24), MT.iron, m4(null, 0, yu, 0));
+    for (let r = 0; r < 2; r++) {
+      for (let q = 0; q < 16; q++) {
+        const ang = ((q + r * 0.5) / 16) * TAU;
+        const pet = new THREE.SphereGeometry(1, 8, 6);
+        pet.scale(0.12, 0.28, 0.05);
+        pet.translate(0, 0.20, 0);
+        pet.rotateX(0.55 - r * 0.22);
+        pet.translate(0, 0, 0.22 + r * 0.05);
+        B.add(pet, MT.iron, m4(null, 0, yu + r * 0.05, 0, 0, ang, 0));
+      }
     }
-    // ---- 刹杆 (the wooden mast, 0.85 m across, tapering as it rises)
+
+    // ---- 4. 刹杆 (Central Mast)
     const y0 = yu + hGap;
     const mastTop = y0 + hMast;
-    B.add(new THREE.CylinderGeometry(0.20, 0.425, hMast, 20, 1), G, m4(null, 0, (y0 + mastTop) / 2, 0));
-    // ---- 相轮: nine iron bands clamped round the mast
+    B.add(new THREE.CylinderGeometry(0.22, 0.44, hMast, 24, 1), MT.iron, m4(null, 0, (y0 + mastTop) / 2, 0));
+
+    // ---- 5. 九重相轮 (Nine Cast-Iron Rings, densely clustered in upper section)
     const NR = 9;
-    const ringStep = (hMast - 1.6) / (NR - 1);
-    const ringR = 0.85, ringT = 0.13;
+    const ringBaseY = y0 + 3.8;  // leaves lower mast shaft as dignified pedestal section
+    const ringTopY = y0 + 9.2;   // top ring sits right below the canopy
+    const ringStep = (ringTopY - ringBaseY) / (NR - 1); // ~0.675m spacing
+    const ringR0 = 0.96, ringR1 = 0.78;
     for (let n = 0; n < NR; n++) {
-      const yr = y0 + 0.8 + n * ringStep;
-      const Rr = ringR * (1 - 0.06 * (n / (NR - 1)));
-      const prof = [];
-      for (let q = 0; q <= 14; q++) {
-        const th = -Math.PI / 2 + (q / 14) * Math.PI * 2;
-        prof.push([Rr - ringT + ringT * Math.cos(th), ringT * 0.92 * Math.sin(th)]);
-      }
-      B.add(PP.lathe(prof, 44), G2, m4(null, 0, yr, 0));
-      // web + collar joining the ring to the mast
-      B.add(PP.lathe([[0.20, -0.035], [Rr - ringT * 1.3, -0.035], [Rr - ringT * 1.3, 0.035], [0.20, 0.035]], 24), G, m4(null, 0, yr, 0));
-      B.add(PP.lathe([[0.21, -0.12], [0.26, -0.09], [0.26, 0.09], [0.21, 0.12]], 16), G, m4(null, 0, yr, 0));
+      const yr = ringBaseY + n * ringStep;
+      const tRatio = n / (NR - 1);
+      const Rr = ringR0 + (ringR1 - ringR0) * tRatio;
+      // Torus rim
+      B.add(new THREE.TorusGeometry(Rr, 0.08, 10, 40), MT.iron, m4(null, 0, yr, 0, Math.PI / 2));
+      // Spoke web / hub disc joining the ring to the mast
+      const mastRAtY = 0.44 + (0.22 - 0.44) * ((yr - y0) / hMast);
+      B.add(PP.lathe([[mastRAtY - 0.02, -0.04], [Rr - 0.06, -0.04], [Rr - 0.06, 0.04], [mastRAtY - 0.02, 0.04]], 24), MT.iron, m4(null, 0, yr, 0));
+      // Collar clamp
+      B.add(new THREE.CylinderGeometry(mastRAtY + 0.04, mastRAtY + 0.04, 0.18, 18, 1), MT.iron, m4(null, 0, yr, 0));
     }
-    // ---- 宝盖 (the parasol that caps the rings)
-    const yCan = mastTop;
-    B.add(PP.lathe([[0.0001, -0.20], [0.20, -0.20], [0.23, -0.05], [0.19, 0.08], [0.0001, 0.10]], 20), G, m4(null, 0, yCan - 0.10, 0));
-    B.add(PP.lathe([[0.0001, 0], [1.00, 0], [1.06, 0.06], [0.97, 0.12], [0.50, 0.18], [0.25, 0.21], [0.0001, 0.22]], 40), G2, m4(null, 0, yCan, 0));
-    // ---- 8 根斜拉铁索 (浪风索 / guy-wire tie chains) 从宝盖边缘斜拉至第 9 层屋面 8 处翼角角梁
+    // 4 vertical iron tie rods connecting the 9 rings together (四角贯穿铁拉杆)
+    for (let k = 0; k < 4; k++) {
+      const ang = (k * TAU) / 4 + Math.PI / 4;
+      const rBar = (ringR0 + ringR1) * 0.42;
+      const hBar = ringTopY - ringBaseY + 0.2;
+      B.add(new THREE.CylinderGeometry(0.022, 0.022, hBar, 8, 1), MT.iron, m4(null, Math.sin(ang) * rBar, (ringBaseY + ringTopY) / 2, Math.cos(ang) * rBar));
+    }
+
+    // ---- 6. 八角华盖 / 宝盖 (Octagonal Cast-Iron Canopy)
+    const yCan = ringTopY + 0.65;
+    const canProf = [
+      [0.0001, 0],
+      [1.12, 0],
+      [1.16, 0.04],
+      [1.08, 0.09],
+      [0.60, 0.16],
+      [0.26, 0.20],
+      [0.0001, 0.22],
+    ];
+    B.add(PP.lathe(canProf, 8), MT.iron, m4(null, 0, yCan, 0, 0, Math.PI / 8, 0));
+    B.add(PP.lathe([[0.0001, -0.16], [0.26, -0.16], [0.30, -0.02], [0.22, 0.08], [0.0001, 0.10]], 20), MT.iron, m4(null, 0, yCan - 0.08, 0));
+    // 8 corner hanging drops and eyelet rings
+    for (let q = 0; q < 8; q++) {
+      const ang = (q * TAU) / 8 - Math.PI / 8;
+      const cA = Math.cos(ang), sA = Math.sin(ang);
+      const rLug = 1.15;
+      B.add(new THREE.TorusGeometry(0.045, 0.012, 6, 14), MT.iron, m4(null, sA * rLug, yCan + 0.04, cA * rLug, Math.PI / 2, -ang, 0));
+      B.add(new THREE.CylinderGeometry(0.012, 0.028, 0.18, 8, 1), MT.iron, m4(null, sA * (rLug - 0.08), yCan - 0.12, cA * (rLug - 0.08)));
+      B.add(new THREE.SphereGeometry(0.032, 8, 6), MT.iron, m4(null, sA * (rLug - 0.08), yCan - 0.22, cA * (rLug - 0.08)));
+    }
+
+    // ---- 7. 8 根斜拉铁索 (浪风索 / Guy-wire Chains)
     const topS = S[S.length - 1];
     const rCornerRoof = (topS.a + topS.O + topS.flare) * SEC;
-    const yCornerRoof = roofY(topS, topS.Xc, topS.a + topS.O + topS.flare);
-    const yChainTop = yCan + 0.05;
-    const rChainTop = 0.96;
+    const rBot = rCornerRoof - 0.85;
+    const dBot = rBot / SEC;
+    const yBot = roofY(topS, dBot * TAN, dBot) + 0.16;
+
     for (let q = 0; q < NS; q++) {
       const ang = (q * TAU) / NS - Math.PI / NS;
       const cA = Math.cos(ang), sA = Math.sin(ang);
-      // Top eyelet on the 宝盖 rim aligned with the 8 diagonal hip ridges
-      B.add(new THREE.TorusGeometry(0.04, 0.012, 6, 12), G, m4(null, -sA * rChainTop, yChainTop, cA * rChainTop, Math.PI / 2, ang, 0));
+      const rTop = 1.15;
+      const pTop = V3(sA * rTop, yCan + 0.04, cA * rTop);
+      const pBot = V3(sA * rBot, yBot, cA * rBot);
 
-      const pTop = V3(-sA * rChainTop, yChainTop, cA * rChainTop);
-      const pBot = V3(-sA * (rCornerRoof - 0.45), yCornerRoof + 0.35, cA * (rCornerRoof - 0.45));
+      // Bottom anchor cleat & ring on the 9th storey hip ridge
+      box(null, MT.iron, 0.18, 0.12, 0.22, pBot.x, pBot.y - 0.05, pBot.z, 0, -ang, 0);
+      B.add(new THREE.TorusGeometry(0.055, 0.014, 6, 12), MT.iron, m4(null, pBot.x, pBot.y + 0.03, pBot.z, Math.PI / 2, -ang, 0));
 
-      // Segmented catenary iron chain
-      const nSeg = 16;
+      // Segmented catenary iron chain with EXACT quaternion alignment
+      const nSeg = 18;
       let prevPt = pTop.clone();
       for (let sIdx = 1; sIdx <= nSeg; sIdx++) {
         const t = sIdx / nSeg;
         const curPt = new THREE.Vector3().lerpVectors(pTop, pBot, t);
-        curPt.y -= Math.sin(t * Math.PI) * 0.15; // gentle catenary sag
+        curPt.y -= Math.sin(t * Math.PI) * 0.18; // gentle catenary sag
         const segVec = new THREE.Vector3().subVectors(curPt, prevPt);
         const segLen = segVec.length();
         const midPt = new THREE.Vector3().addVectors(prevPt, curPt).multiplyScalar(0.5);
         const dir = segVec.clone().normalize();
-        const pitch = -Math.asin(Math.max(-1, Math.min(1, dir.y)));
-        const yaw = Math.atan2(dir.x, dir.z);
-        B.add(new THREE.CylinderGeometry(0.024, 0.024, segLen, 6, 1), MT.iron, m4(null, midPt.x, midPt.y, midPt.z, pitch, yaw, 0));
+        const qRot = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+        const m = new THREE.Matrix4().compose(midPt, qRot, new THREE.Vector3(1, 1, 1));
+        B.add(new THREE.CylinderGeometry(0.026, 0.026, segLen, 8, 1), MT.iron, m);
         prevPt.copy(curPt);
       }
 
-      // Bottom anchor ring on the 9th storey hip ridge
-      B.add(new THREE.TorusGeometry(0.05, 0.014, 6, 12), MT.iron, m4(null, pBot.x, pBot.y, pBot.z, 0, ang, 0));
+      // Wind bell (风铎) hung below the 9th-storey eave corner
+      const rCorner = (topS.a + topS.O + topS.flare) * SEC;
+      const dCorner = rCorner / SEC;
+      const yCorner = roofY(topS, dCorner * TAN, dCorner);
+      const wp = toWorld(null, V3(sA * (rCorner - 0.12), yCorner - 0.28, cA * (rCorner - 0.12)));
+      anchors.bells.push({ pos: [wp.x, wp.y, wp.z], scale: 1.6, rotY: -ang });
+    }
 
-      // Wind chime (风铎) hung near the lower stay
-      const wp = toWorld(null, V3(pBot.x, pBot.y - 0.22, pBot.z));
-      anchors.bells.push({ pos: [wp.x, wp.y, wp.z], scale: 1.5, rotY: -ang });
-    }
-    // ---- 宝顶: the flaming pearl that finishes the finial
-    const yFl = yCan + hCan;
-    B.add(PP.lathe([[0.0001, 0], [0.14, 0], [0.22, 0.07], [0.25, 0.18], [0.23, 0.30], [0.16, 0.38], [0.0001, 0.41]], 24), G, m4(null, 0, yFl, 0));
-    B.add(new THREE.SphereGeometry(0.32, 20, 14), G2, m4(null, 0, yFl + 0.62, 0));
-    const flameProf = [];
-    for (let q = 0; q <= 12; q++) {
-      const t = q / 12;
-      flameProf.push([0.12 * Math.sin(Math.PI * t) * (1 - 0.4 * t) + 0.0001, t * 0.72]);
-    }
-    const flameGeo = PP.lathe(flameProf, 12);
-    for (let q = 0; q < 8; q++) {
-      const ang = (q / 8) * Math.PI * 2;
-      B.add(flameGeo, G2, m4(null, Math.cos(ang) * 0.22, yFl + 0.50, Math.sin(ang) * 0.22, 0, ang, -0.3));
-    }
-    return yFl + 0.62 + 0.32 + 0.72;   // top of the 宝顶
+    // ---- 8. 宝顶: 仰月承托鎏金宝珠与避雷刹尖
+    const yFl = yCan + 0.22;
+    // Iron neck collar
+    B.add(PP.lathe([[0.0001, 0], [0.18, 0], [0.24, 0.08], [0.26, 0.16], [0.20, 0.24], [0.0001, 0.28]], 20), MT.iron, m4(null, 0, yFl, 0));
+    // Upturned lotus / crescent dish in gold
+    const dishProf = [[0.0001, 0], [0.34, 0.06], [0.38, 0.16], [0.34, 0.18], [0.18, 0.08], [0.0001, 0.06]];
+    B.add(PP.lathe(dishProf, 24), MT.pearlGold, m4(null, 0, yFl + 0.26, 0));
+    // 鎏金摩尼宝珠 (Gilded Mani Pearl)
+    const yPearl = yFl + 0.60;
+    const rPearl = 0.35;
+    B.add(new THREE.SphereGeometry(rPearl, 24, 18), MT.pearlGold, m4(null, 0, yPearl, 0));
+    // 刹尖 (Lightning needle / finial spear atop pearl)
+    const yNeedle = yPearl + rPearl;
+    const hNeedle = 0.85;
+    B.add(new THREE.CylinderGeometry(0.010, 0.026, hNeedle, 12, 1), MT.pearlGold, m4(null, 0, yNeedle + hNeedle / 2, 0));
+    B.add(new THREE.SphereGeometry(0.035, 10, 8), MT.pearlGold, m4(null, 0, yNeedle + hNeedle, 0));
+    return yNeedle + hNeedle;
   }
 
   // =====================================================================
