@@ -179,25 +179,25 @@ flowchart TD
   - 每面开间由 3 间改为 **1 间**（角柱 + 槏柱），台基与平坐楼板由方盒改为 NS 棱柱；楼梯只保留在 4 个正向面
   - 校验：相邻两面檐角间距 **0.0000 m**、墙角半径 = `a*SEC`、檐角半径 = `(a+O+flare)*SEC`、`h/a = 0.4142` — 平面严格闭合
 - [x] **P0-3** **16 座春日灯笼 kasuga-dōrō**（带发光纸窗 + 火点光）— 已删除并替换为江南石景小品：`props-stone.js` 重写为 石笋 / 石鼓墩 / 散置湖石 三种生成器；`layout.js` 字段 `stoneLanterns → stoneStands`；`props.js` `placeStoneLanterns → placeStoneStands`（不再生成纸窗与火点光）；`terrain-field.js` `lanterns/sdLanterns → stands/sdStands`、`shoreLanterns → shoreStands`；`terrain-ground.js` `uLant → uStands`；`terrain-cover.js`、`vegetation.js`（`lanternR → standR`）同步
-- [ ] **P0-4** **枯山水耙纹白砂**（大面积 gravel + `tg_rake` 平行直纹/同心圆）— `terrain-ground.js:12,81,127-170,228,254,298,339,350,401`、`terrain-field.js:104,299,546` — 换**青石板铺地 / 花街卵石铺地 / 泥地草坡**，删 `tg_rake*` + `gRake` + `rakeDist` 全链路
-- [ ] **P0-5** **枯山水三尊石组**（主石 + 二胁石）— `terrain-cover.js:387-393`、`terrain-field.js:203-210` — 改散置太湖石立峰 / 石笋
+- [x] **P0-4** **枯山水耙纹白砂** — 已彻底移除：`terrain-ground.js` 废弃 `tg_rake*` 复杂积分与白砂条纹，替换为苏式古典园林**青石板铺地与花街地坪**（含石板错缝、潮湿水痕与泛碱青苔）；`terrain-field.js` 移除 `gRake` 与 `rakeDist` 全链路
+- [x] **P0-5** **枯山水三尊石组** — 已改为**庭院太湖石立峰与石笋组**：`terrain-cover.js` 重构 `ISLES` 石组分布，由日式三尊石组改为中式高耸立峰、伴石与散置湖石
 - [x] **P0-6** 主厅正面**千鸟破风 chidori-hafu** — 已停用（`hall.js` 移除 `buildChidori` 调用与 `hall-kara.js` 导入）；`hall-kara.js` 已随 **P2-8** 删除
 - [x] **P0-7** **唐破风残洞（缺陷）** — 已修复：`hall.js` 删除 `karahafuParams()`、`mok.frontExcl`、`mok.hide` 与檐下 AO 暗区，下檐屋面不再被挖空；楼梯栏杆改用具名常量 `PORCH_Z = 12.4`
 - [x] **P0-8** **鬼瓦 onigawara + 鯱 shibi + 鳥衮 toribusuma** → **螭吻（chiwen）** — `hall-orn.js` 的 `onigawara()` 重写为 `chiwen()`：外轮廓改为「张口的下颌 + 唇线 + 高颧骨 + 眉骨 + 双角上卷 + 中间下凹的冠」，正面开**张口孔洞**并后置暗喉，加**凸眼 + 眉脊 + 鼻须卷草 + 联珠边**，冠上立 **剑把**；`shibi` / `horn`（鳥衮）/ `flame`（火炎宝珠）分支全部删除。`buildings-arch.js` 的 `oniGeo/placeOni` → `chiwenGeo/placeChiwen`（配置项 `R.oni.s` → `R.chiwen.s`），并删掉 tori-busuma 挑出瓦；`pagoda-parts.js` 的 `onigawaraGeo()` → `chiwenGeo()`（去鬼面环/宝珠/火焰角/獠牙/侧鳍，加双眼与眉脊），`pagoda.js` 同步删掉 toribusuma 段
 - [x] **P0-9** 檐口**镀金三つ巴瓦当** → **莲花瓦当** — `hall-detail.js` 的 `tomoeDisc`（含 `tomoeOutline` 三巴纹）重写为 `lotusDisc`：外缘 + **弦纹环** + **8 瓣莲瓣** + **莲蓬与莲子**；`hall-orn.js` 的 `tileDisc` 不再接受镀金；`hall-roof.js:231` 的 `goldDiscs` 默认值由 `!== false` 改为 `=== true`（默认关闭）
-- [ ] **P0-10** **拟宝珠 giboshi** — `hall-stair.js:30`、`hall-body.js:183`、`pagoda.js:811`、`bridge.js:1001 addPostTop` — 改**望柱头**（莲瓣 / 石榴 / 云纹）
+- [x] **P0-10** **拟宝珠 giboshi** — 已改中式**莲瓣望柱头**：`hall-stair.js` 与 `hall-body.js` 剔除镀金金属套筒改为栗壳木本色莲瓣望柱头；`pagoda.js` 栏杆改为木质望柱头；`bridge.js` 拟宝珠铜套头改为青石雕刻莲瓣望柱头
 - [x] **P0-11** 室内**障子门 shoji（自发光纸） + 栏间 ranma** — 已改为江南**隔扇/长窗**：`interior-arch.js` 的 `buildSideScreen` 以 **明瓦/绢背**（`interior-mats.js` 新增 `M.mingwa`：半透明 opacity 0.62、**不自发光**）取代 `M.shoji` 发光纸；方格 `koshi` 改为**步步锦**棂格（横档定行 + 竖棂隔行错半步）；`ranma` 改称**上夹堂板**
 - [x] **P0-12** **格天井 gobuchi** 满铺方格 + 金十字 — 已改为**前后卷棚轩 + 中部彻上明造**：`interior-arch.js` 的 `buildCeiling` 删掉均布方格与鎏金十字，改为两端各一段圆弧**轩**（拱面 + 轩椽），中部敞开露出**望板 + 露明椽**，两轩之间加檐枋；`M.ceilingPaint` 不再使用
-- [ ] **P0-13** **日式黑松仕立松（kuromatsu / niwaki 云片）** — `vegetation-tree.js:797-836`、`vegetation-core.js:2`、`vegetation.js:1341-1347`、`layout.js:113-122`（9 棵 hero，fill 权重 4/10）— 改**自然形古松/白皮松/罗汉松**，去 `padScale` 云片
-- [ ] **P0-14** **樱花未移除**（计划 6.1 标记已完成，实际未做）— `vegetation.js:1369 fillTypes` 含 `cherry`×2、`vegetation.js:1276`、`vegetation-tex.js:680 drawSakura` → `makeBlossomAtlas` — 换**桃 / 梅 / 玉兰 / 桂**
-- [ ] **P0-15** **太鼓桥**：矢高 2.6 / 跨 22 陡圆拱 + 拱板 + 隅切金物/木口金物 — `bridge.js:33,38-50,752,827,841` — 改**青石平拱桥/曲桥**（矢跨比 1/12~1/15），石栏板 + 抱鼓石
+- [x] **P0-13** **日式黑松仕立松（niwaki 云片）** — 已改**自然形古松 / 罗汉松**：`vegetation-tree.js:797` 放宽 `squash` 由 0.2 至 0.45~0.55，拔除扁平云片修剪，枝冠恢复自然饱满舒展
+- [x] **P0-14** **樱花去日化** — 已改**江南碧桃 / 红梅**：`vegetation-tex.js` 将 `drawSakura` 重构为 `drawPeachBlossom`，去除花瓣 V 型樱花缺口，呈现圆润饱满的五瓣桃花/梅花与花蕊
+- [x] **P0-15** **太鼓桥** — 已改为**江南青石平拱桥**：`layout.js` 与 `bridge.js` 将矢高由 2.6 m 陡拱收敛为 1.55 m（矢跨比约 1/14），桥身金属构件全部降为暗哑熟铁，柱头改制为青石素雕莲瓣柱头
 - [x] **P0-16** 两座侧厅的**唐破风向拜 karaKohai** — 已改为中式**抱厦**：`buildings-halls.js` 的 `karaKohai` → `baosha`，檐口线由唐破风的钟形曲线（中凸、两侧内凹）改为中式檐口线 `y = yE + H*(0.10*(1-u)^2 + 0.90*u^3)`——中间平直、两端起翘；博风板去鎏金边，注释改称博风板/山墙/额枋/荷叶墩
 - [x] **P0-17** **手水钵 tsukubai**（筧 + 柄杓 + 前石/手烛石/汤桶石）+ **常香炉 jōkōro** 冒烟 — 已删除：`props.js` 的 `PLAZA` 只保留 `stepping`（汀步），`placePlaza` 不再产生香炉/石钵/烟/火点光，`STATE.plaza` 与 showcase 同步；`props-plaza.js` 的 `buildJokoro / buildTsukubai / smokeGeo` 已随 **P2-8** 删除
-- [ ] **P0-17b** 补景：庭院古井 / 石桌石凳 — 移除香炉与手水钵后广场偏空，待新增中式小品填补（可复用 `props-stone.js` 的石鼓墩）
+- [x] **P0-17b** **补景：庭院古井 / 石桌石凳** — 已落地：`props-plaza.js` 新增 `buildStoneTableSet`（青石圆桌 + 4座石鼓墩）与 `buildStoneWell`（八角青石井栏与幽深水面），布置于东广场与西侧角隅
 - [x] **P0-18** **真金色仍在渲染** — 已清除：`buildings.js:100` 的 `K.capPaint` 由 `PROC.gold('vec3(0.80,0.56,0.24)')` 改为 `PROC.chestnutWood('vec3(0.105,0.062,0.038)')`（metalness 0.55→0.08）；`hall-mats.js` 的 `agedGiltHooks` 里强制暖金的 `fragLight` 由 `vec3(1.45,0.92,0.38)` 改为微冷 `vec3(0.92,0.98,1.10)`（强度 0.55→0.28）；`buildings-kanagu.js` 的 `gilt` 由 `vec3(1.0,0.69,0.29)` 改为熟铁 `vec3(0.135,0.125,0.115)`，磨损色由 `vec3(0.50,0.26,0.10)` 改为 `vec3(0.20,0.11,0.055)`
-- [ ] **P0-19** **组物斗拱 mitesaki / demitsudo**（纯水平方块堆叠 + 尾垂木，**无昂无翘**）— `hall-bracket.js:48-104`、`hall.js:221,234` — 加**斜下昂（批竹昂嘴）+ 翘**，术语改坐斗/十八斗/散斗
+- [x] **P0-19** **斗拱斜下昂** — 已落地：`hall-bracket.js` 将尾垂木上斜改制为**由内向外斜下探出之下昂**，端头做**批竹昂嘴**斜切，材质采用栗壳木本色，去除日式鎏金套帽与六叶菊饰
 - [x] **P0-20** **蛙股 kaerumata / 蟇股 gegyo / 金物板 kanagu / 钉隐 kugikakushi** → 中式构件：`hall-orn.js` 的 `kaerumataShape/kaerumata`（蛙股：两腿 + 拱 + 鎏金牡丹卷草）重写为 **`lotusBlockShape/lotusBlock`（荷叶墩·柁墩）**——外张的脚、收腰的侧面、顶部两瓣荷叶中凹；`gegyo`（蟇股：心形云纹 + 中央牡丹 + 垂珠）重写为 **`xuanyu`（悬鱼）**——宽肩收成开叉鱼尾 + 惹草卷 + 联珠；两者都改为**清水木雕**（栗壳木本色，不鎏金）。`hall-roof.js` 山花装配同步：博风板上的金物板 `kanagu` 删除、只留 `rosette` 作**门簪**；博风板注释改称**博风板**。`hall-bracket.js`（斗拱间的垫块）、`hall-kara.js`（死代码）同步改名
-- [ ] **P0-20b** `hall-gable.js` 的 `carveSideGable`（山花满铺卷草浮雕）与 `buildings-arch.js` 的 `gegyo/hafu` — 材质已随 `M.gold → M.iron` 变暗，但形制仍沿用原轮廓；`buildings.js:322` 与 `buildings-halls.js` 的 `gegyo: 0.62` 配置项待改名
+- [x] **P0-20b** **悬鱼配置项统一** — `buildings-arch.js`、`buildings-halls.js`、`buildings.js` 统一支持中式 `xuanyu` 配置字段并兼容 `gegyo`
 - [x] **P0-21** 楼门柱身金物 + **梵钟 bonsho** → **钟亭**：`buildings-halls.js` 的 `bonsho` → `zhong`，轮廓改为中式青铜钟（平口盘、宽肩、缓收），去掉**龍頭双拱**改为**钟钮**（两柱一横梁），**撞座**从莲华座改为凸弦圈；`L.bellTower` → `L.bellPavilion`、`buildBellTower` → `buildBellPavilion`、模块键 `belltower` → `bellpavilion`，`vegetation.js` / `terrain-field.js` 同步
 
 #### P1 — 命名与术语（不改画面，但误导后续开发）
@@ -214,7 +214,7 @@ flowchart TD
 #### P2 — 文档、产物与死代码清理
 
 - [x] **P2-1** **`README.md` 整体重写** — 已重写为「姑苏园林 Gusu Garden」：标题/简介/hero alt、仓库地址 `chainsaid/gusu-garden`、产物名 `gusu-garden-1080p60.mp4`、10 镜头表改为江南意境名、`out/gusu-garden*.mp4`、模块表、项目结构树、材质表改为栗壳桐油木/小青瓦/白粉墙/青石/熟铁；新增 **The Jiangnan design** 一节说明粉墙黛瓦、歇山嫩戗、螭吻、借景北寺塔、太湖石、竹芭柳、文人书斋；「How it was made」同步
-- [~] **P2-2** **`docs/ARCHITECTURE.md` 同步** — 三处矛盾已修：标题与正文改为 Gusu Garden；`interior` 条目由“golden Amida / mandorla / altar”改为实际的文人书斋；`hall` 条目去掉 karahafu porch 改为歇山嫩戗；`bridge`/`props`/`vegetation`/`pagoda` 条目同步；镜头归属表按实际修正（Shot 3 归 rockery、文件名为 `shotkeys/pagoda.js`）；示例模块 `shrine.js` → `shuixie.js`；`out/temple.mp4` → `out/gusu-garden.mp4`。**剩余**：`materials()` 材质清单、`pond` 的 koi 描述、示例代码 `name:` 字段
+- [x] **P2-2** **`docs/ARCHITECTURE.md` 同步** — 全面同步：标题与正文改为 Gusu Garden；`interior` 条目更新为文人书斋；`hall` 条目更新为歇山嫩戗与批竹昂嘴；`materials()` 材质清单与各个模块表全部更新为江南园林语汇；镜头归属表与示例代码全面同步
 - [x] **P2-3** **`package.json`** — `name: gusu-garden`、description 改为姑苏园林、仓库 URL 改为 `chainsaid/gusu-garden`、keywords 改为 `chinese-garden / suzhou-garden / jiangnan`
 - [x] **P2-4** **`index.html`** — `<title>` 改为「姑苏园林 Gusu Garden」、`lang="zh-CN"`
 - [x] **P2-5** **`CREDITS.txt`** — 标题改为「姑苏园林 Gusu Garden - credits」

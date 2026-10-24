@@ -30,7 +30,7 @@ export async function build(ctx) {
   const f6 = (x) => Number(x).toFixed(6);
 
   // ---------------------------------------------------------------- layout
-  const BR = Object.assign({ south: [10, 0, 27], north: [10, 0, 5], width: 3.6, rise: 2.6, posts: 9 }, L.bridge || {});
+  const BR = Object.assign({ south: [10, 0, 27], north: [10, 0, 5], width: 3.6, rise: 1.55, posts: 9 }, L.bridge || {});
   const Y0 = L.groundY || 0;
   const X0 = (BR.north[0] + BR.south[0]) / 2;
   const zA = Math.min(BR.north[2], BR.south[2]), zB = Math.max(BR.north[2], BR.south[2]);
@@ -381,9 +381,9 @@ export async function build(ctx) {
   });
   dark.name = 'bridgeDark';
 
-  // gilt fittings
-  // vColor: r = brightness, g = extra roughness (matte punched "鱼子地" ground), b = tint shift
-  const gold = mat.std({ color: 0xffffff, roughness: 0.18, metalness: 1.0, vertexColors: true }, {
+  // wrought iron fittings (熟铁构件)
+  // vColor: r = brightness, g = extra roughness (matte punched ground), b = tint shift
+  const gold = mat.std({ color: 0xffffff, roughness: 0.65, metalness: 0.12, vertexColors: true }, {
     fragHead: 'float g_h; float g_r;',
     fragColor: /* glsl */ `
       {
@@ -428,11 +428,9 @@ export async function build(ctx) {
   });
   gold.name = 'bridgeGold';
 
-  // 莲瓣望柱头 (lotus post cap): uv.x = angle fraction round the finial axis (petals: -1..1 across), uv.y =
-  // local height in metres (petals: 0..1 along); colour r = brightness (+2 on petals), g = cavity
-  // (0 polished arris .. 0.5 flat .. 1 deep recess). All chasing fades out once sub-pixel.
+  // 莲瓣望柱头 (lotus post cap): carved bluestone (青石雕刻望柱头)
   const gibC = (k) => f6(k);
-  const gib = mat.std({ color: 0xffffff, roughness: 0.15, metalness: 1.0, vertexColors: true }, {
+  const gib = mat.std({ color: 0xffffff, roughness: 0.72, metalness: 0.0, vertexColors: true }, {
     vertexHead: 'varying vec2 vGib;',
     vertexWorld: 'vGib = uv;',
     fragHead: 'varying vec2 vGib; float g_h; float g_r;',
@@ -448,15 +446,15 @@ export async function build(ctx) {
         float n2 = n_fbm3(wp * 1.7 + 11.0, 2);
         float aa3 = 1.0 - smoothstep(0.004, 0.012, px);
         float n3 = n_fbm3(wp * 23.0, 2) * aa3;
-        vec3 gld = vec3(0.12, 0.11, 0.10);
+        vec3 gld = vec3(0.36, 0.38, 0.38);
         vec3 col = gld * (0.93 + 0.07 * n1 + 0.04 * n3);
         float cavW = smoothstep(0.55, 0.92, cav);
         float pol = 1.0 - smoothstep(0.2, 0.45, cav);           // raised, hand-polished arrises
         float tarn = clamp(smoothstep(-0.1, 0.7, n2) * 0.32 + cavW * 0.75 - pol * 0.3, 0.0, 1.0);
-        col = mix(col, gld * vec3(0.44, 0.32, 0.19), tarn * 0.8);
-        // verdigris blooms in the deepest recesses (copper-rich gilt bronze)
+        col = mix(col, gld * vec3(0.75, 0.72, 0.68), tarn * 0.5);
+        // moss blooms in deep recesses (青石缝隙苔痕)
         float verd = cavW * smoothstep(0.05, 0.6, n1 + 0.3 * n3);
-        col = mix(col, vec3(0.11, 0.25, 0.18), verd * 0.6);
+        col = mix(col, vec3(0.24, 0.30, 0.18), verd * 0.5);
         float gx = 0.0, grv = 0.0, matte = 0.0;
         if (petal < 0.5) {
           float ang = vGib.x;

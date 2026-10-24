@@ -179,11 +179,10 @@ export function railing(acc, mats, posts, opts = {}) {
     const top = p[1] + H + (gibo.has(i) ? 0.12 : 0.05);
     cbox(red, xf([p[0], (p[1] + top) / 2, p[2]]), pw / 2, (top - p[1]) / 2, pw / 2, 0.012);
     if (gibo.has(i)) {
-      cbox(gold, xf([p[0], top - 0.12, p[2]]), pw / 2 + 0.012, 0.1, pw / 2 + 0.012, 0.006);
-      lotusFinial(goldB, xf([p[0], top, p[2]]), pw * 0.62, pw * 2.6, 12);
-      cbox(gold, xf([p[0], p[1] + 0.12, p[2]]), pw / 2 + 0.01, 0.06, pw / 2 + 0.01, 0.005);
+      cbox(red, xf([p[0], top + 0.015, p[2]]), pw / 2 + 0.016, 0.015, pw / 2 + 0.016, 0.005);
+      lotusFinial(red, xf([p[0], top + 0.03, p[2]]), pw * 0.62, pw * 2.6, 12);
     } else {
-      cbox(gold, xf([p[0], top + 0.006, p[2]]), pw / 2 + 0.006, 0.008, pw / 2 + 0.006, 0.003);
+      cbox(red, xf([p[0], top + 0.006, p[2]]), pw / 2 + 0.006, 0.008, pw / 2 + 0.006, 0.003);
     }
   });
   for (let i = 0; i < posts.length - 1; i++) {

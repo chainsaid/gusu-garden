@@ -88,17 +88,17 @@ export function bracketSet(acc, mats, X, type = 'mitesaki', opts = {}) {
     if (s < steps) makito(red, gold, X, (s + 1) * P, y, 0);
     y += MH;
   }
-  // tail rafter (尾垂木) for 三手先: sloping member through the set
+  // 中式下昂（批竹昂嘴 / 斜下昂）：sloping cantilever through the set
   if (steps === 3) {
-    const p0 = [-0.6, 0.62, 0], p1 = [3 * P + 0.32, 1.05, 0];
+    // 昂身由内向外斜下探出 (slopes downward from interior tail to exterior beak)
+    const p0 = [-0.72, 1.08, 0], p1 = [3 * P + 0.36, 0.86, 0];
     const d = [p1[0] - p0[0], p1[1] - p0[1], 0]; const L = Math.hypot(d[0], d[1]);
     const ax = [d[0] / L, d[1] / L, 0];
     const M = mul(X, basis([(p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, 0], ax, [-ax[1], ax[0], 0], [0, 0, 1]));
     cbox(redA, M, L / 2, 0.12, 0.13, 0.02);
-    // gold cap at the nose
-    const tip = [p1[0] + ax[0] * 0.006, p1[1] + ax[1] * 0.006, 0];
-    cbox(gold, mul(X, basis(tip, ax, [-ax[1], ax[0], 0], [0, 0, 1])), 0.008, 0.135, 0.145, 0.004);
-    rosette(gold, mul(X, basis([tip[0] + ax[0] * 0.008, tip[1] + ax[1] * 0.008, 0], [0, 0, 1], [-ax[1], ax[0], 0], ax)), 0.08, 6, 0.025);
+    // 批竹昂嘴 (beveled bamboo-cut beak, 清水木雕本色，去鎏金铜套帽)
+    const tip = [p1[0] + ax[0] * 0.04, p1[1] + ax[1] * 0.04, 0];
+    cbox(redA, mul(X, basis(tip, ax, [-ax[1], ax[0], 0], [0, 0, 1])), 0.04, 0.11, 0.125, 0.01);
   }
   return y; // top height of the set (purlin bottom)
 }

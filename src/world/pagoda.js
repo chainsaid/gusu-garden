@@ -232,7 +232,7 @@ export async function build(ctx) {
   const nrng = ctx.rng('pagoda-noshi');
   I.def('stud', PP.studGeo(), MT.gold);
   I.def('rosette', PP.rosetteGeo(), MT.gold);
-  I.def('lotusCap', PP.lotusFinialGeo(), MT.gold);
+  I.def('lotusCap', PP.lotusFinialGeo(), MT.red);
 
   // =====================================================================
   // 台基 (podium): granite, steps on the four cardinal sides

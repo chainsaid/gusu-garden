@@ -384,11 +384,17 @@ export function buildCover(ctx, F, stones) {
       rocks.push({ x, y: gy - sy * R.range(0.22, 0.36), z, r, ry: R.range(0, 6.28), rx: R.range(-0.08, 0.08), rz: R.range(-0.08, 0.08), sx: r * R.range(0.9, 1.15), sy, sz: r * R.range(0.75, 1.0), c: [v * warm * k, v * k, (v / warm) * k], t: R.int(0, 2) });
       return true;
     };
-    // 枯山水 islands in the gravel fields: a set triad (main stone + two attendants) and low
-    // flat companions
+    // 庭院太湖石立峰与石笋组 (Taihu rock peaks and slender stone shoots with companion stones)
     for (const I of F.ISLES || []) {
-      for (const [ox, oz, r, tall] of [[0.1, -0.12, 0.78, 1.45], [-0.3, 0.1, 0.55, 0.85], [0.4, 0.2, 0.46, 0.7], [-0.58, -0.22, 0.36, 0.45], [0.62, -0.3, 0.28, 0.4], [-0.1, 0.45, 0.3, 0.35]]) {
-        addRock(I.x + ox * I.ax + R.range(-0.15, 0.15), I.z + oz * I.az + R.range(-0.1, 0.1), r, tall, true, true);
+      for (const [ox, oz, r, tall] of [
+        [0.02, -0.05, 0.76, 2.6],      // 主立峰 (tall slender main peak)
+        [-0.32, 0.14, 0.52, 1.35],     // 伴峰/石笋 (attendant peak / shoot)
+        [0.38, -0.16, 0.44, 0.85],     // 卧石/座石 (pedestal companion)
+        [-0.56, -0.22, 0.35, 0.55],    // 散石 (scattered natural rocks)
+        [0.60, 0.28, 0.30, 0.45],
+        [-0.12, 0.42, 0.32, 0.40],
+      ]) {
+        addRock(I.x + ox * I.ax + R.range(-0.12, 0.12), I.z + oz * I.az + R.range(-0.1, 0.1), r, tall, true, true);
       }
     }
     // groups in the courtyard gardens: one main stone, two to four companions

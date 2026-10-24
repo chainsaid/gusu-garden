@@ -295,7 +295,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
     ex: exT, ez: ezT, y0, prof, gd: 2.15, ov: 0.6, lift, T,
     K: { tileVC: K.tileVC, tile: K.tile, gold: K.gold, red: DBG.includes("redg") ? K.lattice : K.red, soffit: K.soffit, plaster: K.plaster, lattice: K.lattice },
     ridge: { w: 0.6, h: 0.55, layers: 6, capR: 0.11, drop: 0.45 }, hip: { w: 0.32, h: 0.32, layers: 4, capR: 0.075, drop: 0.2 },
-    chiwen: { s: 0.85 }, gegyo: 0.62, hafuH: 0.36, capGoldMat: K.cap, gableLattice: true,
+    chiwen: { s: 0.85 }, xuanyu: 0.62, hafuH: 0.36, capGoldMat: K.cap, gableLattice: true,
   });
 
   // ---- railings & Meirenakao (吴王靠 / 美人靠)

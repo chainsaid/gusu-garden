@@ -74,7 +74,7 @@ export const L = {
     south: [10, 0, 27],
     north: [10, 0, 5],
     width: 3.6,
-    rise: 2.6,          // deck crown above ground level
+    rise: 1.55,         // deck crown above ground level (平缓拱桥，矢跨比约 1/14)
     posts: 9,           // railing posts per side (莲瓣望柱头 post caps)
   },
 

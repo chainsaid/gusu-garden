@@ -194,7 +194,7 @@ export function hallBuilding(lb, K, S) {
     ex: exT, ez: ezT, y0: ry0, prof, gd: S.gd ?? Math.min(ezT * 0.42, 2.6), ov: S.ovG ?? 0.6, lift, T,
     K: { tileVC: K.tileVC, tile: K.tile, gold: K.gold, red: K.red, soffit: K.soffit, plaster: K.plaster, lattice: K.lattice },
     ridge: S.ridge || { w: 0.62, h: 0.58, layers: 6, capR: 0.11, drop: 0.45 }, hip: S.hip || { w: 0.34, h: 0.34, layers: 4, capR: 0.08, drop: 0.22 },
-    chiwen: S.chiwen || { s: 0.9 }, gegyo: S.gegyo || 0.65, hafuH: S.hafuH || 0.38, capGoldMat: K.cap, gableLattice: S.gableLattice ?? true, lo,
+    chiwen: S.chiwen || { s: 0.9 }, xuanyu: S.xuanyu || S.gegyo || 0.65, hafuH: S.hafuH || 0.38, capGoldMat: K.cap, gableLattice: S.gableLattice ?? true, lo,
   });
   return { E, roof, lift, yWall, cx, cz, exT, ezT };
 }
@@ -392,7 +392,7 @@ export function buildGate(ctx, K, lb, anchors, toW) {
     },
     BS: { tiers: 3, proj: [0.45, 0.88], armH: 0.15, armW: 0.13, blockH: 0.12, daito: [0.38, 0.21], mak: [0.2, 0.12], wall: [0.95, 1.2, 1.4], inner: false, goldCaps: true, goldMak: true, goldDaito: true, K: { wood: K.red, gold: K.cap } },
     ov: 2.5, sBase: 0.3, d1: 0.95, liftL: 0.55, roofRise: 2.6, gd: 2.3, ovG: 0.65, tileP: 0.3, tileDetail: 1, lo: true,
-    ridge: { w: 0.7, h: 0.66, layers: 7, capR: 0.12, drop: 0.5 }, hip: { w: 0.38, h: 0.38, layers: 4, capR: 0.085, drop: 0.24 }, chiwen: { s: 1.05 }, gegyo: 0.8, hafuH: 0.44,
+    ridge: { w: 0.7, h: 0.66, layers: 7, capR: 0.12, drop: 0.5 }, hip: { w: 0.38, h: 0.38, layers: 4, capR: 0.085, drop: 0.24 }, chiwen: { s: 1.05 }, xuanyu: 0.8, hafuH: 0.44,
     bands: [{ y: yBal, h: 0.16, studs: 10 }, { y: yBal + 2.5 - 0.28 - 0.12, h: 0.1 }], infill: true,
   });
   for (const h of up.E.hooks) anchors.bells.push({ pos: toW(h.local), scale: 1.2, rotY: 0 });
@@ -474,7 +474,7 @@ export function buildBellPavilion(ctx, K, lb, anchors, toW) {
     walls: () => 'open', soseki: true,
     BS: { tiers: 3, proj: [0.42, 0.8], armH: 0.14, armW: 0.12, blockH: 0.11, daito: [0.34, 0.19], mak: [0.18, 0.11], wall: [0.85, 1.05, 1.25], inner: true, goldCaps: true, goldMak: true, goldDaito: true, K: { wood: K.red, gold: K.cap } },
     ov: 1.9, liftL: 0.45, roofRise: 2.7, gd: 1.7, ovG: 0.5, tileP: 0.26, tileDetail: 1, lo: true,
-    ridge: { w: 0.56, h: 0.5, layers: 5, capR: 0.1, drop: 0.4 }, hip: { w: 0.3, h: 0.3, layers: 3, capR: 0.07, drop: 0.2 }, chiwen: { s: 0.8 }, gegyo: 0.55, hafuH: 0.34,
+    ridge: { w: 0.56, h: 0.5, layers: 5, capR: 0.1, drop: 0.4 }, hip: { w: 0.3, h: 0.3, layers: 3, capR: 0.07, drop: 0.2 }, chiwen: { s: 0.8 }, xuanyu: 0.55, hafuH: 0.34,
     ceiling: true, ceilingMat: K.ceilingBell,
     bands: [{ y: yF, h: 0.15, studs: 10 }, { y: yF + 4.1 - 0.26 - 0.12, h: 0.1 }],
   });

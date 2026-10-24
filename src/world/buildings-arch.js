@@ -425,8 +425,8 @@ export function irimoyaRoof(lb, R) {
       const zz = sz * (zj - 0.12);
       lb.add(chamferBox(0.085, (R.hafuH || 0.38) + 0.02, 0.22, 0.008), darkMat, m4([xh, vy(zz) - 0.06 - (R.hafuH || 0.38) / 2, zz]));
     }
-    // 蟇股(已替换为悬鱼) at the apex: wood
-    const gs = R.gegyo || 0.6;
+    // 悬鱼 (xuanyu / pendant fish ornament) at the gable apex: carved wood
+    const gs = R.xuanyu || R.gegyo || 0.6;
     const gsh = new THREE.Shape();
     gsh.moveTo(0, 0.05 * gs);
     gsh.bezierCurveTo(0.25 * gs, 0.0, 0.5 * gs, -0.05 * gs, 0.55 * gs, -0.22 * gs);
@@ -435,7 +435,7 @@ export function irimoyaRoof(lb, R) {
     gsh.bezierCurveTo(-0.1 * gs, -0.42 * gs, -0.22 * gs, -0.36 * gs, -0.3 * gs, -0.2 * gs);
     gsh.bezierCurveTo(-0.38 * gs, -0.26 * gs, -0.45 * gs, -0.18 * gs, -0.55 * gs, -0.22 * gs);
     gsh.bezierCurveTo(-0.5 * gs, -0.05 * gs, -0.25 * gs, 0.0, 0, 0.05 * gs);
-    const gg = extrude(gsh, 0.05, 0.012, 'gegyo' + gs, 10);
+    const gg = extrude(gsh, 0.05, 0.012, 'xuanyu' + gs, 10);
     lb.add(gg, darkMat, m4([sx * (xv + 0.08), vy(0) - 0.06 - (R.hafuH || 0.38) * 0.6, 0], [0, sx * Math.PI / 2, 0]));
     // verge soffit (underside of the gable overhang)
     const vfaces = [];

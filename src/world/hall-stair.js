@@ -22,12 +22,9 @@ export function stairBalustrade(acc, mats, posts, newel = -1, opts = {}) {
     const top = p[1] + h;
     const d = p[3] || 0; // optional extension of the post below its rail base
     cbox(red, xf([p[0], p[1] + (h - d) / 2, p[2]]), pw / 2, (h + d) / 2, pw / 2, 0.016);
-    // gilt sock, collar and cap plate
-    cbox(gold, xf([p[0], p[1] - d + (isN ? 0.11 : 0.075), p[2]]), pw / 2 + 0.012, isN ? 0.11 : 0.075, pw / 2 + 0.012, 0.006);
-    cbox(gold, xf([p[0], top - 0.065, p[2]]), pw / 2 + 0.013, 0.065, pw / 2 + 0.013, 0.006);
-    cbox(red, xf([p[0], top + 0.03, p[2]]), pw / 2 + 0.035, 0.03, pw / 2 + 0.035, 0.01);
-    cbox(gold, xf([p[0], top + 0.066, p[2]]), pw / 2 + 0.02, 0.006, pw / 2 + 0.02, 0.003);
-    lotusFinial(goldB, xf([p[0], top + 0.072, p[2]]), pw * 0.64, pw * 2.35, 12);
+    // 望柱柱头莲座与莲瓣望柱头 (lotus seat and carved lotus-bud finial)
+    cbox(red, xf([p[0], top + 0.025, p[2]]), pw / 2 + 0.022, 0.025, pw / 2 + 0.022, 0.008);
+    lotusFinial(red, xf([p[0], top + 0.05, p[2]]), pw * 0.64, pw * 2.35, 12);
     if (isN) {
       // plaques on the front (+z) face and the outer side face
       const faces = [

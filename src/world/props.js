@@ -8,7 +8,7 @@ import { stoneHooks, paperHooks, metalHooks, swayDepthHooks, panelHooks, BAMBOO_
 import { buildStoneStand } from './props-stone.js';
 import { chunkedInstanced } from '../core/geom.js';
 import { buildHangingLantern, buildBell } from './props-hang.js';
-import { buildSteppingStones } from './props-plaza.js';
+import { buildSteppingStones, buildStoneTableSet, buildStoneWell } from './props-plaza.js';
 import { Acc, mat4 } from './props-geo.js';
 import { buildTaihuPeak, buildCourtyardPeak } from './rockery-sdf.js';
 
@@ -226,6 +226,9 @@ function placePlaza(ctx, group) {
   const gy = (x, z) => groundY(ctx, x, z);
   const stone = new Acc();
   stone.addAcc(buildSteppingStones(PLAZA.stepping, gy));
+  // 庭院石桌石凳与古井 (stone table set & ancient well)
+  stone.addAcc(buildStoneTableSet(18.5, -2.5, gy));
+  stone.addAcc(buildStoneWell(-3.5, -1.8, gy));
   const mesh = (acc, mat, { cast = true, receive = true, depth = null, name }) => {
     if (!acc.n) return null;
     const m = new THREE.Mesh(acc.build({ smooth: mat === M.stone }), mat);

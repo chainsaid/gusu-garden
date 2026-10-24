@@ -100,8 +100,8 @@ export function createField(L) {
   const bS = L.bridge.south;
   const PEN = { cx: bS[0], cz: bS[2] + 4.55, hx: 6.4, hz: 4.75, r: 0.9 }; // x 3.6..16.4, z 26.8..36.3
   const paths = L.paths.map((p) => segInfo(p.from, p.to, p.width));
-  // secondary stone walks (terrain's own): they tie the side buildings into the plan and break the
-  // big gravel fields of the north half into raked panels, the way temple grounds read from the air
+  // secondary stone walks (terrain's own): they tie the side buildings into the plan and articulate
+  // the courtyard into landscaped panels with bluestone paving and moss beds
   for (const [a, b, w] of [
     [[37, 7.35], [37, -21.5], 2.1],          // east walk: plaza -> east sub-hall -> bell tower
     [[38.05, -6.0], [46.75, -6.0], 1.9],     // spur to the east sub-hall front steps
@@ -295,11 +295,6 @@ export function createField(L) {
     }
     for (const t of trees) if (Math.hypot(x - t.x, z - t.z) < 0.55) return true;
     return false;
-  }
-
-  // distance from gravel to anything the rake has to go around
-  function rakeDist(x, z, sM, sS) {
-    return Math.max(Math.min(sM, sS, sdPaths(x, z) - 0.06, sdPads(x, z) + 0.15, Math.abs(sdRect(x, z)) - 2.95, sdGutter(x, z) - 0.03), 0);
   }
 
   // ---- outer landscape --------------------------------------------------------
@@ -532,7 +527,7 @@ export function createField(L) {
   // ---- gridded fields for fast sampling + GPU mask -----------------------
   const CELL = 0.2;
   const NX = Math.round((DOM.maxX - DOM.minX) / CELL) + 1, NZ = Math.round((DOM.maxZ - DOM.minZ) / CELL) + 1;
-  const gPath = new Float32Array(NX * NZ), gPond = new Float32Array(NX * NZ), gMoss = new Float32Array(NX * NZ), gSoil = new Float32Array(NX * NZ), gRake = new Float32Array(NX * NZ), gH = new Float32Array(NX * NZ);
+  const gPath = new Float32Array(NX * NZ), gPond = new Float32Array(NX * NZ), gMoss = new Float32Array(NX * NZ), gSoil = new Float32Array(NX * NZ), gH = new Float32Array(NX * NZ);
   for (let j = 0; j < NZ; j++) {
     const z = DOM.minZ + j * CELL;
     for (let i = 0; i < NX; i++) {
@@ -544,7 +539,6 @@ export function createField(L) {
       const sS = sdSoil(x, z, sp);
       const sM = sdMoss(x, z, sp, sS);
       gMoss[k] = sM; gSoil[k] = sS;
-      gRake[k] = rakeDist(x, z, sM, sS);
     }
   }
   function sampleGrid(g, x, z) {
@@ -571,7 +565,7 @@ export function createField(L) {
     noise: { n1, n2, n3, n4, f1, f2, f3, f4 },
     sdRect, sdPen, sdPondEff, sdPaths, sdStands, sdPads, sdMoss, sdSoil, sdTreeMoss, sdGutter, gutterBlocked, gutterRings, GUT,
     mossAt, soilAt, groundHeight, heightAt, landHeight, landRaw, sunCap, sunUpwind, treeTopCap, forestDensity, mountains,
-    grid: { CELL, NX, NZ, gMoss, gSoil, gRake, gH, gPath, gPond, sample: sampleGrid },
+    grid: { CELL, NX, NZ, gMoss, gSoil, gH, gPath, gPond, sample: sampleGrid },
     sdPond: (x, z) => sdPoly(pond, x, z), sdIsland: (x, z) => sdPoly(island, x, z),
   };
 }

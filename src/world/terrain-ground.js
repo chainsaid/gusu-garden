@@ -4,12 +4,11 @@
 // distance mask texture (moss edge, soil edge, rake obstacle distance).
 // ---------------------------------------------------------------------------
 import { TG_GLSL, MOSS_GLSL, NEAR_GLSL } from './terrain-glsl.js';
-import { isRealtime } from '../core/detail.js';
 
 export function buildGround(ctx, F) {
   const { THREE } = ctx;
   const { DOM, grid } = F;
-  const { CELL, NX, NZ, gMoss, gSoil, gRake, gH, gPath } = grid;
+  const { CELL, NX, NZ, gMoss, gSoil, gH, gPath } = grid;
 
   // ---- mesh (vertices on every 2nd mask cell) ----
   const STEP = ctx.quality === 'realtime' ? 4 : 2;
@@ -78,7 +77,7 @@ export function buildGround(ctx, F) {
   for (let k = 0; k < NX * NZ; k++) {
     data[k * 4] = toHalf(Math.max(-40, Math.min(40, gMoss[k])));
     data[k * 4 + 1] = toHalf(Math.max(-40, Math.min(40, gSoil[k])));
-    data[k * 4 + 2] = toHalf(Math.min(gRake[k], 8));
+    data[k * 4 + 2] = 0;
     data[k * 4 + 3] = toHalf(Math.max(-40, Math.min(40, gPath[k])));
   }
   const tex = new THREE.DataTexture(data, NX, NZ, THREE.RGBAFormat, THREE.HalfFloatType);
@@ -120,55 +119,6 @@ export function buildGround(ctx, F) {
 }
 
 function groundHooks(uniforms, NL, NT) {
-  // tg_rakeView/tg_rakeAvg integrate the furrow profile with constant-bound loops that
-  // D3D unrolls into ~180 transcendental blocks - the dominant cost of compiling this
-  // shader (and 132 iterations/pixel at runtime). Realtime swaps in a cheap closed-form
-  // stand-in with the same signature; final keeps the full integration.
-  const RT = isRealtime();
-  const rakeMeanFn = RT
-    ? /* glsl */ `
-      float tg_rakeView(float lu, float ly, float vu, float vy, float P, float A){
-        float sl = 2.4 * A / P;
-        float base = inversesqrt(1.0 + sl * sl);
-        float grz = clamp(ly / max(length(vec2(lu, ly)), 1e-3), 0.35, 1.0);
-        return mix(1.0, base * (0.82 + 0.30 * grz), clamp(A * 30.0, 0.0, 1.0));
-      }
-      float tg_rakeAvg(float lu, float ly, float P, float A){
-        return tg_rakeView(lu, ly, 0.0, 1.0, P, A);
-      }
-      `
-    : /* glsl */ `
-      float tg_rakeView(float lu, float ly, float vu, float vy, float P, float A){
-        float acc = 0.0, ws = 0.0;
-        for (int i = 0; i < 12; i++){
-          float u = (float(i) + 0.5) / 12.0 * P;
-          float s = A * (tg_rake(u + 0.002, P) - tg_rake(u - 0.002, P)) / 0.004;
-          float hr = A * tg_rake(u, P);
-          float nl = (ly - s * lu) * inversesqrt(1.0 + s * s);
-          float w = max(vy - s * vu, 0.0);
-          float occ = 0.0, mo = 0.0;
-          if (abs(lu) > 0.02) for (int k = 1; k <= 5; k++){ float t = float(k) / 5.0 * P * 0.95 / abs(lu); occ = max(occ, A * tg_rake(u + t * lu, P) - (hr + t * ly)); }
-          if (abs(vu) > 0.02) for (int k = 1; k <= 5; k++){ float t = float(k) / 5.0 * P * 0.95 / abs(vu); mo = max(mo, A * tg_rake(u + t * vu, P) - (hr + t * vy)); }
-          w *= 1.0 - smoothstep(0.0, A * 0.18, mo);
-          acc += w * max(nl, 0.0) * (1.0 - smoothstep(0.0, A * 0.18, occ));
-          ws += w;
-        }
-        return acc / max(ws, 1e-4) / max(ly, 0.03);
-      }
-      float tg_rakeAvg(float lu, float ly, float P, float A){
-        float acc = 0.0;
-        for (int i = 0; i < 8; i++){
-          float u = (float(i) + 0.5) / 8.0 * P;
-          float s = A * (tg_rake(u + 0.002, P) - tg_rake(u - 0.002, P)) / 0.004;
-          float nl = (ly - s * lu) * inversesqrt(1.0 + s * s);
-          float hr = A * tg_rake(u, P);
-          float occ = 0.0;
-          if (abs(lu) > 0.02) for (int k = 1; k <= 5; k++){ float t = float(k) / 5.0 * P * 0.95 / abs(lu); occ = max(occ, A * tg_rake(u + t * lu, P) - (hr + t * ly)); }
-          acc += max(nl, 0.0) * (1.0 - smoothstep(0.0, A * 0.18, occ));
-        }
-        return acc / 8.0 / max(ly, 0.03);
-      }
-      `;
   return {
     uniforms,
     defines: { NSTAND: NL, NTREE: NT },
@@ -225,9 +175,6 @@ function groundHooks(uniforms, NL, NT) {
         lc = mix(lc, lc * vec3(1.2, 1.5, 0.7), step(0.8, h.y) * fade * 0.5);
         return mix(dens * 0.16, shape, fade);
       }
-      // rake profile: rounded furrows
-      float tg_rake(float u, float P){ float c = 0.5 + 0.5 * cos(6.2831853 * u / P); return c * c * (3.0 - 2.0 * c); }
-      ${rakeMeanFn}
     `,
     fragColor: /* glsl */ `
     {
@@ -236,10 +183,6 @@ function groundHooks(uniforms, NL, NT) {
       vec2 fwp = fwidth(p);
       float fw = max(sqrt(fwp.x * fwp.y), 1e-5);
       vec4 mk = tg_mask(p);
-      // rake-obstacle field gradient (two extra taps)
-      float eps = 0.08;
-      float rB = mk.b;
-      vec2 rGrad = vec2(tg_mask(p + vec2(eps, 0.0)).b - rB, tg_mask(p + vec2(0.0, eps)).b - rB);
       float eb = n_snoise(p * 6.0) * 0.05 + n_snoise(p * 21.0) * 0.018;
       float sM = mk.r + eb;
       float sS = mk.g + eb * 0.8;
@@ -252,190 +195,51 @@ function groundHooks(uniforms, NL, NT) {
       g_landShade = 1.0; g_landAmb = 1.0; g_h = 0.0; g_dirMul = 1.0; g_rough = 0.0; g_sheen = 0.0; g_ao = 1.0;
       vec3 L = normalize(uSunDir);
 
-      // ---------------- gravel ----------------
+      // ---------------- 江南青石板与花街铺地 (bluestone flags & courtyard paving) ----------------
       if (g_wG > 0.001) {
-        // pebbles (warm granite chips ~1.7 cm) with finer grit in the gaps
-        vec2 cid; float f2;
-        float sc = 58.0;
-        vec3 w = tg_worley(p * sc, cid, f2);
-        float edge = f2 - w.x;
-        vec3 rnd = n_hash33(vec3(cid, 3.7));
-        float fade = 1.0 - smoothstep(0.005, 0.026, fw);
-        vec3 pc;
-        if (rnd.x < 0.40) pc = vec3(0.68, 0.655, 0.61);
-        else if (rnd.x < 0.66) pc = vec3(0.76, 0.725, 0.665);
-        else if (rnd.x < 0.82) pc = vec3(0.53, 0.515, 0.49);
-        else if (rnd.x < 0.94) pc = vec3(0.72, 0.62, 0.56);
-        else pc = vec3(0.22, 0.21, 0.20);
-        pc *= 0.9 + 0.3 * rnd.y;
-        float speck = smoothstep(0.55, 0.9, n_snoise(p * 520.0 + rnd.z * 40.0));
-        pc = mix(pc, pc * 0.35, speck * 0.5 * fade);
-        // facet shading inside each chip (angular, not domed)
-        float facet = dot(normalize(w.yz + 1e-4), normalize(rnd.yz - 0.5));
-        pc *= 1.0 + 0.10 * facet * fade;
-        float dome = smoothstep(0.0, 0.30, edge) * (1.0 - 0.4 * w.x * w.x);
-        float grit = n_snoise(p * 300.0) * 0.5 + 0.5;
-        vec3 gapC = vec3(0.40, 0.385, 0.36) * (0.7 + 0.5 * grit);
-        vec3 chip = mix(gapC, pc, smoothstep(0.02, 0.16, edge));
-        vec3 avg = vec3(0.64, 0.615, 0.57) * 0.98;
-        // mid scale: density / colour drift of the gravel bed so distance keeps texture
-        float m1 = n_snoise(p * 7.0), m2 = n_snoise(p * 18.0 + 3.0);
-        vec3 farC = avg * (0.94 + 0.07 * m1 + 0.05 * m2 * (1.0 - smoothstep(0.02, 0.06, fw)));
-        vec3 gcol = mix(farC, chip, fade);
-        // large scale: freshly raked clean areas vs settled / weathered grit (dust, organic film,
-        // iron staining) -> soft warm/cool mottling that survives from the air
-        float big = n_fbm(p * 0.45, 3);
-        float mid = n_fbm(p * 2.2 + 7.0, 2);
-        float huge = n_fbm(p * 0.075 + 21.0, 3);
-        float settle = smoothstep(-0.25, 0.45, n_fbm(p * 0.19 - 4.0, 3));
-        gcol *= 0.95 + 0.05 * big + 0.03 * mid + 0.06 * huge;
-        gcol = mix(gcol, gcol * vec3(0.86, 0.84, 0.78), settle * 0.35);
-        gcol = mix(gcol, gcol * vec3(1.05, 0.97, 0.88), smoothstep(0.3, 0.7, n_fbm(p * 0.33 + 40.0, 2)) * 0.35);
-        float nearMoss = smoothstep(1.1, 0.0, mk.r) * smoothstep(-0.3, 0.25, n_fbm(p * 3.0 + 2.0, 2));
-        gcol = mix(gcol, gcol * vec3(0.70, 0.69, 0.56), nearMoss * 0.55);
-        // grit kicked onto the gravel along the path kerbs and building bases: darker, dusty
-        float nearPath = smoothstep(0.7, 0.05, mk.a) * (0.6 + 0.4 * n_snoise(p * 2.5));
-        gcol = mix(gcol, gcol * vec3(0.82, 0.80, 0.76), nearPath * 0.5);
-        // rake pattern
-        float P = 0.12, A = 0.025;
-        float u; vec2 ud;
-        float dl = 1e3; vec2 dlv = vec2(0.0, 1.0);
-        for (int i = 0; i < NSTAND; i++) { vec2 d = p - uStands[i].xy; float l = length(d) - uStands[i].z; if (l < dl) { dl = l; dlv = d; } }
-        vec2 pq = p - uPag.xy;
-        vec2 pqq = abs(pq) - vec2(uPag.z + 0.9);
-        float sdPag = length(max(pqq, 0.0)) + min(max(pqq.x, pqq.y), 0.0);
-        bool inPagZone = (max(abs(pq.x), abs(pq.y)) < uPag.z + 5.0);
-        float ringW = 10.0 * P;
-        // raking fields: E-W lines on the front plaza west of the axis and behind the hall, N-S
-        // lines along the hall flanks, a slow sea-wave pattern east of the axis. Where two fields
-        // meet the rake leaves a clean seam.
-        bool flank = p.y < -8.6 && p.y > -37.0 && (p.x < -9.0 || p.x > 29.0);
-        bool waves = p.x > 12.5 && p.y >= -8.6 && p.y < 9.0;
-        float seamD = 1e3;
-        if (p.x < -9.0 || p.x > 29.0) seamD = min(abs(p.y + 8.6), abs(p.y + 37.0));
-        bool fieldMode = !(dl < 18.0 * P && dl < rB + 0.02) && !(rB < ringW) && !inPagZone;
-        bool outsideR = p.x < uRect.x || p.y < uRect.y || p.x > uRect.z || p.y > uRect.w;
-        if (outsideR) {
-          // the walk round the outside of the corridor: lines parallel to the plinth
-          fieldMode = false;
-          vec2 rc = (uRect.xy + uRect.zw) * 0.5;
-          vec2 q = max(max(uRect.xy - p, p - uRect.zw), 0.0);
-          u = length(q) + 0.04 * n_snoise(p * 0.18);
-          ud = normalize(q * sign(p - rc) + 1e-6);
-        }
-        else if (dl < 18.0 * P && dl < rB + 0.02) { u = dl; ud = normalize(dlv); }
-        else if (rB < ringW) { u = rB; ud = normalize(rGrad + 1e-6); }
-        else if (inPagZone) { u = sdPag; vec2 s = sign(pq); ud = pqq.x > pqq.y ? vec2(s.x, 0.0) : vec2(0.0, s.y); if (pqq.x > 0.0 && pqq.y > 0.0) ud = normalize(max(pqq, 0.0) * s); }
-        else if (flank) {
-          u = p.x + 0.055 * n_snoise(vec2(p.y * 0.21, 3.1)) + 0.014 * n_snoise(vec2(p.y * 0.9, 5.2));
-          ud = vec2(1.0, 0.0);
-        }
-        else if (waves) {
-          float k = 6.2831853 / 2.9;
-          float amp = 0.17 + 0.03 * n_snoise(vec2(p.y * 0.13, 7.0));
-          u = p.y + amp * sin(p.x * k + 0.6) + 0.02 * n_snoise(vec2(p.x * 0.5, 2.0));
-          ud = normalize(vec2(amp * k * cos(p.x * k + 0.6), 1.0));
-        }
-        else {
-          // hand-raked straight lines: never ruler straight, the line drifts a few cm over metres
-          u = p.y + 0.055 * n_snoise(vec2(p.x * 0.21, 1.7)) + 0.014 * n_snoise(vec2(p.x * 0.9, 4.2));
-          ud = vec2(0.0, 1.0);
-        }
-        float fu = fwidth(u);
-        float rfade = 1.0 - smoothstep(0.25, 0.5, fu / P);
-        float rk = tg_rake(u, P);
-        float hr = A * rk;
-        float du = 0.002;
-        float slope = A * (tg_rake(u + du, P) - tg_rake(u - du, P)) / (2.0 * du);
-        grad += g_wG * slope * ud * rfade;
-        // rake passes (~63 cm): where the tines of neighbouring passes meet they leave a deeper,
-        // messier groove and each pass sits a touch deeper or shallower -> soft lines that read
-        // from the air. The groove is a filtered line (width grows with the pixel footprint, its
-        // strength drops accordingly) so it fades into an average tone instead of aliasing.
-        float Pb = 6.0 * P;
-        // passes are never exactly equal in width: the pass grid drifts a few cm
-        float ub = u + 0.07 * n_snoise(p * 0.31 + 5.0);
-        float bi = floor(ub / Pb + 0.5);
-        float ds = ub - bi * Pb;
-        float sw = 0.035;
-        float nfade = 1.0 - smoothstep(0.35, 1.0, fu / (2.0 * sw));   // groove relief: only while resolved
-        float bfade = 1.0 - smoothstep(0.3, 0.65, fu / Pb);           // pass bands: readable far away
-        float swA = 0.075;
-        float wEff = max(swA, fu * 0.75);
-        float seamL = exp(-ds * ds / (wEff * wEff)) * (swA / wEff);
-        float seamH = -0.010 * exp(-ds * ds / (sw * sw));
-        grad += g_wG * (-2.0 * ds / (sw * sw) * seamH) * ud * nfade;
-        float bandV = n_hash12(vec2(bi, 7.3)) - 0.5;
-        float bw = smoothstep(0.0, 0.12, abs(ds));
-        gcol *= 1.0 + (0.3 * bandV * bw) * bfade;
-        gcol *= 1.0 - 0.34 * seamL * bfade;
-        // seam where two raking fields meet: a clean, slightly deeper line
-        if (fieldMode && seamD < 0.5) {
-          float swS = 0.045;
-          float wS = max(swS, max(fwp.x, fwp.y) * 0.8);
-          float sL = exp(-seamD * seamD / (wS * wS)) * (swS / wS);
-          gcol *= 1.0 - 0.25 * sL;
-        }
-        // raking sessions: groups of four passes laid a little thicker / thinner -> broad soft
-        // stripes along the rake direction that still read where single passes no longer resolve
-        float Ps = 4.0 * Pb;
-        float si = floor(ub / Ps);
-        float sf = fract(ub / Ps);
-        float sv = mix(n_hash12(vec2(si, 2.1)), n_hash12(vec2(si + 1.0, 2.1)), smoothstep(0.8, 1.0, sf)) - 0.5;
-        gcol *= 1.0 + 0.2 * sv * (1.0 - smoothstep(0.3, 0.6, fu / Ps));
-        // analytic self-shadow of the furrows under the grazing sun
-        float lu = dot(L.xz, ud);
-        float ly = L.y;
-        float occ = 0.0;
-        if (abs(lu) > 0.02) {
-          for (int k = 1; k <= 7; k++) {
-            float t = float(k) / 7.0 * P * 0.95 / abs(lu);
-            float hh = A * tg_rake(u + t * lu, P) - (hr + t * ly);
-            occ = max(occ, hh);
-          }
-        }
-        float sh = 1.0 - smoothstep(0.0, A * 0.18, occ);
-        // unresolved furrows: analytic mean of lit flanks / shadowed troughs, pass to pass a touch
-        // deeper or shallower
-        // Seen from a distance the furrow flanks facing the camera fill the pixel: with the sun
-        // behind the camera the lit flanks dominate (bright), looking into the sun the shadowed
-        // ones do (dark). This view-dependent mean is what makes raked patterns read from the air:
-        // fields raked in different directions and the contour rings get distinct tones.
-        vec3 Vw = normalize(cameraPosition - vWPos);
-        float vu = dot(Vw.xz, ud), vy = Vw.y;
-        float Ab = A * (1.0 + 0.55 * bandV * bfade);
-        float rv = tg_rakeView(lu, ly, vu, vy, P, Ab);
-        float farM = clamp(mix(1.0, rv, 0.6), 0.4, 1.9);
-        if (rfade < 0.999) {
-          float shFar = mix(1.0, tg_rakeAvg(lu, ly, P, Ab), 0.85);
-          // resolved furrows keep their per-pixel light/shadow, rescaled toward the view-dependent
-          // mean so that there is no tone step where the furrows dissolve
-          float wN = smoothstep(0.1, 0.32, fu / P);
-          sh = mix(farM, sh * mix(1.0, farM / max(shFar, 0.2), wN), rfade);
-        }
-        // furrows below pixel size: the box-filtered first harmonic of the lit / shadowed flanks keeps
-        // the raked lines visible as fine stripes down to ~2 px per furrow, then fades out (no moire)
-        {
-          float rr = fu / P;
-          float att = rr < 1.0 ? sin(3.14159265 * rr) / (3.14159265 * max(rr, 1e-3)) : 0.0;
-          att *= 1.0 - smoothstep(0.5, 0.85, rr);
-          float mS = clamp(0.5 * lu / max(ly, 0.05), -0.5, 0.5);
-          sh *= 1.0 + (1.0 - rfade) * att * mS * sin(6.2831853 * u / P);
-        }
-        // the deeper groove between passes falls into shadow first under the low sun
-        sh *= 1.0 - 0.25 * seamL * bfade * smoothstep(0.15, 0.6, abs(lu));
-        // pebbles poking above the furrow line catch light even in the troughs
-        sh = max(sh, dome * 0.55 * fade * step(0.6, rnd.z));
-        g_dirMul = mix(1.0, sh, g_wG);
-        // sky light: troughs and the pass grooves see less of the sky
-        float aoG = mix(0.93, 0.8 + 0.2 * rk, rfade) * (1.0 - 0.12 * seamL * bfade);
-        g_ao = mix(1.0, aoG, g_wG);
-        // pebble micro relief
-        g_h += g_wG * (dome * 0.004 * fade + (m1 * 0.0015 + m2 * 0.001) * (1.0 - fade));
-        // furrow bottoms collect finer, darker grit
-        gcol *= mix(1.0, 0.86 + 0.14 * rk, rfade);
-        col += g_wG * gcol;
-        g_rough += g_wG * mix(0.8, 0.9, fade * edge);
+        // Bluestone flag layout: staggered slabs (~0.85m x 0.52m)
+        vec2 sp = p * vec2(1.18, 1.92);
+        float row = floor(sp.y);
+        sp.x += 0.5 * mod(row, 2.0);
+        vec2 slabId = floor(sp);
+        vec2 slabUv = fract(sp) - 0.5;
+        vec3 sHash = n_hash33(vec3(slabId, 4.2));
+        vec2 sDist = abs(slabUv) - vec2(0.465, 0.455);
+        float edgeDist = max(sDist.x, sDist.y);
+        float joint = smoothstep(-0.02, 0.03, edgeDist);
+
+        // Base bluestone colour (青石青灰微绿底色)
+        vec3 stoneCol = vec3(0.35, 0.38, 0.37) * (0.88 + 0.24 * sHash.x);
+        // Chisel texture and fine surface mottling
+        float chisel = n_snoise(p * 28.0) * 0.035 + n_snoise(p * 110.0) * 0.02;
+        stoneCol += chisel;
+
+        // Water stains and aging (潮湿水痕泛碱与青苔渗透)
+        float damp = smoothstep(0.1, 0.65, n_fbm(p * 0.55 + 12.0, 3));
+        stoneCol = mix(stoneCol, stoneCol * vec3(0.72, 0.78, 0.74), damp * 0.4);
+
+        // Dark joint mortar / soil in joints (灰浆与砖缝填土)
+        vec3 jointCol = vec3(0.20, 0.19, 0.17) * (0.8 + 0.4 * n_snoise(p * 30.0));
+        vec3 finalPave = mix(stoneCol, jointCol, joint);
+
+        // Creeping moss along slab edges and joints
+        float nearMoss = smoothstep(0.8, 0.0, mk.r) * smoothstep(-0.2, 0.3, n_fbm(p * 2.5, 2));
+        finalPave = mix(finalPave, vec3(0.26, 0.32, 0.18), nearMoss * 0.65 * joint);
+
+        // Relief and normal modification
+        float slabBevel = -0.006 * smoothstep(0.0, -0.06, edgeDist);
+        g_h += g_wG * slabBevel;
+
+        // Ambient occlusion in joints
+        float aoPave = mix(1.0, 0.72, joint);
+        g_ao = mix(1.0, aoPave, g_wG);
+
+        // Roughness: honed bluestone with damp sheen
+        float roughPave = mix(0.75, 0.92, joint);
+        roughPave = mix(roughPave, 0.58, damp * 0.5);
+        g_rough += g_wG * roughPave;
+
+        col += g_wG * finalPave;
       }
       // ---------------- moss ----------------
       if (g_wM > 0.001) {

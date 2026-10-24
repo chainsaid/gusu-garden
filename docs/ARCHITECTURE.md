@@ -136,7 +136,7 @@ const agedGold = std({ color: 0xffffff, roughness: 0.3, metalness: 1.0 }, {
 });
 ```
 
-`materials()` returns the shared set, `ctx.M`: vermilion and black lacquer, several golds and gold leaf, bronze, roof tile, plaster, granite (clean and mossy), raw and polished wood, lattice green, lantern glow and flame. The snippets behind them are exported as `PROC.lacquer()`, `PROC.gold()`, `PROC.bronze()`, `PROC.roofTile()`, `PROC.plaster()`, `PROC.granite()` and `PROC.wood()`, so modules can make variants.
+`materials()` returns the shared set, `ctx.M`: Jiangnan white plaster (`plasterWhite`), cyan roof tile (`tileCyan`), chestnut-stained timber (`woodChestnut`), bluestone (`stoneCyan`), aged wrought iron, bronze, granite (clean and mossy), raw and polished wood, lattice, lantern glow and flame. The snippets behind them are exported as `PROC.lacquer()`, `PROC.chestnutWood()`, `PROC.gold()`, `PROC.bronze()`, `PROC.roofTile()`, `PROC.plaster()`, `PROC.granite()` and `PROC.wood()`, so modules can make variants.
 
 ## World modules
 
@@ -144,15 +144,15 @@ A world module is a file in `src/world/` that exports `build(ctx)`. Helper files
 
 | Module | Contents |
 |---|---|
-| `terrain` | Courtyard ground (raked gravel, moss), stone paving, the pond bed, wooded hills and mountain ridges, an instanced backdrop forest, ground cover |
-| `pond` | Water with planar reflections, stone edging, an island, lotus colonies, water lilies, koi, floating leaves and petals |
-| `hall` | The main hall's exterior: two-tier 歇山 roof with 嫩戗发戗 upturned corners, bluestone podium, plain wooden columns, bracket sets, dark iron fittings |
+| `terrain` | Courtyard ground (bluestone flag paving, patterned courtyard flags, moss beds), stone paving, the pond bed, wooded hills and mountain ridges, an instanced backdrop forest, ground cover |
+| `pond` | Water with planar reflections, stacked rockery stone edging, an island, lotus colonies, water lilies, koi with Chinese colour patterns, floating leaves and petals |
+| `hall` | The main hall's exterior: two-tier 歇山 roof with 嫩戗发戗 upturned corners, bluestone podium, plain wooden columns, bracket sets with 批竹昂嘴, dark iron fittings |
 | `interior` | The scholar's hall: a landscape scroll, black-lacquer couplets, a rosewood table, a guqin, armchairs, a luohan bed and a curio shelf, long-windows with 步步锦 lattices, a ceiling of 卷棚轩 canopies over an open middle, light shafts, dust and incense smoke |
-| `pagoda` | The five-storey pagoda, generated per side and rotated about its axis |
-| `bridge` | The arched stone bridge: deck planks, arch boards, railings with lotus-bud post caps, granite piers |
-| `buildings` | The viewing pavilion, the enclosing corridor, the south gate, the bell tower and two side halls |
-| `props` | Taihu rockery peaks, stone spurs, drum stools, scattered lake rocks, hanging lanterns, wind chimes, the incense burner, stepping stones |
-| `vegetation` | Natural-form pines, maples, bamboo, banana palms, weeping willows, wisteria and ground cover: recursive branch skeletons meshed as tubes, foliage as instanced cards with canvas-drawn atlases |
+| `pagoda` | The borrowed Beisi Pagoda (八角九层楼阁式北寺塔), generated as an 8-sided pavilion tower and rotated about its axis |
+| `bridge` | The arched stone bridge: deck planks, gentle flat arch fascia (矢跨比 ~1/14), railings with carved lotus-bud post caps, granite piers |
+| `buildings` | The water pavilion (水榭) with 美人靠 bench, the enclosing corridor with leak windows (漏窗), the south gate, the bell pavilion and two side halls with 抱厦 |
+| `props` | Taihu rockery peaks, stone spurs, drum stools, stone table, ancient stone well, scattered lake rocks, hanging lanterns, wind bells, stepping stones |
+| `vegetation` | Natural-form pines, maples, bamboo groves, banana palms, weeping willows, wisteria, flowering peach/plum and ground cover: recursive branch skeletons meshed as tubes, foliage as instanced cards with canvas-drawn atlases |
 
 ### The module contract
 

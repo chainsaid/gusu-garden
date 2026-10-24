@@ -794,9 +794,9 @@ export function padNormal(P, p) {
 }
 
 // ===========================================================================
-// Species: Japanese black pine (黑松), 仕立木 style.
-// Twisting leaning trunk, near-horizontal zig-zag limbs ending in flat domed
-// "cloud" pads; crown pad at the apex.
+// Species: 江南古松 / 罗汉松 (Jiangnan ancient pine / Podocarpus), natural form.
+// Twisting leaning trunk, spreading branches ending in full domed needle tufts;
+// natural domed crown at the apex (去日式仕立松扁平云片剪枝).
 // ===========================================================================
 export function genPine(rng, o) {
   const h = o.h, base = o.base;
@@ -832,9 +832,8 @@ export function genPine(rng, o) {
 
   // framing control: pads whose projection would land inside a camera's protected region are dropped
   const blocked = (c, r) => screenBlocked(o.avoid, c, r, 0.6) || boxBlocked(o.keepOut, c, r, r * 0.35);
-  const addPad = (c, rp, yaw, attach, pd, squash = 0.2) => {
-    // clipped 仕立木 pad = a flat-topped, lobed cushion of upright needle tufts carried by a fan of
-    // zig-zag branchlets (see buildPine). A few lower / higher sub-cushions break the outline.
+  const addPad = (c, rp, yaw, attach, pd, squash = 0.45) => {
+    // 自然形针叶簇 (natural domed needle cushion with depth)
     const lobes = () => [rng.range(0.08, 0.17), rng.range(0.05, 0.11), rng.range(0.03, 0.07), rng.range(0, TAU), rng.range(0, TAU), rng.range(0, TAU)];
     const main = { c, rx: rp, ry: rp * squash, rz: rp * rng.range(0.72, 0.95), yaw, attach, pd, lobes: lobes() };
     pads.push(main);
@@ -905,7 +904,7 @@ export function genPine(rng, o) {
   // apex pad
   const tt = trunk.pts[trunk.pts.length - 1];
   const ra = Math.max(0.6, h * 0.11 + 0.3) * (o.padScale || 1);
-  if (!blocked(tt.clone().add(V3(0, ra * 0.25, 0)), ra)) addPad(tt.clone().add(V3(0, ra * 0.25, 0)), ra, rng.range(0, TAU), tt, trunk.pd[trunk.pd.length - 1], 0.42);
+  if (!blocked(tt.clone().add(V3(0, ra * 0.25, 0)), ra)) addPad(tt.clone().add(V3(0, ra * 0.25, 0)), ra, rng.range(0, TAU), tt, trunk.pd[trunk.pd.length - 1], 0.55);
   // a couple of small pads hugging the upper trunk
   for (let i = 0; i < 2; i++) {
     const s = sampleBranch(trunk, rng.range(0.7, 0.92));

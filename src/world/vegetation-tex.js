@@ -675,49 +675,47 @@ export function makePineAtlas(rng, size = 1024) {
 }
 
 // ===========================================================================
-// CHERRY blossom cluster atlas (sRGB) — 2x2 cells of dense flower clusters
+// PEACH / PLUM blossom cluster atlas (sRGB) — 江南园林桃花/梅花
 // ===========================================================================
-function drawSakura(g, x, y, rp, rot, squash, rnd, tone) {
+function drawPeachBlossom(g, x, y, rp, rot, squash, rnd, tone) {
   g.save();
   g.translate(x, y);
   g.rotate(rot);
   g.scale(1, squash);
-  // petals
+  // petals (rounded Chinese peach/plum blossom, no sakura notch)
   for (let k = 0; k < 5; k++) {
     const a = (k / 5) * TAU + (rnd() - 0.5) * 0.15;
     g.save();
     g.rotate(a);
-    const L = rp * (0.92 + rnd() * 0.12), W = rp * 0.5;
+    const L = rp * (0.92 + rnd() * 0.12), W = rp * 0.52;
     const grd = g.createRadialGradient(0, 0, 0, 0, 0, L);
     const base = tone;
-    grd.addColorStop(0.0, `rgb(${base[0] - 25},${base[1] - 85},${base[2] - 55})`);
-    grd.addColorStop(0.32, `rgb(${base[0] - 6},${base[1] - 40},${base[2] - 28})`);
-    grd.addColorStop(0.75, `rgb(${base[0]},${base[1]},${base[2]})`);
-    grd.addColorStop(1.0, `rgb(${Math.min(255, base[0] + 4)},${Math.min(255, base[1] + 10)},${Math.min(255, base[2] + 8)})`);
+    grd.addColorStop(0.0, `rgb(${base[0] - 20},${base[1] - 80},${base[2] - 50})`);
+    grd.addColorStop(0.35, `rgb(${base[0] - 5},${base[1] - 35},${base[2] - 25})`);
+    grd.addColorStop(0.78, `rgb(${base[0]},${base[1]},${base[2]})`);
+    grd.addColorStop(1.0, `rgb(${Math.min(255, base[0] + 6)},${Math.min(255, base[1] + 12)},${Math.min(255, base[2] + 10)})`);
     g.fillStyle = grd;
     g.beginPath();
     g.moveTo(0, 0);
-    g.bezierCurveTo(W * 0.9, L * 0.25, W * 1.05, L * 0.8, W * 0.32, L * 0.98);
-    g.lineTo(0, L * 0.86); // notch
-    g.lineTo(-W * 0.32, L * 0.98);
-    g.bezierCurveTo(-W * 1.05, L * 0.8, -W * 0.9, L * 0.25, 0, 0);
+    g.bezierCurveTo(W * 0.9, L * 0.3, W * 1.0, L * 0.82, 0, L);
+    g.bezierCurveTo(-W * 1.0, L * 0.82, -W * 0.9, L * 0.3, 0, 0);
     g.fill();
     // faint petal vein line
-    g.strokeStyle = `rgba(${base[0] - 30},${base[1] - 60},${base[2] - 40},0.35)`;
+    g.strokeStyle = `rgba(${base[0] - 25},${base[1] - 55},${base[2] - 35},0.32)`;
     g.lineWidth = rp * 0.03;
     g.beginPath(); g.moveTo(0, L * 0.1); g.lineTo(0, L * 0.7); g.stroke();
     g.restore();
   }
   // stamens
-  const ns = 16;
+  const ns = 18;
   for (let k = 0; k < ns; k++) {
-    const a = rnd() * TAU, l = rp * (0.28 + rnd() * 0.18);
-    g.strokeStyle = 'rgb(236,160,170)'; g.lineWidth = rp * 0.035;
+    const a = rnd() * TAU, l = rp * (0.28 + rnd() * 0.2);
+    g.strokeStyle = 'rgb(240,165,175)'; g.lineWidth = rp * 0.035;
     g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * l, Math.sin(a) * l); g.stroke();
-    g.fillStyle = rnd() < 0.5 ? 'rgb(190,70,95)' : 'rgb(222,180,90)';
+    g.fillStyle = rnd() < 0.5 ? 'rgb(205,75,100)' : 'rgb(230,190,95)';
     g.beginPath(); g.arc(Math.cos(a) * l, Math.sin(a) * l, rp * 0.05, 0, TAU); g.fill();
   }
-  g.fillStyle = 'rgb(200,60,90)';
+  g.fillStyle = 'rgb(210,65,95)';
   g.beginPath(); g.arc(0, 0, rp * 0.12, 0, TAU); g.fill();
   g.restore();
 }
@@ -762,7 +760,7 @@ export function makeBlossomAtlas(rng, size = 1024) {
     for (const f of flowers) {
       const pale = rnd();
       const tone = pale < 0.6 ? [252, 232, 238] : pale < 0.9 ? [250, 214, 226] : [255, 244, 246];
-      drawSakura(g, f.x, f.y, f.rp, f.rot, f.sq, rnd, tone);
+      drawPeachBlossom(g, f.x, f.y, f.rp, f.rot, f.sq, rnd, tone);
     }
     // buds
     for (let i = 0; i < 6; i++) {
