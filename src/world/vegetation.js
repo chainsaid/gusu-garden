@@ -1,16 +1,15 @@
 // ---------------------------------------------------------------------------
-// VEGETATION — hero trees (black pine 仕立木, Japanese maples green/red,
-// cherries), framing canopies for the shots, clipped azalea / boxwood mounds,
-// ferns. Everything procedural: recursive branch skeletons meshed as tapered
-// tubes with procedural bark; foliage as instanced alpha-tested cards with
-// canvas-drawn atlases, wind sway, backlit translucency, crown AO and bent
-// canopy normals.
+// VEGETATION — Jiangnan garden trees: natural ancient pine, camphor, maple,
+// magnolia and flowering crabapple; framing canopies, mixed flowering shrubs
+// and ferns. Everything is procedural: recursive branch skeletons meshed as
+// tapered tubes with procedural bark; foliage uses instanced alpha-tested
+// cards with canvas-drawn atlases, wind sway, translucency and crown AO.
 // ---------------------------------------------------------------------------
 import { makeMapleAtlas, makeMapleHeroAtlas, makeSamaraTexture, makePineAtlas, makeBlossomAtlas, makeShrubAtlas, makeFernTexture } from './vegetation-tex.js';
 import { heroLeafGeo, samaraGeo, buildHeroSpray } from './vegetation-hero.js';
-import { CushionAccum, spow } from './vegetation-core.js';
+import { CushionAccum, naturalCrownPoint } from './vegetation-core.js';
 import { SHOTS } from '../shots.js';
-import { genMaple, genCherry, genPine, genTiered, padLocal, padNormal, padTopF, BarkAccum, trunkDisp, sampleBranch, envRho, envNormal, randUnit, perpOf, vnoise3 } from './vegetation-tree.js';
+import { genMaple, genCherry, genPine, genTiered, genCamphor, genMagnolia, genCrabapple, padLocal, padNormal, padTopF, BarkAccum, trunkDisp, sampleBranch, envRho, envNormal, randUnit, perpOf, vnoise3 } from './vegetation-tree.js';
 import { buildBamboo } from './vegetation-bamboo.js';
 import { buildBananas } from './vegetation-banana.js';
 import { buildWillows } from './vegetation-willow.js';
@@ -811,7 +810,9 @@ export async function build(ctx) {
   // background / aerial maples: light does not leak through whole crowns -> dark interiors and
   // undersides, sunlit outer sprays; canopy-shaped normals so each tier shades as one clean form
   const folMapleFar = foliageMaterial(ctx, 'maple', mapleTex, { transTint: [1.5, 1.5, 0.6], transBack: 0.55, transFwd: 1.6, transDepth: 1.1, leak: 0.25, leakDiffuse: 0.08, bend: 0.62, roughness: 0.6, accent: [0.55, 0.2, 0.025], petiole: [0.2, 0.05, 0.025], flutter: 0.03, fatten: 0.38, spec: 0.45, skyTrans: 0.35, name: 'far' });
-  // pine needles: dense, nearly light-tight pads; cushion-shaped normals, low sheen
+  // Camphor: dense sprays of glossy oval evergreen leaves, reusing the procedural broadleaf cell.
+  const folCamphor = foliageMaterial(ctx, 'rgb', shrubTex, { transTint: [1.35, 1.65, 0.72], transBack: 0.55, transFwd: 1.25, transDepth: 1.2, leak: 0.22, leakDiffuse: 0.08, bend: 0.68, roughness: 0.5, flutter: 0.012, fatten: 0.2, spec: 0.55, skyTrans: 0.3, name: 'camphor' });
+  // pine needles: dense, nearly light-tight natural crowns with low sheen
   const folPine = foliageMaterial(ctx, 'pine', pineTex, { transTint: [1.5, 1.7, 0.8], transBack: 0.4, transFwd: 0.8, transDepth: 1.0, leak: 0.2, leakDiffuse: 0.06, bend: 0.72, roughness: 0.58, spec: 0.55, flutter: 0.008, fatten: 0.18, skyTrans: 0.32 });
   const folBlossom = foliageMaterial(ctx, 'rgb', blossomTex, { transTint: [1.0, 0.85, 0.9], transBack: 0.75, transFwd: 1.3, bend: 0.5, roughness: 0.6, flutter: 0.015, fatten: 0.25, name: 'blossom', skyTrans: 0.35 });
   const folShrub = foliageMaterial(ctx, 'rgb', shrubTex, { transTint: [1.4, 1.5, 0.8], transBack: 0.5, transFwd: 0.7, transDepth: 0.6, leak: 0.2, leakDiffuse: 0.05, bend: 0.85, roughness: 0.6, spec: 0.5, flutter: 0.004, fatten: 0.12, name: 'shrub', skyTrans: 0.3 });
@@ -839,7 +840,7 @@ export async function build(ctx) {
   });
   moundMat.name = 'mound';
 
-  // pine pad cores: opaque, dark needle mass under the tufts (crisp pad silhouettes + self-shadowing)
+  // pine crown cores: opaque, dark needle mass beneath natural three-dimensional tufts
   const coreHooks = {
     vertexHead: VEG_WIND + /* glsl */ `attribute vec3 aTint; attribute float aFlex; varying vec3 vTint;`,
     vertexWorld: /* glsl */ `vTint = aTint; wPos4.xyz += vegWind(wPos4.xyz, aFlex);`,
@@ -866,7 +867,7 @@ export async function build(ctx) {
   // -------------------------------------------------------------- accumulators
   const acc = { pine: new BarkAccum(), maple: new BarkAccum(), cherry: new BarkAccum() };
   const cores = new CushionAccum();
-  const fol = { maple: new InstAccum(), mapleHero: new InstAccum(), mapleFar: new InstAccum(), pine: new InstAccum(), blossom: new InstAccum(), shrub: new InstAccum(), fern: new InstAccum() };
+  const fol = { maple: new InstAccum(), mapleHero: new InstAccum(), mapleFar: new InstAccum(), camphor: new InstAccum(), pine: new InstAccum(), blossom: new InstAccum(), shrub: new InstAccum(), fern: new InstAccum() };
   const stats = { trees: 0 };
   const showcase = [];
 
@@ -931,6 +932,14 @@ export async function build(ctx) {
     { w: 1.0, c: [0.055, 0.12, 0.02], ex: 0.0 },
     { w: 0.7, c: [0.17, 0.22, 0.036], ex: 1 },
   ];
+  // Multipliers over the procedural oval-leaf atlas: deep evergreen interiors,
+  // with restrained yellow-green light on the upper surface.
+  const CAMPHOR_PAL = [
+    { w: 2.5, c: [0.72, 0.88, 0.62], ex: 0.2 },
+    { w: 3.0, c: [0.82, 1.0, 0.68], ex: 0.6 },
+    { w: 1.5, c: [0.92, 1.05, 0.72], ex: 1.0 },
+    { w: 1.2, c: [0.62, 0.8, 0.58], ex: 0.0 },
+  ];
   // turning maples (fill trees seen from the aerials): gold, amber, orange, a little green left inside
   const GOLD_PAL = [
     { w: 2.0, c: [0.3, 0.19, 0.02], ex: 1 }, { w: 1.6, c: [0.38, 0.12, 0.012], ex: 0.85 }, { w: 1.4, c: [0.24, 0.21, 0.03], ex: 0.6 },
@@ -944,36 +953,43 @@ export async function build(ctx) {
     return pal[0].c;
   };
 
-  // ---- maple ----
+  // ---- maple / camphor ----
   function buildMaple(spec) {
-    const rng = ctx.rng('maple' + spec.id);
+    const camphor = spec.type === 'camphor';
+    const rng = ctx.rng((camphor ? 'camphor' : 'maple') + spec.id);
     const base = V3(spec.x, groundY(spec.x, spec.z), spec.z);
     const red = spec.type === 'mapleRed';
     const leanV = spec.lean ? V3(spec.lean[0], 0, spec.lean[1]) : V3(rng.range(-0.5, 0.5), 0, rng.range(-0.5, 0.5));
     const tiered = spec.style !== 'shell';
-    const tree = tiered
-      ? genTiered(rng, { species: 'maple', h: spec.h, base, lean: leanV, spread: spec.spread ?? (red ? 0.8 : 0.68), detail: spec.detail ?? lod(1), sx: spec.sx, sz: spec.sz, leaders: spec.leaders, crownBase: spec.crownBase ?? (red ? 0.2 : 0.3), padR: spec.padR, gaps: spec.gaps, twigDens: spec.twigDens, keepOut: KEEP, trunkFrac: spec.trunkFrac, widest: spec.widest, droop: spec.droop, squash: spec.squash, lobes: spec.lobes })
-      : genMaple(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? (red ? 0.7 : 0.62), detail: spec.detail ?? lod(1), sx: spec.sx, sz: spec.sz, leaders: spec.leaders, shellDensity: spec.shellDensity ?? (red ? dens(5.0) : dens(3.8)), tiers: red ? 1.1 : 1.6, maxTwig: spec.maxTwig, leafLen: spec.leafLen, twigWobble: spec.twigWobble, keepOut: KEEP });
+    const common = { h: spec.h, base, lean: leanV, spread: spec.spread, detail: spec.detail ?? lod(1), sx: spec.sx, sz: spec.sz, leaders: spec.leaders, crownBase: spec.crownBase, padR: spec.padR, gaps: spec.gaps, twigDens: spec.twigDens, keepOut: KEEP, trunkFrac: spec.trunkFrac, widest: spec.widest, droop: spec.droop, squash: spec.squash, lobes: spec.lobes };
+    const tree = camphor
+      ? genCamphor(rng, common)
+      : tiered
+        ? genTiered(rng, { ...common, species: 'maple', spread: spec.spread ?? (red ? 0.8 : 0.68), crownBase: spec.crownBase ?? (red ? 0.2 : 0.3) })
+        : genMaple(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? (red ? 0.7 : 0.62), detail: spec.detail ?? lod(1), sx: spec.sx, sz: spec.sz, leaders: spec.leaders, shellDensity: spec.shellDensity ?? (red ? dens(5.0) : dens(3.8)), tiers: red ? 1.1 : 1.6, maxTwig: spec.maxTwig, leafLen: spec.leafLen, twigWobble: spec.twigWobble, keepOut: KEEP });
     const flexOf = addBark('maple', tree.branches, tree.rT, spec.id * 31 + 5, { red, hero: spec.hero, flexK: spec.flexK });
     tree.flexOf = flexOf;
     const env = tree.env;
-    const leafS = spec.leafSize ?? (red ? 0.16 : 0.175);
-    const nodeSp = spec.nodeSpacing ?? 0.06;
-    // colour palettes (linear)
-    const pal = red
-      ? [[0.3, 0.012, 0.012], [0.4, 0.02, 0.014], [0.22, 0.008, 0.012], [0.45, 0.035, 0.014], [0.34, 0.014, 0.026]]
-      : (spec.palette || [[0.075, 0.16, 0.022], [0.1, 0.19, 0.028], [0.06, 0.13, 0.02], [0.13, 0.2, 0.03], [0.085, 0.17, 0.035]]);
-    const accentP = red ? 0.45 : (spec.autumn ?? 0.12);
+    const leafS = spec.leafSize ?? (camphor ? 0.42 : red ? 0.16 : 0.175);
+    const nodeSp = spec.nodeSpacing ?? (camphor ? 0.16 : 0.06);
+    // colour palettes (linear); camphor cards contain clusters of small oval leaves
+    const pal = camphor
+      ? CAMPHOR_PAL.map((e) => e.c)
+      : red
+        ? [[0.3, 0.012, 0.012], [0.4, 0.02, 0.014], [0.22, 0.008, 0.012], [0.45, 0.035, 0.014], [0.34, 0.014, 0.026]]
+        : (spec.palette || [[0.075, 0.16, 0.022], [0.1, 0.19, 0.028], [0.06, 0.13, 0.02], [0.13, 0.2, 0.03], [0.085, 0.17, 0.035]]);
+    const accentP = camphor ? 0 : red ? 0.45 : (spec.autumn ?? 0.12);
     const treeHue = rng.range(-0.08, 0.08);
     // per-tree tone (green maples): deep green, mid, yellow-green, blue-green -> variety across the precinct
     const TONES = [[0.6, 0.78, 0.8], [1, 1, 1], [1.12, 1.04, 0.82], [0.75, 0.92, 1.0]];
-    const tone = red || spec.gpal || spec.frame ? [1, 1, 1] : TONES[rng.int(0, 3)];
+    const tone = camphor || red || spec.gpal || spec.frame ? [1, 1, 1] : TONES[rng.int(0, 3)];
+    const crownPal = camphor ? CAMPHOR_PAL : red ? RED_PAL : (spec.gpal || (spec.frame ? GREEN_PAL : GREEN_PAL_FAR));
     if (tiered) {
       for (const P of tree.pads) {
         const hy = Math.min(1, Math.max(0, (P.c.y - (env.c.y - env.r.y)) / (2 * env.r.y)));
         P.expo = Math.min(1, Math.max(0, P.shade * 0.75 + hy * 0.35 - 0.1));
-        P.col = pickPal(rng, red ? RED_PAL : (spec.gpal || (spec.frame ? GREEN_PAL : GREEN_PAL_FAR)), P.expo);
-        P.col2 = pickPal(rng, red ? RED_PAL : (spec.gpal || (spec.frame ? GREEN_PAL : GREEN_PAL_FAR)), P.expo);
+        P.col = pickPal(rng, crownPal, P.expo);
+        P.col2 = pickPal(rng, crownPal, P.expo);
         P.v = rng.range(0.85, 1.15);
       }
     }
@@ -1021,7 +1037,8 @@ export async function build(ctx) {
       }
       let accent = rng.chance(accentP) ? rng.range(0.3, 1.0) : rng.range(0, 0.15);
       if (red && rng.chance(0.65)) accent = -accent; // red maples: mostly darker crimson accents, some orange
-      (!(spec.forceNear || nearVis(p)) ? fol.mapleFar : spec.heroMat ? fol.mapleHero : fol.maple).push(X.multiplyScalar(s), Y.multiplyScalar(s), Z.multiplyScalar(s), p, [flex + 0.08, ao, accent, rng.int(0, 3)], bend, col);
+      const target = camphor ? fol.camphor : (!(spec.forceNear || nearVis(p)) ? fol.mapleFar : spec.heroMat ? fol.mapleHero : fol.maple);
+      target.push(X.multiplyScalar(s), Y.multiplyScalar(s), Z.multiplyScalar(s), p, [flex + 0.08, ao, accent, camphor ? 0 : rng.int(0, 3)], bend, col);
     };
     for (const tw of tree.twigs) {
       const br = tw.br;
@@ -1078,21 +1095,29 @@ export async function build(ctx) {
     return tree;
   }
 
-  // ---- cherry ----
+  // ---- Jiangnan spring flowering trees ----
   function buildCherry(spec) {
-    const rng = ctx.rng('cherry' + spec.id);
+    const species = spec.type;
+    const magnolia = species === 'magnolia';
+    const crabapple = species === 'crabapple';
+    const rng = ctx.rng(species + spec.id);
     const base = V3(spec.x, groundY(spec.x, spec.z), spec.z);
     const leanV = spec.lean ? V3(spec.lean[0], 0, spec.lean[1]) : V3(rng.range(-0.4, 0.4), 0, rng.range(-0.4, 0.4));
     const tiered = spec.style !== 'shell';
+    const flowerOpt = { h: spec.h, base, lean: leanV, spread: spec.spread, detail: spec.detail ?? lod(1), leaders: spec.leaders, padR: spec.padR, gaps: spec.gaps, twigDens: spec.twigDens ?? 3.2, keepOut: KEEP };
     const tree = tiered
-      ? genTiered(rng, { species: 'cherry', h: spec.h, base, lean: leanV, spread: spec.spread ?? 0.8, detail: spec.detail ?? lod(1), leaders: spec.leaders, padR: spec.padR, gaps: spec.gaps ?? 0.36, twigDens: spec.twigDens ?? 3.2, keepOut: KEEP })
+      ? magnolia ? genMagnolia(rng, flowerOpt) : crabapple ? genCrabapple(rng, flowerOpt) : genTiered(rng, { ...flowerOpt, species: 'cherry', spread: spec.spread ?? 0.8, gaps: spec.gaps ?? 0.36 })
       : genCherry(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? 0.88, detail: spec.detail ?? lod(1), keepOut: KEEP });
     const flexOf = addBark('cherry', tree.branches, tree.rT, spec.id * 17 + 3, { hero: spec.hero });
     const env = tree.env;
-    const cs = spec.clusterSize ?? 0.36;
-    const sp = spec.clusterSpacing ?? 0.075;
-    // per-spray tint: white / pale pink / pink (sRGB atlas is multiplied by this)
-    const TINTS = [[1.0, 0.98, 0.99], [1.0, 0.93, 0.95], [1.0, 0.86, 0.9], [0.98, 0.8, 0.86]];
+    const cs = spec.clusterSize ?? (magnolia ? 0.46 : crabapple ? 0.34 : 0.36);
+    const sp = spec.clusterSpacing ?? (magnolia ? 0.095 : 0.075);
+    // Per-spray tint: magnolia is ivory-white; crabapple is pale shell-pink.
+    const TINTS = magnolia
+      ? [[1.08, 1.08, 1.08], [1.06, 1.03, 1.04], [1.02, 1.0, 1.02], [1.08, 1.04, 1.03]]
+      : crabapple
+        ? [[1.02, 0.94, 0.97], [1.0, 0.88, 0.93], [1.0, 0.82, 0.9], [0.97, 0.76, 0.86]]
+        : [[1.0, 0.98, 0.99], [1.0, 0.93, 0.95], [1.0, 0.86, 0.9], [0.98, 0.8, 0.86]];
     if (tiered) for (const P of tree.pads) { P.tint = TINTS[Math.min(3, Math.floor(rng.next() * rng.next() * 4.6))]; P.v = rng.range(0.9, 1.06); }
     const pushCluster = (p, s, P, scale = 1) => {
       if (inKeep(p, 0.2)) return;
@@ -1160,9 +1185,8 @@ export async function build(ctx) {
     const greens = [[0.034, 0.062, 0.032], [0.044, 0.072, 0.03], [0.03, 0.055, 0.034], [0.052, 0.078, 0.026]];
     const treeTint = rng.range(0.9, 1.12);
     const gseed = rng.int(0, 9999);
-    // A clipped 仕立木 pad is a flat-topped, lobed cushion built from separate shoot brushes:
-    // clusters of upright needle tufts on the top, tufts bristling outward at the rim (spiky
-    // silhouette), a sparse dark underside, and noise-driven dark gaps between the brushes.
+    // Natural pine crowns are assembled from upright and radial needle brushes
+    // distributed over a full rounded volume, with irregular gaps between tufts.
     const pushTuft = (p, axis, sc, flex, ao, acc, col, bend) => {
       if (inKeep(p, 0.15)) return;
       const [X, Y, Z] = orthoBasis(axis, randUnit(rng));
@@ -1172,8 +1196,8 @@ export async function build(ctx) {
       const cy = Math.cos(pad.yaw), sy = Math.sin(pad.yaw);
       const lb = pad.lobes || [0.1, 0.06, 0.04, 0, 1, 2];
       const Rf = (th) => 1 + lb[0] * Math.sin(3 * th + lb[3]) + lb[1] * Math.sin(5 * th + lb[4]) + lb[2] * Math.sin(8 * th + lb[5]);
-      // normalised cushion profile: flat, gently domed top that rolls over at the rim
-      const topY = (q) => (1 - 0.1 * q * q) * Math.sqrt(Math.max(0, 1 - Math.pow(Math.min(q, 1), 10)));
+      // Upper hemisphere of a rounded three-dimensional crown.
+      const topY = (q) => Math.sqrt(Math.max(0, 1 - Math.min(q, 1) ** 2));
       const toW = (lx, ly, lz) => V3(pad.c.x + lx * cy - lz * sy, pad.c.y + ly, pad.c.z + lx * sy + lz * cy);
       const area = Math.PI * pad.rx * pad.rz;
       const flex = flexOf(pad.pd) + 0.05;
@@ -1186,19 +1210,14 @@ export async function build(ctx) {
       const pv = rng.range(0.8, 1.18), pw = rng.range(-1, 1);
       const padTone = [pv * (1 + 0.2 * pw), pv, pv * (1 - 0.18 * pw)];
       if (!NO_CORE) {
-        // opaque core just under the tuft bases: flat super-ellipsoid top, rounded rim, flatter belly
-        const topH = Math.max(pad.ry * 0.35, pad.ry * 0.97 - ts * 0.3);
-        const botH = pad.ry * 0.55;
-        const kx = 0.8;
+        // Closed rounded core beneath the needle cards: dark interior and self-shadowing,
+        // without a flat upper plane or compressed belly.
         const g = greens[Math.floor(rng.next() * greens.length)];
         const cv = 0.5 * treeTint * rng.range(0.9, 1.1);
         const tint = [g[0] * cv * padTone[0], g[1] * cv * padTone[1], g[2] * cv * padTone[2]];
-        cores.add(pad.c, pad.yaw, (th, phi) => {
-          const s = Math.sin(phi), c = Math.cos(phi);
-          const r = spow(s, 0.5) * Rf(th) * kx;
-          const y = c >= 0 ? spow(c, 0.42) * topH : spow(c, 0.8) * botH;
-          return [Math.cos(th) * r * pad.rx, y, Math.sin(th) * r * pad.rz];
-        }, (th, phi) => { const k = 1 - 0.6 * Math.min(1, Math.max(0, (phi / Math.PI - 0.38) / 0.4)); return [tint[0] * k, tint[1] * k, tint[2] * k]; }, flex, pad.rx > 0.8 ? 14 : 10, pad.rx > 0.8 ? 8 : 6);
+        cores.add(pad.c, pad.yaw, (th, phi) => naturalCrownPoint(th, phi, pad.rx * 0.88, pad.ry * 0.9, pad.rz * 0.88, Rf(th)),
+          (th, phi) => { const k = 1 - 0.6 * Math.min(1, Math.max(0, (phi / Math.PI - 0.38) / 0.4)); return [tint[0] * k, tint[1] * k, tint[2] * k]; },
+          flex, pad.rx > 0.8 ? 14 : 10, pad.rx > 0.8 ? 8 : 6);
       }
       for (let ci = 0; ci < nC; ci++) {
         const th = rng.range(0, TAU);
@@ -1272,10 +1291,11 @@ export async function build(ctx) {
   let heroTree = null;
   const buildTree = (spec) => {
     try {
-      const n0 = fol.maple.n + fol.mapleHero.n + fol.mapleFar.n + fol.pine.n + fol.blossom.n, b0 = acc.pine.triCount + acc.maple.triCount + acc.cherry.triCount;
-      const r = spec.type === 'pine' ? buildPine(spec) : spec.type === 'cherry' ? buildCherry(spec) : buildMaple(spec);
+      const n0 = fol.maple.n + fol.mapleHero.n + fol.mapleFar.n + fol.camphor.n + fol.pine.n + fol.blossom.n, b0 = acc.pine.triCount + acc.maple.triCount + acc.cherry.triCount;
+      const flowering = spec.type === 'cherry' || spec.type === 'magnolia' || spec.type === 'crabapple';
+      const r = spec.type === 'pine' ? buildPine(spec) : flowering ? buildCherry(spec) : buildMaple(spec);
       if (spec.heroTree) heroTree = r;
-      perTree.push(spec.type + '@' + spec.x.toFixed(0) + ',' + spec.z.toFixed(0) + ' h' + spec.h.toFixed(1) + ' fol=' + (fol.maple.n + fol.mapleHero.n + fol.mapleFar.n + fol.pine.n + fol.blossom.n - n0) + ' bark=' + (acc.pine.triCount + acc.maple.triCount + acc.cherry.triCount - b0));
+      perTree.push(spec.type + '@' + spec.x.toFixed(0) + ',' + spec.z.toFixed(0) + ' h' + spec.h.toFixed(1) + ' fol=' + (fol.maple.n + fol.mapleHero.n + fol.mapleFar.n + fol.camphor.n + fol.pine.n + fol.blossom.n - n0) + ' bark=' + (acc.pine.triCount + acc.maple.triCount + acc.cherry.triCount - b0));
       return r;
     } catch (e) { console.error('[vegetation] tree failed', spec, e.stack || e); return null; }
   };
@@ -1338,14 +1358,15 @@ export async function build(ctx) {
   // shot 8 (through the gate, telephoto north): black pine reaching over the path + red maple
   specs.push({ id: id++, type: 'pine', x: 1.8, z: 40.6, h: 7.2, leanAz: Math.atan2(-0.35, 1.0), lean: 0.38, hStart: 0.52, nBranches: 5, hero: true, frame: 'shot8' });
   specs.push({ id: id++, type: 'mapleRed', x: 17.8, z: 37.8, h: 4.6, lean: [-0.8, -0.5], hero: true });
-  // small 仕立木 pines flanking the hall stair
-  specs.push({ id: id++, type: 'pine', x: 1.6, z: -7.0, h: 3.4, lean: 0.35, leanAz: Math.PI * 0.15, padScale: 0.8, hStart: 0.22, nBranches: 5, hero: true });
-  specs.push({ id: id++, type: 'pine', x: 18.4, z: -7.0, h: 3.2, lean: 0.35, leanAz: Math.PI * 0.85, padScale: 0.8, hStart: 0.22, nBranches: 5, hero: true });
-  // more 仕立木 pines around the pond & plaza
-  specs.push({ id: id++, type: 'pine', x: 27.5, z: 37.5, h: 4.2, padScale: 0.85, hStart: 0.25 });
-  specs.push({ id: id++, type: 'pine', x: -30.5, z: 18.5, h: 5.0, padScale: 0.9 });
-  specs.push({ id: id++, type: 'pine', x: 47.5, z: 29.5, h: 4.5, padScale: 0.85 });
-  specs.push({ id: id++, type: 'mapleRed', x: 36.5, z: -4.2, h: 4.2 });
+  // Main-hall forecourt: keep the central approach open and plant only one
+  // off-axis flowering crabapple, leaning toward the white wall.
+  specs.push({ id: id++, type: 'crabapple', x: 19.2, z: -6.4, h: 5.2, lean: [-0.9, 0.45], spread: 0.62, hero: true, clusterSize: 0.32 });
+  // Jiangnan garden anchors around the pond and plaza: camphor shade, natural
+  // old pines and one upright white magnolia for seasonal contrast.
+  specs.push({ id: id++, type: 'camphor', x: 27.5, z: 37.5, h: 8.2, spread: 0.58, hero: true });
+  specs.push({ id: id++, type: 'pine', x: -30.5, z: 18.5, h: 5.0 });
+  specs.push({ id: id++, type: 'pine', x: 47.5, z: 29.5, h: 4.5 });
+  specs.push({ id: id++, type: 'magnolia', x: 36.5, z: -4.2, h: 5.8, lean: [-0.35, 0.25], hero: true });
   specs.push({ id: id++, type: 'mapleRed', x: -21.5, z: -3.2, h: 4.0 });
 
   // debug: ?vegov=shot5L:x,z,h,leanX,leanZ  -> move a framing tree
@@ -1366,19 +1387,31 @@ export async function build(ctx) {
   pushBand(inner.x1 - 3.2, inner.z0 + 4, inner.x1 - 3.2, inner.z1 - 4, 11); // east
   pushBand(inner.x0 + 6, inner.z0 + 3.2, inner.x1 - 6, inner.z0 + 3.2, 13); // north
   pushBand(inner.x0 + 6, inner.z1 - 3.0, inner.x1 - 6, inner.z1 - 3.0, 13); // south
-  const fillTypes = ['maple', 'maple', 'pine', 'pine', 'pine', 'mapleRed', 'cherry', 'cherry', 'maple', 'pine'];
+  const fillTypes = ['camphor', 'camphor', 'maple', 'pine', 'camphor', 'mapleRed', 'crabapple', 'magnolia', 'maple', 'camphor'];
   const FR = ctx.rng('veg-fill');
   for (const [bx, bz] of bandPts) {
     const x = bx + FR.range(-1.6, 1.6), z = bz + FR.range(-1.6, 1.6);
     const type = FR.pick(fillTypes);
-    const h = type === 'pine' ? FR.range(6, 9.5) : type === 'mapleRed' ? FR.range(4.5, 6) : type === 'cherry' ? FR.range(6, 7.5) : FR.range(7, 10);
+    const flowering = type === 'magnolia' || type === 'crabapple';
+    const h = type === 'pine' ? FR.range(6, 9.5) : type === 'mapleRed' ? FR.range(4.5, 6) : type === 'camphor' ? FR.range(8, 11.5) : flowering ? FR.range(5.5, 7.5) : FR.range(7, 10);
     const r = h * 0.42;
     if (site.clearance(x, z, { pondMargin: 2.5, pathMargin: 1.5, standR: 2.0 }) < 1.0) continue;
     if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < (p.r + r) * 0.75)) continue;
     placed.push({ x, z, r });
     // every third green fill maple is turning: amber-gold crowns with orange tips (aerial palette)
     const turning = type === 'maple' && ((Math.floor(x * 7.3) + Math.floor(z * 3.1)) % 3 + 3) % 3 === 0;
-    specs.push({ id: id++, type, x, z, h, detail: 0.6, ...(turning ? { autumn: 0.5, gpal: GOLD_PAL } : {}), leafSize: type === 'maple' ? 0.26 : type === 'mapleRed' ? 0.22 : undefined, shellDensity: dens(type === 'maple' ? 2.4 : 3.0), nodeSpacing: gap(0.075), tuftSize: 0.42, tuftDensity: dens(50), clusterSize: 0.42, nBranches: type === 'pine' ? Math.round(2.5 + h * 0.3) : undefined, hStart: type === 'pine' ? 0.36 : undefined, reach: type === 'pine' ? 1.12 : undefined, padScale: type === 'pine' ? 0.86 : undefined });
+    specs.push({
+      id: id++, type, x, z, h, detail: 0.6,
+      ...(turning ? { autumn: 0.5, gpal: GOLD_PAL } : {}),
+      leafSize: type === 'camphor' ? 0.46 : type === 'maple' ? 0.26 : type === 'mapleRed' ? 0.22 : undefined,
+      shellDensity: dens(type === 'maple' ? 2.4 : 3.0),
+      nodeSpacing: gap(type === 'camphor' ? 0.16 : 0.075),
+      tuftSize: 0.42, tuftDensity: dens(50),
+      clusterSize: type === 'magnolia' ? 0.48 : flowering ? 0.38 : 0.42,
+      nBranches: type === 'pine' ? Math.round(2.5 + h * 0.3) : undefined,
+      hStart: type === 'pine' ? 0.36 : undefined,
+      reach: type === 'pine' ? 1.12 : undefined,
+    });
   }
 
   // debug: ?vegsolo=maple:10,pine:7 -> only these trees, in a row along x at z=0, no shrubs
@@ -1713,8 +1746,9 @@ export async function build(ctx) {
     fol.maple.build(THREE, leafGeo, folMaple.m, folMaple.dm, 'leaves_maple', { cell: 22 }),
     fol.mapleHero.build(THREE, leafGeo, folMapleHero.m, folMapleHero.dm, 'leaves_maple_hero'),
     fol.mapleFar.build(THREE, leafGeo, folMapleFar.m, folMapleFar.dm, 'leaves_maple_far', { cell: 26 }),
+    fol.camphor.build(THREE, leafGeo, folCamphor.m, folCamphor.dm, 'leaves_camphor', { cell: 22 }),
     fol.pine.build(THREE, tGeo, folPine.m, folPine.dm, 'needles_pine', { cell: 22 }),
-    fol.blossom.build(THREE, cGeo, folBlossom.m, folBlossom.dm, 'blossom_cherry', { cell: 22 }),
+    fol.blossom.build(THREE, cGeo, folBlossom.m, folBlossom.dm, 'blossom_spring', { cell: 22 }),
     fol.shrub.build(THREE, sGeo, folShrub.m, folShrub.dm, 'leaves_shrub', { cell: 22 }),
     fol.fern.build(THREE, fGeo, folFern.m, folFern.dm, 'fronds_fern', { cell: 22 }),
   ];

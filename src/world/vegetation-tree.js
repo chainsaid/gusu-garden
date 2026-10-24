@@ -481,6 +481,58 @@ export function genCherry(rng, o) {
   return { branches, twigs, env, rT };
 }
 
+// Jiangnan evergreen canopy: a heavy, rounded umbrella crown with dense,
+// three-dimensional leaf masses and stout scaffold branches.
+export function genCamphor(rng, o) {
+  return genTiered(rng, {
+    ...o,
+    species: 'camphor',
+    spread: o.spread ?? 0.62,
+    crownBase: o.crownBase ?? 0.38,
+    widest: o.widest ?? 0.58,
+    topPow: o.topPow ?? 2.2,
+    bottomIn: o.bottomIn ?? 0.2,
+    squash: o.squash ?? 0.62,
+    innerP: o.innerP ?? 0.34,
+    packing: o.packing ?? 0.62,
+    gaps: o.gaps ?? 0.2,
+    trunkFrac: o.trunkFrac ?? 0.27,
+    rT: o.rT ?? (0.027 * o.h + 0.06),
+  });
+}
+
+// Upright white magnolia: an open vase of ascending limbs and pale spring bloom.
+export function genMagnolia(rng, o) {
+  return genTiered(rng, {
+    ...o,
+    species: 'magnolia',
+    spread: o.spread ?? 0.56,
+    crownBase: o.crownBase ?? 0.3,
+    widest: o.widest ?? 0.5,
+    topPow: o.topPow ?? 2.7,
+    bottomIn: o.bottomIn ?? 0.18,
+    squash: o.squash ?? 0.42,
+    gaps: o.gaps ?? 0.28,
+    leaders: o.leaders ?? 4,
+  });
+}
+
+// Drooping flowering crabapple: a lower asymmetric crown with pink blossom sprays.
+export function genCrabapple(rng, o) {
+  return genTiered(rng, {
+    ...o,
+    species: 'crabapple',
+    spread: o.spread ?? 0.72,
+    crownBase: o.crownBase ?? 0.32,
+    widest: o.widest ?? 0.54,
+    topPow: o.topPow ?? 3.0,
+    bottomIn: o.bottomIn ?? 0.12,
+    squash: o.squash ?? 0.4,
+    droop: o.droop ?? 1.25,
+    gaps: o.gaps ?? 0.3,
+  });
+}
+
 // ===========================================================================
 // Smooth branch between two points: lifted arc + lateral wander (Catmull-Rom
 // through jittered control points), resampled every `seg` metres.
@@ -514,39 +566,35 @@ export function arcCurve(rng, a, b, r0, r1, P = {}) {
 }
 
 // ===========================================================================
-// Layered broadleaf crown (Japanese maple / cherry).
-// Foliage lives in discrete flattened "pads" (leaf sprays) arranged in loose
-// horizontal tiers over an irregular dome / umbrella envelope, with sky gaps
-// between them. The skeleton grows *to* the pads: a few sinuous leaders split
-// from a short trunk (vase form), each pad is fed by a limb from the nearest
-// suitable point of its sector, and twigs fan out inside the pad. Branch radii
-// follow the pipe model (r ~ sqrt(leaf area carried)).
+// Natural layered broadleaf crowns for maple and Jiangnan flowering/evergreen
+// trees. Foliage masses follow an irregular dome or umbrella envelope; the
+// skeleton grows toward each mass and keeps open sky gaps between branches.
 // returns { branches, twigs:[{br,t0,pad}], pads, env, rT }
 // ===========================================================================
 export function genTiered(rng, o) {
-  const cherry = o.species === 'cherry';
+  const flowering = o.species === 'cherry' || o.species === 'magnolia' || o.species === 'crabapple';
   const h = o.h, base = o.base;
   const lean = o.lean || V3();
-  const R = (o.spread ?? (cherry ? 0.8 : 0.6)) * h;
+  const R = (o.spread ?? (flowering ? 0.8 : 0.6)) * h;
   const sx = o.sx || 1, sz = o.sz || 1;
-  const y0 = base.y + h * (o.crownBase ?? (cherry ? 0.36 : 0.3));
+  const y0 = base.y + h * (o.crownBase ?? (flowering ? 0.36 : 0.3));
   const yTop = base.y + h;
-  const yW = base.y + h * (o.widest ?? (cherry ? 0.52 : 0.6));
+  const yW = base.y + h * (o.widest ?? (flowering ? 0.52 : 0.6));
   const cx = base.x + lean.x, cz = base.z + lean.z;
   const env = { c: V3(cx, (y0 + yTop) * 0.5, cz), r: V3(R * sx, (yTop - y0) * 0.5, R * sz) };
   const seed = rng.int(0, 9999);
   // asymmetric, lobed outline
   const lob = [2, 3, 5].map((f, k) => ({ f, ph: rng.range(0, TAU), a: [0.16, 0.1, 0.06][k] * (o.lobes ?? 1) }));
   const lobeAt = (az) => { let m = 1; for (const l of lob) m += l.a * Math.sin(l.f * az + l.ph); return m; };
-  const topP = o.topPow ?? (cherry ? 3.2 : 2.0);
+  const topP = o.topPow ?? (flowering ? 3.2 : 2.0);
   const profile = (y) => {
     if (y >= yW) { const u = Math.min(1, (y - yW) / Math.max(0.1, yTop - yW)); return Math.sqrt(Math.max(0, 1 - Math.pow(u, topP))); }
     const u = Math.min(1, (yW - y) / Math.max(0.1, yW - y0));
-    return 1 - (o.bottomIn ?? (cherry ? 0.1 : 0.3)) * u * u;
+    return 1 - (o.bottomIn ?? (flowering ? 0.1 : 0.3)) * u * u;
   };
-  const padR0 = (o.padR ?? Math.min(1.9, Math.max(0.7, 0.12 * h + 0.45))) * (cherry ? 0.85 : 1);
-  const squash = o.squash ?? (cherry ? 0.28 : 0.3);
-  const step = o.tierStep ?? padR0 * (cherry ? 0.62 : 0.72);
+  const padR0 = (o.padR ?? Math.min(1.9, Math.max(0.7, 0.12 * h + 0.45))) * (flowering ? 0.85 : 1);
+  const squash = o.squash ?? (flowering ? 0.28 : 0.3);
+  const step = o.tierStep ?? padR0 * (flowering ? 0.62 : 0.72);
   const gf = 0.5 / padR0;
   const pads = [];
   const fits = (c, rx, ry) => {
@@ -594,7 +642,7 @@ export function genTiered(rng, o) {
     P.cy = Math.cos(P.yaw); P.sy = Math.sin(P.yaw);
     P.axisD = Math.hypot(P.c.x - cx, P.c.z - cz);
     const out = Math.min(1, P.axisD / R);
-    P.droopM = (cherry ? 0.22 + 0.4 * out : 0.1 + 0.32 * out * (1 - 0.4 * P.u)) * (P.rx / 1.2) * (o.droop ?? 1);
+    P.droopM = (flowering ? 0.22 + 0.4 * out : 0.1 + 0.32 * out * (1 - 0.4 * P.u)) * (P.rx / 1.2) * (o.droop ?? 1);
     P.radial = P.axisD > 0.05 ? V3((P.c.x - cx) / P.axisD, 0, (P.c.z - cz) / P.axisD) : V3(P.cy, 0, P.sy);
   }
   for (const P of pads) {
@@ -609,14 +657,14 @@ export function genTiered(rng, o) {
 
   // ------------------------------------------------------------ skeleton
   const branches = [], twigs = [];
-  const rT = o.rT ?? (cherry ? 0.028 * h + 0.05 : 0.02 * h + 0.04);
-  const trunkLen = h * (o.trunkFrac ?? (cherry ? rng.range(0.2, 0.27) : rng.range(0.14, 0.22)));
+  const rT = o.rT ?? (flowering ? 0.028 * h + 0.05 : 0.02 * h + 0.04);
+  const trunkLen = h * (o.trunkFrac ?? (flowering ? rng.range(0.2, 0.27) : rng.range(0.14, 0.22)));
   const tdir = V3(lean.x * 0.25, trunkLen, lean.z * 0.25).normalize();
-  const trunk = makeBranch(growCurve(rng, base.clone().add(V3(0, -0.3, 0)), tdir, trunkLen + 0.3, rT, rT * 0.84, { seg: 0.2, wobble: cherry ? 0.3 : 0.14, curlDecay: 0.85 }), 0, 0);
+  const trunk = makeBranch(growCurve(rng, base.clone().add(V3(0, -0.3, 0)), tdir, trunkLen + 0.3, rT, rT * 0.84, { seg: 0.2, wobble: flowering ? 0.3 : 0.14, curlDecay: 0.85 }), 0, 0);
   trunk.children = [];
   branches.push(trunk);
   const top = trunk.pts[trunk.pts.length - 1];
-  const nLead = o.leaders || (cherry ? rng.int(3, 5) : rng.int(2, 4));
+  const nLead = o.leaders || (flowering ? rng.int(3, 5) : rng.int(2, 4));
   const a0 = rng.range(0, TAU);
   const sectorOf = (P) => {
     const az = Math.atan2(P.c.z - top.z, P.c.x - top.x);
@@ -624,17 +672,17 @@ export function genTiered(rng, o) {
   };
   const sectors = Array.from({ length: nLead }, () => []);
   for (const P of pads) sectors[sectorOf(P)].push(P);
-  const yLead = y0 + (yTop - y0) * (cherry ? 0.12 : 0.28);
+  const yLead = y0 + (yTop - y0) * (flowering ? 0.12 : 0.28);
   for (let si = 0; si < nLead; si++) {
     const S = sectors[si];
     if (!S.length) continue;
     let mx = 0, mz = 0, wsum = 0;
     for (const P of S) { const w = P.rx * P.rz; mx += P.c.x * w; mz += P.c.z * w; wsum += w; }
     mx /= wsum; mz /= wsum;
-    const f = cherry ? rng.range(0.5, 0.62) : rng.range(0.36, 0.5);
+    const f = flowering ? rng.range(0.5, 0.62) : rng.range(0.36, 0.5);
     const E = V3(top.x + (mx - top.x) * f, Math.max(top.y + 0.5, yLead + rng.range(-0.25, 0.35) * step), top.z + (mz - top.z) * f);
     const ti = Math.max(0, trunk.pts.length - 1 - rng.int(0, 2));
-    const lead = makeBranch(arcCurve(rng, trunk.pts[ti], E, rT * 0.6, rT * 0.2, { lift: cherry ? 0.04 : 0.08, wander: cherry ? 0.1 : 0.14, seg: 0.22, startDir: V3(0, 1, 0) }), 1, trunk.pd[ti]);
+    const lead = makeBranch(arcCurve(rng, trunk.pts[ti], E, rT * 0.6, rT * 0.2, { lift: flowering ? 0.04 : 0.08, wander: flowering ? 0.1 : 0.14, seg: 0.22, startDir: V3(0, 1, 0) }), 1, trunk.pd[ti]);
     lead.parent = trunk; lead.attachIdx = ti; lead.children = []; trunk.children.push(lead);
     branches.push(lead);
     const pool = [lead];
@@ -660,8 +708,8 @@ export function genTiered(rng, o) {
       const sp = best.b.pts[best.i];
       const len = sp.distanceTo(A);
       const rise = V3(A.x - sp.x, 0, A.z - sp.z).normalize().multiplyScalar(0.7);
-      rise.y = cherry ? 0.55 : 0.75;
-      const limb = makeBranch(arcCurve(rng, sp, A, 0.03, 0.012, { lift: cherry ? 0.05 : 0.1, sag: cherry ? 0.06 : 0.02, wander: 0.1, seg: 0.2, startDir: rise.normalize() }), 2, best.b.pd[best.i]);
+      rise.y = flowering ? 0.55 : 0.75;
+      const limb = makeBranch(arcCurve(rng, sp, A, 0.03, 0.012, { lift: flowering ? 0.05 : 0.1, sag: flowering ? 0.06 : 0.02, wander: 0.1, seg: 0.2, startDir: rise.normalize() }), 2, best.b.pd[best.i]);
       limb.parent = best.b; limb.attachIdx = best.i; limb.children = []; limb.pad = P;
       best.b.children.push(limb);
       branches.push(limb);
@@ -705,7 +753,7 @@ export function genTiered(rng, o) {
   for (let i = branches.length - 1; i >= 0; i--) if (branches[i].dead) branches.splice(i, 1);
 
   // ------------------------------------------------------------ twigs fanning inside each pad
-  const twigDens = o.twigDens ?? (cherry ? dens(4.5) : dens(4.0));
+  const twigDens = o.twigDens ?? (flowering ? dens(4.5) : dens(4.0));
   const det = o.detail ?? 1;
   for (const P of pads) {
     const limb = P.limb;
@@ -721,12 +769,12 @@ export function genTiered(rng, o) {
       const T = V3(P.c.x + lx * P.cy - lz * P.sy, P.c.y + ly, P.c.z + lx * P.sy + lz * P.cy);
       const s0 = sampleBranch(limb, rng.range(0.55, 1.0));
       if (s0.p.distanceTo(T) < 0.12) continue;
-      const tw = makeBranch(arcCurve(rng, s0.p, T, Math.min(0.01, s0.r * 0.6), 0.0028, { lift: 0.14, sag: cherry ? 0.14 : 0.08, wander: 0.16, seg: det < 0.9 ? 0.2 : 0.14, nc: 2 }), 3, s0.pd);
+      const tw = makeBranch(arcCurve(rng, s0.p, T, Math.min(0.01, s0.r * 0.6), 0.0028, { lift: 0.14, sag: flowering ? 0.14 : 0.08, wander: 0.16, seg: det < 0.9 ? 0.2 : 0.14, nc: 2 }), 3, s0.pd);
       tw.padRef = P;
       branches.push(tw);
       twigs.push({ br: tw, t0: 0.12, pad: P });
       const tl = tw.pd[tw.pd.length - 1] - tw.pd[0];
-      const ns = Math.round(tl * (cherry ? 2.2 : 2.6) * (0.5 + 0.5 * det));
+      const ns = Math.round(tl * (flowering ? 2.2 : 2.6) * (0.5 + 0.5 * det));
       for (let q = 0; q < ns; q++) {
         const t = rng.range(0.3, 0.92);
         const s = sampleBranch(tw, t);
@@ -830,29 +878,28 @@ export function genPine(rng, o) {
   const trunk = makeBranch({ pts: tpts, rads: trads }, 0, 0);
   branches.push(trunk);
 
-  // framing control: pads whose projection would land inside a camera's protected region are dropped
-  const blocked = (c, r) => screenBlocked(o.avoid, c, r, 0.6) || boxBlocked(o.keepOut, c, r, r * 0.35);
-  const addPad = (c, rp, yaw, attach, pd, squash = 0.45) => {
-    // 自然形针叶簇 (natural domed needle cushion with depth)
+  // framing control: crowns whose projection would land inside a camera's protected region are dropped
+  const blocked = (c, r) => screenBlocked(o.avoid, c, r, 0.9) || boxBlocked(o.keepOut, c, r, r * 0.8);
+  const addCrown = (c, rp, yaw, attach, pd, fullness = rng.range(0.84, 1.0)) => {
+    // Natural needle masses are full ellipsoids with vertical depth, never horizontal cut pads.
     const lobes = () => [rng.range(0.08, 0.17), rng.range(0.05, 0.11), rng.range(0.03, 0.07), rng.range(0, TAU), rng.range(0, TAU), rng.range(0, TAU)];
-    const main = { c, rx: rp, ry: rp * squash, rz: rp * rng.range(0.72, 0.95), yaw, attach, pd, lobes: lobes() };
+    const main = { c, rx: rp, ry: rp * fullness, rz: rp * rng.range(0.82, 1.05), yaw, attach, pd, lobes: lobes() };
     pads.push(main);
     const nsub = rp > 0.7 ? rng.int(2, 4) : rng.int(1, 2);
     for (let k = 0; k < nsub; k++) {
-      const a = yaw + (k / nsub) * TAU + rng.range(-0.5, 0.5), d = rp * rng.range(0.6, 0.9);
+      const a = yaw + (k / nsub) * TAU + rng.range(-0.5, 0.5), d = rp * rng.range(0.48, 0.78);
       const rs = rp * rng.range(0.36, 0.55);
-      const sc = V3(c.x + Math.cos(a) * d, c.y + rp * squash * rng.range(-0.3, 0.12), c.z + Math.sin(a) * d);
-      if (boxBlocked(o.keepOut, sc, rs, rs * 0.3)) continue;
-      pads.push({ c: sc, rx: rs, ry: rs * squash * rng.range(0.9, 1.25), rz: rs * rng.range(0.75, 1.0), yaw: rng.range(0, TAU), attach, pd, sub: true, lobes: lobes() });
+      const sc = V3(c.x + Math.cos(a) * d, c.y + rp * fullness * rng.range(-0.42, 0.38), c.z + Math.sin(a) * d);
+      if (boxBlocked(o.keepOut, sc, rs, rs * 0.8)) continue;
+      pads.push({ c: sc, rx: rs, ry: rs * fullness * rng.range(0.9, 1.12), rz: rs * rng.range(0.82, 1.08), yaw: rng.range(0, TAU), attach, pd, sub: true, lobes: lobes() });
     }
-    // branchlets: a fan of forking, zig-zagging twigs just under the cushion (visible from below
-    // and through the dark gaps between tufts)
-    const yb = c.y - rp * squash * 0.5;
+    // Forking branchlets penetrate the crown at varied heights, preserving dark gaps and depth.
+    const yb = c.y - rp * fullness * 0.3;
     const nt = rp > 0.9 ? rng.int(4, 6) : rng.int(3, 5);
     for (let i = 0; i < nt; i++) {
       const a = yaw + (i / nt) * TAU + rng.range(-0.35, 0.35);
       const L1 = rp * rng.range(0.38, 0.55);
-      const mid = V3(c.x + Math.cos(a) * L1, yb - rng.range(0, 0.06), c.z + Math.sin(a) * L1 * 0.9);
+      const mid = V3(c.x + Math.cos(a) * L1, yb + rp * rng.range(-0.12, 0.18), c.z + Math.sin(a) * L1 * 0.9);
       if (mid.distanceTo(attach) < 0.08) continue;
       const b1 = makeBranch(arcCurve(rng, attach, mid, 0.022, 0.012, { lift: 0.12, wander: 0.22, seg: 0.12, nc: 2 }), 4, pd);
       branches.push(b1);
@@ -860,7 +907,7 @@ export function genPine(rng, o) {
       for (let j = 0; j < nf; j++) {
         const b = a + (j - (nf - 1) / 2) * rng.range(0.35, 0.6);
         const L2 = rp * rng.range(0.82, 1.0);
-        const end = V3(c.x + Math.cos(b) * L2, yb + rp * squash * rng.range(0.05, 0.3), c.z + Math.sin(b) * L2 * 0.9);
+        const end = V3(c.x + Math.cos(b) * L2, c.y + rp * fullness * rng.range(-0.25, 0.45), c.z + Math.sin(b) * L2 * 0.9);
         branches.push(makeBranch(arcCurve(rng, mid, end, 0.011, 0.005, { lift: 0.1, wander: 0.3, seg: 0.12, nc: 1 }), 4, pd + L1));
       }
     }
@@ -874,17 +921,17 @@ export function genPine(rng, o) {
     const s = sampleBranch(trunk, t);
     az += GOLD + rng.range(-0.35, 0.35);
     const out = V3(Math.cos(az), 0, Math.sin(az));
-    const el = rng.range(-0.16, 0.14) - 0.06 * (1 - t);
+    const el = rng.range(-0.28, 0.3) - 0.08 * (1 - t);
     const dir = V3(out.x, el, out.z).normalize();
     const Lb = h * (0.56 - 0.38 * t) * rng.range(0.8, 1.15) * (o.reach || 1);
     const r0 = Math.min(s.r * 0.6, rT * 0.45);
-    const limb = makeBranch(growCurve(rng, s.p, dir, Lb, r0, 0.03, { seg: 0.2, wobble: 0.35, droop: 0.12, up: 0.05, kink: 0.9, minY: -0.35, maxY: 0.35, flatten: 0.3 }), 1, s.pd);
+    const limb = makeBranch(growCurve(rng, s.p, dir, Lb, r0, 0.03, { seg: 0.2, wobble: 0.48, droop: rng.range(0.06, 0.2), up: rng.range(0.02, 0.12), kink: 1.15, minY: -0.5, maxY: 0.55, flatten: 0 }), 1, s.pd);
     const tip = limb.pts[limb.pts.length - 1];
     const rp = Math.min(2.0, Math.max(0.55, Lb * 0.4 + 0.3)) * (o.padScale || 1);
     if (blocked(tip.clone().add(V3(0, rp * 0.18, 0)), rp * 1.15)) continue;
     branches.push(limb);
-    addPad(tip.clone().add(V3(0, rp * 0.18, 0)), rp, az + rng.range(-0.4, 0.4), tip, limb.pd[limb.pd.length - 1]);
-    // side pads
+    addCrown(tip.clone().add(V3(0, rp * 0.18, 0)), rp, az + rng.range(-0.4, 0.4), tip, limb.pd[limb.pd.length - 1]);
+    // secondary crown clusters
     const nSide = Lb > 1.6 ? rng.int(0, 2) : rng.int(0, 1);
     for (let k = 0; k < nSide; k++) {
       const tt = rng.range(0.4, 0.75);
@@ -898,14 +945,14 @@ export function genPine(rng, o) {
       const rs = rp * rng.range(0.55, 0.8);
       if (blocked(st.clone().add(V3(0, rs * 0.2, 0)), rs * 1.15)) continue;
       branches.push(sb);
-      addPad(st.clone().add(V3(0, rs * 0.2, 0)), rs, rng.range(0, TAU), st, sb.pd[sb.pd.length - 1]);
+      addCrown(st.clone().add(V3(0, rs * 0.2, 0)), rs, rng.range(0, TAU), st, sb.pd[sb.pd.length - 1]);
     }
   }
-  // apex pad
+  // full, rounded apex crown
   const tt = trunk.pts[trunk.pts.length - 1];
   const ra = Math.max(0.6, h * 0.11 + 0.3) * (o.padScale || 1);
-  if (!blocked(tt.clone().add(V3(0, ra * 0.25, 0)), ra)) addPad(tt.clone().add(V3(0, ra * 0.25, 0)), ra, rng.range(0, TAU), tt, trunk.pd[trunk.pd.length - 1], 0.55);
-  // a couple of small pads hugging the upper trunk
+  if (!blocked(tt.clone().add(V3(0, ra * 0.25, 0)), ra)) addCrown(tt.clone().add(V3(0, ra * 0.25, 0)), ra, rng.range(0, TAU), tt, trunk.pd[trunk.pd.length - 1], 0.96);
+  // a couple of small crowns hugging the upper trunk
   for (let i = 0; i < 2; i++) {
     const s = sampleBranch(trunk, rng.range(0.7, 0.92));
     const a = rng.range(0, TAU);
@@ -915,7 +962,7 @@ export function genPine(rng, o) {
     const rs = ra * rng.range(0.5, 0.7);
     if (blocked(st.clone().add(V3(0, rs * 0.15, 0)), rs)) continue;
     branches.push(sb);
-    addPad(st.clone().add(V3(0, rs * 0.15, 0)), rs, a, st, sb.pd[sb.pd.length - 1]);
+    addCrown(st.clone().add(V3(0, rs * 0.15, 0)), rs, a, st, sb.pd[sb.pd.length - 1]);
   }
   return { branches, pads, rT };
 }

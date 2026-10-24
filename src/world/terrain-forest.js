@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
-// Backdrop forest: thousands of instanced card trees (cryptomeria / hinoki
-// conifers and rounded broadleaf crowns) on the hills outside the corridors.
+// Backdrop forest: thousands of instanced card trees forming a soft Jiangnan
+// hill silhouette. Rounded camphor/oak crowns and bamboo clumps dominate;
+// native conifers appear only as sparse deep-hill accents.
 // Leaf cards use a procedural canvas atlas, bent (crown-radial) normals,
-// per-tree sun exposure (neighbours toward the low sun shade the lower crown),
-// translucency toward the sun and alpha-coverage sharpening for distance.
+// per-tree sun exposure, translucency and distance coverage sharpening.
 // ---------------------------------------------------------------------------
 import { leafAtlas } from './terrain-tex.js';
 import { smoothstep, clamp, lerp } from './terrain-field.js';
@@ -48,13 +48,13 @@ function card(T, base, axisU, axisV, w, h, rect, bendTo, bend, cvals, baseAnchor
   T.quad(ids[0], ids[1], ids[2], ids[3]);
 }
 
-function trunk(T, y0, y1, r0, r1, seg, lean = [0, 0], uvc = [0.25, 0.75], rings = 1) {
+function trunk(T, y0, y1, r0, r1, seg, lean = [0, 0], uvc = [0.25, 0.75], rings = 1, baseXZ = [0, 0]) {
   const base = T.p.length / 3;
   for (let k = 0; k <= rings; k++) {
     const t = k / rings, y = lerp(y0, y1, t), r = lerp(r0, r1, t);
     for (let s = 0; s < seg; s++) {
       const a = (s / seg) * Math.PI * 2;
-      const p = [Math.cos(a) * r + lean[0] * t, y, Math.sin(a) * r + lean[1] * t];
+      const p = [baseXZ[0] + Math.cos(a) * r + lean[0] * t, y, baseXZ[1] + Math.sin(a) * r + lean[1] * t];
       T.vert(p, [Math.cos(a), 0.15, Math.sin(a)], uvc, [0.5, -0.2 + t * 0.4, 0, 1]);
     }
   }
@@ -126,8 +126,38 @@ function broadleafTpl(ctx, atlas, seed, lod, shrub = false) {
   return T;
 }
 
-// cryptomeria / hinoki: dense tiers of foliage sprays on a tall straight stem
-function sugiTpl(ctx, atlas, seed, lod) {
+// Jiangnan bamboo clump: several slender culms with airy lanceolate leaf sprays.
+// The template is normalised to one metre and scaled per clump by instancing.
+function bambooTpl(ctx, atlas, seed, lod) {
+  const r = ctx.rng('bamtpl' + seed + lod);
+  const T = new Tpl();
+  const cell = atlas.cell(seed % 2);
+  const nCulm = lod ? 3 : 5;
+  for (let c = 0; c < nCulm; c++) {
+    const a0 = (c / nCulm) * Math.PI * 2 + r.range(-0.45, 0.45);
+    const d0 = c === 0 ? 0 : r.range(0.025, 0.085);
+    const bx = Math.cos(a0) * d0, bz = Math.sin(a0) * d0;
+    const top = r.range(0.78, 1.0);
+    const lean = [r.range(-0.025, 0.025), r.range(-0.025, 0.025)];
+    trunk(T, 0, top, 0.0055, 0.003, lod ? 3 : 5, lean, [0.75, 0.25], lod ? 2 : 4, [bx, bz]);
+    const sprays = lod ? 4 : 7;
+    for (let k = 0; k < sprays; k++) {
+      const t = 0.48 + (k + r.range(0.15, 0.85)) / sprays * 0.5;
+      const y = top * t;
+      const ang = a0 + k * 2.399 + r.range(-0.4, 0.4);
+      const out = norm([Math.cos(ang), r.range(-0.2, 0.32), Math.sin(ang)]);
+      const tang = norm([-Math.sin(ang), 0.12, Math.cos(ang)]);
+      const p = [bx + lean[0] * t + out[0] * 0.025, y, bz + lean[1] * t + out[2] * 0.025];
+      const bendTo = (q) => [q[0] - bx, Math.max(0.08, q[1] - y + 0.16), q[2] - bz];
+      card(T, p, tang, out, r.range(0.13, 0.21), r.range(0.16, 0.25), cell, bendTo, 0.82, [0.72 + 0.2 * t, t, r.next(), 0], true);
+      if (!lod && k % 2 === 0) card(T, p, out, tang, r.range(0.1, 0.16), r.range(0.12, 0.2), cell, bendTo, 0.78, [0.65 + 0.25 * t, t, r.next(), 0], false);
+    }
+  }
+  return T;
+}
+
+// Sparse native conifer accents: dense sprays on a straight stem.
+function coniferTpl(ctx, atlas, seed, lod) {
   const r = ctx.rng('sgtpl' + seed + lod);
   const T = new Tpl();
   const cell = atlas.cell(2 + (seed % 2));
@@ -277,28 +307,30 @@ export function buildForest(ctx, F) {
       trees.push({ x, z, y: ground - 0.1, H, wf, conifer: false, kind, rot: R.range(0, 6.283), v: R.int(0, 1), rnd: R.next(), exp: 1 });
       return;
     }
-    // groves: cryptomeria / hinoki stands and broadleaf groves of a few dozen metres, mixed edges
+    // Mixed Jiangnan hills: rounded evergreen broadleaf crowns dominate, bamboo
+    // gathers in moist folds, and native conifers remain below 15% as accents.
     const grove = F.noise.f2(x / 34 + 5.1, z / 34 - 2.7, 2);
-    const coniferP = clamp(0.42 + 0.45 * F.noise.f3(x / 110, z / 110, 3) + 0.9 * grove + (ground > 25 ? 0.12 : 0), 0.04, 0.94);
+    const coniferP = clamp(0.045 + 0.035 * F.noise.f3(x / 110, z / 110, 3) + 0.045 * grove + (ground > 25 ? 0.012 : 0), 0.01, 0.14);
     const conifer = R.next() < coniferP;
-    let H = conifer ? R.range(19, 31) : R.range(10, 20);
-    if (R.chance(0.07)) H *= conifer ? 1.2 : 1.3; // emergents
+    const bambooP = clamp(0.12 + 0.12 * Math.max(0, grove) + 0.05 * Math.max(0, F.noise.f1(x / 65, z / 65, 2)), 0.08, 0.28);
+    const bamboo = !conifer && R.next() < bambooP;
+    let H = conifer ? R.range(13, 20) : bamboo ? R.range(8, 15) : R.range(11, 21);
+    if (R.chance(0.045)) H *= conifer ? 1.08 : bamboo ? 1.05 : 1.2;
     H *= lerp(0.8, 1, smoothstep(6, 40, d));
     if (H > cap) H = cap * R.range(0.9, 1.0);
-    let wf = conifer ? R.range(0.9, 1.2) : R.range(0.95, 1.4);
-    // where the sun / view caps keep the canopy low it becomes a dense coppice of wide, bushy
-    // crowns instead of a thin park of stunted trees over bare floor
-    if (!conifer) wf *= lerp(1.45, 1.0, smoothstep(5, 12, cap));
-    const cr = (conifer ? 0.26 : 0.40) * (kind === 'mid' ? 1.12 : 1); // card reach / (H * wf)
+    let wf = conifer ? R.range(0.92, 1.18) : bamboo ? R.range(1.0, 1.35) : R.range(1.0, 1.45);
+    // Low view caps become dense, overlapping coppice rather than isolated spikes.
+    if (!conifer && !bamboo) wf *= lerp(1.45, 1.0, smoothstep(5, 12, cap));
+    const cr = (conifer ? 0.28 : bamboo ? 0.3 : 0.40) * (kind === 'mid' ? 1.12 : 1);
     H = Math.min(H, edgeH, crownRoom / (cr * wf));
     if (H < 2.6) return;
-    // species within the grove: broadleaf 0 zelkova, 1 evergreen oak / shii, 2 camphor, 3 maple, 4 turning;
-    // conifer 0 sugi, 1 hinoki, 2 red pine
+    // broadleaf: 0 zelkova, 1 evergreen oak, 2 camphor, 3 maple, 4 turning;
+    // conifer: 0 native cypress, 1 red pine. Bamboo uses its own template.
     const sv = F.noise.f4(x / 46 - 3.3, z / 46 + 8.1, 2) + R.range(-0.35, 0.35);
     let sp;
-    if (conifer) sp = sv < -0.25 ? 2 : sv < 0.12 ? 0 : 1;
-    else sp = R.chance(0.035) ? 4 : sv < -0.3 ? 1 : sv < 0.0 ? 0 : sv < 0.25 ? 3 : 2;
-    trees.push({ x, z, y: ground - 0.15, H, wf, conifer, sp, kind, rot: R.range(0, Math.PI * 2), v: R.int(0, 1), rnd: R.next(), exp: 1, gb: F.noise.f1(x / 26, z / 26, 2) });
+    if (conifer) sp = sv < 0 ? 0 : 1;
+    else sp = R.chance(0.025) ? 4 : sv < -0.3 ? 1 : sv < -0.02 ? 0 : sv < 0.18 ? 3 : 2;
+    trees.push({ x, z, y: ground - 0.15, H, wf, conifer, bamboo, sp, kind, rot: R.range(0, Math.PI * 2), v: R.int(0, 1), rnd: R.next(), exp: 1, gb: F.noise.f1(x / 26, z / 26, 2) });
   }
   // near ring: dense jittered grid
   const S1 = gap(5.0), NEAR = 105;
@@ -357,7 +389,7 @@ export function buildForest(ctx, F) {
   for (const t of trees) {
     const ci = Math.floor(t.x / cellSz), cj = Math.floor(t.z / cellSz);
     const mid = t.y + t.H * 0.62;
-    const myR = (t.conifer ? 0.17 : 0.3) * t.H * t.wf;
+    const myR = (t.conifer ? 0.17 : t.bamboo ? 0.23 : 0.3) * t.H * t.wf;
     let block = 0;
     for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) {
       const lst = hash.get(key(ci + di, cj + dj));
@@ -369,7 +401,7 @@ export function buildForest(ctx, F) {
         const along = dx * SUNX + dz * SUNZ;
         if (along <= 0.5) continue;
         const perp = Math.abs(dx * SUNZ - dz * SUNX);
-        const oR = (o.conifer ? 0.17 : 0.3) * o.H * o.wf;
+        const oR = (o.conifer ? 0.17 : o.bamboo ? 0.23 : 0.3) * o.H * o.wf;
         if (perp > (myR + oR) * 0.85) continue;
         const top = o.y + o.H;
         const b = clamp((top - (mid + along * TAN)) / (t.H * 0.45), 0, 1);
@@ -386,14 +418,17 @@ export function buildForest(ctx, F) {
   // ---- templates ----
   const tpls = {
     bn: [broadleafTpl(ctx, atlas, 0, 0).geometry(THREE), broadleafTpl(ctx, atlas, 1, 0).geometry(THREE)],
-    cn: [sugiTpl(ctx, atlas, 0, 0).geometry(THREE), sugiTpl(ctx, atlas, 1, 0).geometry(THREE)],
+    cn: [coniferTpl(ctx, atlas, 0, 0).geometry(THREE), coniferTpl(ctx, atlas, 1, 0).geometry(THREE)],
+    jn: [bambooTpl(ctx, atlas, 0, 0).geometry(THREE), bambooTpl(ctx, atlas, 1, 0).geometry(THREE)],
     bm: [broadleafTpl(ctx, atlas, 2, 1).geometry(THREE)],
-    cm: [sugiTpl(ctx, atlas, 3, 1).geometry(THREE)],
+    cm: [coniferTpl(ctx, atlas, 3, 1).geometry(THREE)],
+    jm: [bambooTpl(ctx, atlas, 2, 1).geometry(THREE)],
     sh: [broadleafTpl(ctx, atlas, 1, 0, true).geometry(THREE)],
   };
   const buckets = new Map();
   for (const t of trees) {
-    const k = t.kind === 'shrub' ? 'sh0' : (t.conifer ? 'c' : 'b') + (t.kind === 'mid' ? 'm0' : 'n' + t.v);
+    const family = t.bamboo ? 'j' : t.conifer ? 'c' : 'b';
+    const k = t.kind === 'shrub' ? 'sh0' : family + (t.kind === 'mid' ? 'm0' : 'n' + t.v);
     if (!buckets.has(k)) buckets.set(k, []);
     buckets.get(k).push(t);
   }
@@ -418,6 +453,8 @@ export function buildForest(ctx, F) {
       if (t.conifer) {
         const P = [[0.020, 0.040, 0.030, 0.026, 0.047, 0.028], [0.026, 0.050, 0.030, 0.034, 0.060, 0.030], [0.040, 0.054, 0.026, 0.050, 0.062, 0.028]][t.sp || 0];
         col.setRGB(lerp(P[0], P[3], h), lerp(P[1], P[4], h), lerp(P[2], P[5], h));
+      } else if (t.bamboo) {
+        col.setRGB(lerp(0.052, 0.075, h), lerp(0.11, 0.145, h), lerp(0.025, 0.036, h));
       } else if (t.belt) {
         // clipped azalea (green), enkianthus / dodan-tsutsuji turning scarlet, a few amber
         const k = F.noise.f1(t.x * 0.09 + 4.0, t.z * 0.09, 2) + (h - 0.5) * 0.6;

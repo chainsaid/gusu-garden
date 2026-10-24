@@ -1,11 +1,10 @@
 // ---------------------------------------------------------------------------
-// VEGETATION — opaque foliage cores. A clipped 仕立木 pine pad is a dense,
-// light-tight cushion of needles: an alpha-card cloud alone reads as fuzzy
-// "cotton" from 40-90 m (light leaks through, every card shades differently).
-// Each pad therefore gets a closed, lobed super-ellipsoid core sitting just
-// under the needle tufts: it gives the pad a crisp outline, a dark interior
-// showing through the gaps, and real self-shadowing (dark undersides, shadows
-// cast onto the pads below).
+// VEGETATION — opaque foliage cores for natural three-dimensional needle
+// clusters. Alpha cards alone read as fuzzy "cotton" from 40-90 m because
+// light leaks through and every card shades differently. Each crown cluster
+// therefore gets a closed, irregular ellipsoid just beneath the needles: it
+// supplies a dark interior, self-shadowing and a rounded silhouette without
+// introducing a clipped horizontal pad.
 // ---------------------------------------------------------------------------
 const TAU = Math.PI * 2;
 
@@ -50,6 +49,14 @@ export class CushionAccum {
     g.computeBoundingSphere();
     return g;
   }
+}
+
+// Natural asymmetric ellipsoid used by pine crown cores. The lower hemisphere
+// is slightly shallower than the sunlit top, but remains fully three-dimensional.
+export function naturalCrownPoint(th, phi, rx, ry, rz, radial = 1) {
+  const s = Math.sin(phi), c = Math.cos(phi);
+  const lower = c < 0 ? 0.82 : 1;
+  return [Math.cos(th) * s * radial * rx, c * ry * lower, Math.sin(th) * s * radial * rz];
 }
 
 // signed power (super-ellipse profile)
