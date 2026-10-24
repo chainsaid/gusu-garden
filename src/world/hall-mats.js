@@ -2,8 +2,8 @@
 // hall-mats: hall-specific material variants.
 //  - every exterior material gets a baked ambient-occlusion attribute (aAO)
 //    that attenuates indirect light only (deep eaves, porch, crawlspace)
-//  - "orn": vermilion lacquer with raised gold karakusa / flower relief
-//    (kirikane-style ornament for beams, gables, transoms)
+//  - "orn": vermilion lacquer with raised gold 卷草 / flower relief
+//    (截金-style ornament for beams, gables, transoms)
 //  - "blackOrn": black lacquer with fine gold scroll relief
 // ---------------------------------------------------------------------------
 
@@ -130,15 +130,14 @@ export function agedGiltHooks(amt = 1.0) {
     // hammered / burnished leaf: low-amplitude normal ripple so flat fittings
     // pick up a range of reflections instead of one uniform tint
     fragNormal: 'normal = n_bumpView(-vViewPosition, normal, n_snoise3(vWPos * 11.0) * 0.5 + g_tarn * 0.4, 0.0016);',
-    // gilt in shade reflects mostly blue sky, which tints it olive/pale; real
-    // leaf in shade reads deep amber (inter-reflection off red lacquer and
-    // the gilt itself). Pull the indirect specular toward a warm hue at equal
-    // luminance.
+    // These fittings are dark iron / aged bronze now, not gilt. In shade they
+    // pick up the cool sky instead of a warm amber inter-reflection, so the
+    // indirect specular is nudged slightly cool rather than toward gold.
     fragLight: /* glsl */ `
       {
         vec3 s = reflectedLight.indirectSpecular;
         float l = dot(s, vec3(0.2126, 0.7152, 0.0722));
-        reflectedLight.indirectSpecular = mix(s, l * vec3(1.45, 0.92, 0.38), 0.55);
+        reflectedLight.indirectSpecular = mix(s, l * vec3(0.92, 0.98, 1.10), 0.28);
       }`,
   };
 }
@@ -169,105 +168,3 @@ export function lacquerMicroHooks(amt = 1.0) {
   };
 }
 
-// Painted bracket members (kumimono saishiki). Uses primitive-local coords
-// (aLoc, see Mesher.wantLoc) and a per-primitive code in aTint:
-//   0 = plain lacquer, 1 = bracket arm (local y 0..0.19 above its soffit),
-//   2 = continuous bracket beam (local y centred, half height 0.095).
-// The lower part of each member face gets an ungen-graded band (deep → light
-// rokushō green on arms, gunjō blue on beams) capped by a thin white line;
-// soffits (down-facing) are painted in the deep colour.
-export function paintHooks() {
-  return {
-    vertexHead: 'attribute float aTint; varying float vTint; attribute vec3 aLoc; varying vec3 vLoc;',
-    vertexWorld: 'vTint = aTint; vLoc = aLoc;',
-    fragHead: 'varying float vTint; varying vec3 vLoc; float g_paint;',
-    fragColor: /* glsl */ `
-      g_paint = 0.0;
-      if (vTint > 0.5) {
-        vec3 wn = normalize(vWNrm);
-        bool blue = vTint > 1.5;
-        vec3 deep = blue ? vec3(0.022, 0.062, 0.24) : vec3(0.018, 0.13, 0.072);
-        vec3 lite = blue ? vec3(0.17, 0.33, 0.62) : vec3(0.19, 0.46, 0.27);
-        vec3 wht = vec3(0.72, 0.68, 0.58);
-        float y = blue ? vLoc.y + 0.095 : vLoc.y;
-        float top = blue ? 0.080 : 0.090;
-        float inBand = 1.0 - smoothstep(top - 0.003, top + 0.003, y);
-        float line = 1.0 - smoothstep(0.006, 0.0095, abs(y - top - 0.01));
-        float down = smoothstep(0.45, 0.8, -wn.y);
-        vec3 pc = mix(deep, lite, smoothstep(0.3, 0.95, clamp(y / top, 0.0, 1.0)));
-        pc = mix(pc, wht, line);
-        pc = mix(pc, deep, down);
-        float wear = smoothstep(0.62, 0.92, n_fbm3(vWPos * 3.3 + 2.0, 3) * 0.5 + 0.5);
-        pc = mix(pc, diffuseColor.rgb * 0.7, wear * 0.4);
-        g_paint = max(max(inBand, line), down);
-        diffuseColor.rgb = mix(diffuseColor.rgb, pc, g_paint);
-      }`,
-    fragRough: 'roughnessFactor = mix(roughnessFactor, 0.8, g_paint);',
-  };
-}
-
-// 2D ornament pattern: gold flower medallions with scrolling tendrils.
-export const ORN_GLSL = /* glsl */ `
-vec2 orn_uv(vec3 wp, vec3 wn){
-  vec3 a = abs(wn);
-  if (a.y > a.x && a.y > a.z) return wp.xz;
-  if (a.x > a.z) return vec2(wp.z, wp.y);
-  return vec2(wp.x, wp.y);
-}
-// karakusa: continuous wavy vines with spiral scrolls at every bend, leaves,
-// and 5-petal flower medallions at the cell corners. ~40% coverage.
-float orn_pattern(vec2 q, float P){
-  vec2 s = q / P;
-  vec2 c = floor(s); vec2 f = fract(s) - 0.5;
-  float row = mod(c.y, 2.0);
-  float m = 0.0;
-  // vine (continuous across cells)
-  float vy = 0.17 * sin(6.28318 * s.x + row * 3.14159);
-  m = max(m, 1.0 - smoothstep(0.03, 0.045, abs(f.y - vy)));
-  for (int k = 0; k < 2; k++) {
-    float sx = (k == 0) ? -0.25 : 0.25;
-    float sgn = ((k == 0) ? 1.0 : -1.0) * (row > 0.5 ? -1.0 : 1.0);
-    // scroll curling inside the bend of the vine
-    vec2 cc = vec2(sx + 0.03 * sgn, sgn * 0.02);
-    vec2 d = f - cc;
-    float r = length(d);
-    float a = atan(d.y * sgn, d.x * sgn);
-    float rs = 0.028 + 0.115 * (a + 3.14159) / 6.28318;
-    float sp = abs(r - rs);
-    m = max(m, (1.0 - smoothstep(0.022, 0.036, sp)) * step(r, 0.155));
-    // curl tip bead
-    m = max(m, 1.0 - smoothstep(0.03, 0.042, r));
-    // leaf on the outside of the bend
-    vec2 lp = f - vec2(sx - 0.1 * sgn, sgn * 0.3);
-    vec2 lr = vec2(lp.x * 0.8 + lp.y * 0.6 * sgn, -lp.x * 0.6 * sgn + lp.y * 0.8);
-    m = max(m, 1.0 - smoothstep(0.0, 0.012, length(lr * vec2(1.0, 2.3)) - 0.095));
-  }
-  // flower medallions at cell corners
-  vec2 fc = f - sign(f) * 0.5;
-  float rc = length(fc); float ac = atan(fc.y, fc.x);
-  float pet = rc - (0.125 + 0.05 * cos(5.0 * ac));
-  float flower = 1.0 - smoothstep(-0.01, 0.01, pet);
-  float hole = 1.0 - smoothstep(0.022, 0.03, abs(rc - 0.04));
-  m = max(m, max(flower - hole, 0.0));
-  return clamp(m, 0.0, 1.0);
-}
-`;
-
-export function ornHooks(goldCol = 'vec3(1.0, 0.72, 0.31)', period = '0.36', coverage = '1.0') {
-  return {
-    fragHead: ORN_GLSL + '\nfloat g_orn;',
-    fragColor: /* glsl */ `
-      {
-        vec3 wn = normalize(vWNrm);
-        vec2 q = orn_uv(vWPos, wn);
-        float m = orn_pattern(q + vec2(0.11, 0.07), ${period}) * ${coverage};
-        // keep a clean frame near member edges: fade by a coarse mask
-        g_orn = m;
-        vec3 gold = ${goldCol} * (0.78 + 0.12 * n_snoise3(vWPos * 6.0));
-        diffuseColor.rgb = mix(diffuseColor.rgb, gold, m);
-      }`,
-    fragRough: 'roughnessFactor = mix(roughnessFactor, 0.46, g_orn);',
-    fragMetal: 'metalnessFactor = mix(metalnessFactor, 1.0, g_orn);',
-    fragNormal: 'normal = n_bumpView(-vViewPosition, normal, g_orn, 0.0035);',
-  };
-}

@@ -1,14 +1,14 @@
 // ---------------------------------------------------------------------------
-// props.js — hero props: stone lanterns (kasuga-dōrō), hanging bronze lanterns
-// (tsuri-dōrō), wind bells (fūtaku), incense burner (jōkōro), water basin
-// (chōzubachi / tsukubai) and stepping stones. All procedural, all instanced.
+// props.js — hero props: 江南石景小品 (stone spurs, drum stools, scattered lake
+// rocks), hanging lanterns (挂灯), wind chimes (风铎), incense burner (香炉),
+// water basin (石钵) and stepping stones (汀步). All procedural, all instanced.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { stoneHooks, paperHooks, metalHooks, swayDepthHooks, panelHooks, BAMBOO_HOOKS, WATER_HOOKS, ASH_HOOKS, smokeMaterial } from './props-mat.js';
-import { buildStoneLantern } from './props-stone.js';
+import { buildStoneStand } from './props-stone.js';
 import { chunkedInstanced } from '../core/geom.js';
 import { buildHangingLantern, buildBell } from './props-hang.js';
-import { buildJokoro, buildTsukubai, buildSteppingStones, smokeGeo } from './props-plaza.js';
+import { buildSteppingStones } from './props-plaza.js';
 import { Acc, mat4 } from './props-geo.js';
 import { buildTaihuPeak, buildCourtyardPeak } from './rockery-sdf.js';
 
@@ -28,7 +28,7 @@ function makeMats(ctx) {
   stone.name = 'props.stone';
   const stoneDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   // the shadow caster is shrunk 5 mm along the welded normal: kills self-shadow acne
-  // striping on the mossy kasa under the 7-degree grazing sun (no visible peter-panning)
+  // striping on the mossy 笠 under the 7-degree grazing sun (no visible peter-panning)
   const depthShrink = /* glsl */ `
   {
     vec3 nn2 = aSmooth;
@@ -97,21 +97,32 @@ function instanced(geo, mat, matrices, { cast = true, receive = true, depth = nu
 }
 
 // ---------------------------------------------------------------------------
-// Stone lanterns
+// 江南石景小品 — 石笋 / 石鼓墩 / 散置湖石 (Jiangnan stone stands)
+// Replaces the kasuga-doro (春日灯笼) stone lanterns: no stone lantern in a Suzhou garden.
 // ---------------------------------------------------------------------------
-function placeStoneLanterns(ctx, group) {
+// target height per kind: the spur takes the plan height, the stool is always
+// knee high, a lake rock sits between the two
+function standHeight(kind, h) {
+  if (kind === 'A') return h;                 // 石笋
+  if (kind === 'B') return 0.46;              // 石鼓墩
+  return Math.min(h * 0.62, 1.5);             // 散置湖石
+}
+function placeStoneStands(ctx, group) {
   const { L } = ctx;
   const M = makeMats(ctx);
-  const R = ctx.rng('props.stoneLanterns');
-  const list = (L.stoneLanterns || []).map((e, i) => {
+  const R = ctx.rng('props.stoneStands');
+  const list = (L.stoneStands || []).map((e, i) => {
     const [x, z, h] = e;
+    // 0-3 spurs flanking the processional axis, 4-5 stools at the bridge head,
+    // 6-8 lake rocks around the pagoda, then alternating rocks and stools on the shore
     let kind = 'C';
-    if (i < 4) kind = 'B';
-    else if (i < 9) kind = 'A';
-    else if (h >= 2.05) kind = 'A';
+    if (i < 4) kind = 'A';
+    else if (i < 6) kind = 'B';
+    else if (i < 9) kind = 'C';
+    else kind = i % 2 ? 'B' : 'C';
     let yaw = 0;
-    if (i >= 6 && i < 9) yaw = Math.PI / 2;               // pagoda lanterns face the plaza
-    if (i >= 9) yaw = Math.atan2(10 - x, 20 - z);         // shore lanterns face the pond
+    if (i >= 6 && i < 9) yaw = Math.PI / 2;               // by the pagoda, face the plaza
+    if (i >= 9) yaw = Math.atan2(10 - x, 20 - z);         // on the shore, face the pond
     yaw += R.range(-0.07, 0.07);
     return { i, x, z, h, kind, yaw, tx: R.range(-0.012, 0.012), tz: R.range(-0.012, 0.012) };
   });
@@ -119,21 +130,16 @@ function placeStoneLanterns(ctx, group) {
   for (const e of list) (kinds[e.kind] = kinds[e.kind] || []).push(e);
   const out = [];
   for (const [kind, items] of Object.entries(kinds)) {
-    const lan = buildStoneLantern(kind);
+    const stand = buildStoneStand(kind);
     const mats = items.map((e) => {
-      const s = e.h / lan.height;
+      const s = standHeight(kind, e.h) / stand.height;
       const y = groundY(ctx, e.x, e.z) - 0.02;
       return new THREE.Matrix4().compose(new THREE.Vector3(e.x, y, e.z),
         new THREE.Quaternion().setFromEuler(new THREE.Euler(e.tx, e.yaw, e.tz, 'YXZ')), new THREE.Vector3(s, s, s));
     });
-    const mS = instanced(lan.stone.build({ smooth: true }), M.stone, mats, { depth: M.stoneDepth, name: `stoneLantern${kind}` });
-    const mP = instanced(lan.paper.build(), M.paper, mats, { cast: false, receive: false, name: `stoneLanternPaper${kind}` });
-    items.forEach((e, k) => {
-      const fire = new THREE.Vector3(0, lan.fireY, 0).applyMatrix4(mats[k]);
-      STATE.glowPoints.push({ pos: fire, kind: 'stone', bias: 1.6, intensity: 0.9 });
-      out.push({ ...e, matrix: mats[k], mesh: mS, paperMesh: mP, index: k, lan });
-    });
-    group.add(mS, mP);
+    const mS = instanced(stand.stone.build({ smooth: true }), M.stone, mats, { depth: M.stoneDepth, name: `stoneStand${kind}` });
+    items.forEach((e, k) => out.push({ ...e, matrix: mats[k], mesh: mS, index: k, stand }));
+    group.add(mS);
   }
   return out;
 }
@@ -200,50 +206,25 @@ export function placeAnchors(ctx, anchors = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Plaza props: jōkōro, tsukubai, stepping stones (one merged stone mesh)
+// Plaza props: 汀步 stepping stones (one merged stone mesh).
+// (was: 常香炉 常香炉 + 手水钵 手水钵 with its 筧/柄杓/前石·手烛石·汤桶石 —
+//  the tea-garden set is Japanese and has been removed; a Suzhou courtyard has
+//  a well, stone tables and stools instead)
 // ---------------------------------------------------------------------------
 export const PLAZA = {
-  // in front of the hall stairs (stairs reach z≈-5.7, side posts -4.95), between the z=-4 lantern pair
-  // scale 0.78: the burner sinks fully below the frame by the end of the shot-5
-  // dolly instead of leaving a cut-off roof sliver at the bottom centre
-  jokoro: { at: [10, -3.45], rotY: 0, scale: 0.78 },
-  tsukubai: { at: [-15.0, -10.2], rotY: 0.12 },
   stepping: [
-    // from the pagoda path north to the tsukubai
+    // from the pagoda path north across the west lawn
     { x: -14.8, z: -6.9, rot: 0.3, s: 1.05 }, { x: -15.25, z: -7.75, rot: 1.2, s: 0.9 }, { x: -14.85, z: -8.6, rot: 2.1, s: 1.0 },
-    // from the path south toward the shore lantern (-12, 4.2)
+    // from the path south toward the shore stone stand (-12, 4.2)
     { x: -12.3, z: -2.55, rot: 0.6, s: 1.0 }, { x: -11.85, z: -1.6, rot: 1.9, s: 0.92 }, { x: -12.35, z: -0.7, rot: 0.2, s: 1.08 },
     { x: -11.95, z: 0.25, rot: 2.6, s: 0.95 }, { x: -12.45, z: 1.15, rot: 1.1, s: 1.0 }, { x: -12.0, z: 2.1, rot: 0.4, s: 0.9 },
   ],
 };
 
-function placePlaza(ctx, group, propBells) {
+function placePlaza(ctx, group) {
   const M = makeMats(ctx);
-  const L = ctx.L;
-  const R = ctx.rng('props.plaza');
   const gy = (x, z) => groundY(ctx, x, z);
-  const stone = new Acc(), metal = new Acc(), ash = new Acc(), ember = new Acc(), bamboo = new Acc(), water = new Acc();
-  // jōkōro
-  const J = { ...PLAZA.jokoro, ...(L.jokoro || {}) };
-  const jk = buildJokoro(R);
-  const jm = new THREE.Matrix4().compose(new THREE.Vector3(J.at[0], gy(J.at[0], J.at[1]) - 0.02, J.at[1]), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, J.rotY || 0, 0)), new THREE.Vector3(J.scale, J.scale, J.scale));
-  stone.addAcc(jk.stone, jm); metal.addAcc(jk.metal, jm); ash.addAcc(jk.ash, jm); ember.addAcc(jk.glow, jm);
-  for (const b of jk.cornerBells) propBells.push({ pos: new THREE.Vector3(...b.pos).applyMatrix4(jm).toArray(), scale: b.scale * J.scale, rotY: J.rotY || 0 });
-  const sm = new THREE.Mesh(smokeGeo(7, 1.0, 0.5), M.smoke);
-  const wd = ctx.G.uWindDir.value;
-  sm.position.set(0, jk.smokeY, 0).applyMatrix4(jm);
-  sm.rotation.y = -Math.atan2(wd.y, wd.x);
-  sm.scale.setScalar(J.scale);
-  sm.renderOrder = 10; sm.castShadow = false; sm.receiveShadow = false; sm.name = 'props.smoke';
-  group.add(sm);
-  STATE.glowPoints.push({ pos: new THREE.Vector3(0, jk.smokeY + 0.05, 0).applyMatrix4(jm), kind: 'ember', bias: 3.0, intensity: 0.35 });
-  // tsukubai
-  const T = { ...PLAZA.tsukubai, ...(L.tsukubai || {}) };
-  const tk = buildTsukubai(R);
-  const tm = new THREE.Matrix4().compose(new THREE.Vector3(T.at[0], gy(T.at[0], T.at[1]) - 0.03, T.at[1]), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, T.rotY || 0, 0)), new THREE.Vector3(0.8, 0.8, 0.8));
-  stone.addAcc(tk.stone, tm); bamboo.addAcc(tk.bamboo, tm); water.addAcc(tk.water, tm);
-  M.waterU.uDrip.value.set(...tk.drip).applyMatrix4(tm);
-  // stepping stones
+  const stone = new Acc();
   stone.addAcc(buildSteppingStones(PLAZA.stepping, gy));
   const mesh = (acc, mat, { cast = true, receive = true, depth = null, name }) => {
     if (!acc.n) return null;
@@ -252,12 +233,7 @@ function placePlaza(ctx, group, propBells) {
     group.add(m); return m;
   };
   mesh(stone, M.stone, { depth: M.stoneDepth, name: 'props.plazaStone' });
-  mesh(metal, M.metalStatic, { depth: M.metalStaticDepth, name: 'props.jokoroMetal' });
-  mesh(ash, M.ash, { name: 'props.jokoroAsh' });
-  mesh(ember, M.ember, { cast: false, receive: false, name: 'props.embers' });
-  mesh(bamboo, M.bamboo, { name: 'props.bamboo' });
-  mesh(water, M.water, { cast: false, name: 'props.basinWater' });
-  return { jokoro: { matrix: jm, height: jk.height }, tsukubai: { matrix: tm } };
+  return { stepping: PLAZA.stepping };
 }
 
 // ---------------------------------------------------------------------------
@@ -334,10 +310,8 @@ export async function build(ctx) {
   STATE.ctx = ctx; STATE.glowPoints = []; STATE.mats = null; STATE.cache = {};
   const group = new THREE.Group();
   group.name = 'props';
-  STATE.stoneLanterns = placeStoneLanterns(ctx, group);
-  const propBells = [];
-  STATE.plaza = placePlaza(ctx, group, propBells);
-  if (propBells.length) group.add(instanced(bellGeometry(), makeMats(ctx).metalBell, propBells.map(anchorMatrix), { depth: makeMats(ctx).metalBellDepth, name: 'props.jokoroBells' }));
+  STATE.stoneStands = placeStoneStands(ctx, group);
+  STATE.plaza = placePlaza(ctx, group);
   makeLights(group);
   hookSceneLights(ctx.scene);
 
@@ -381,11 +355,10 @@ export async function build(ctx) {
   STATE.showcase = [
     { cam: [17.5, 1.8, 1.2], look: [22.0, 2.2, -3.5], focal: 28, what: 'taihu hero peak: Guanyun Peak against hall and sky' },
     { cam: [46.0, 2.2, 2.0], look: [41.0, 1.8, 5.0], focal: 35, what: 'corridor leak window view: perforated taihu stone and bamboo' },
-    { cam: [10, 1.45, 2.6], look: [10, 1.9, -4.5], focal: 24, what: 'processional axis: carved lantern pair + jokoro before the hall stairs' },
-    { cam: [8.2, 1.2, -0.4], look: [6.2, 1.75, -4.2], focal: 30, what: 'hero square lantern: carving, moss, glowing two-pane windows' },
-    { cam: [7.2, 1.75, 33.2], look: [-6, 4, 10], focal: 26, what: 'bridge-head kasuga lantern foreground, pagoda behind' },
-    { cam: [11.4, 1.45, -1.2], look: [10, 1.25, -3.35], focal: 35, what: 'jokoro close-up: bronze bowl, incense embers, smoke, roof bells' },
-    { cam: [-14.55, 0.95, -8.6], look: [-15, 0.3, -10.2], focal: 35, what: 'tsukubai: mossy basin, bamboo spout, ripples, stepping stones' },
+    { cam: [10, 1.45, 2.6], look: [10, 1.9, -4.5], focal: 24, what: 'processional axis: stone spur pair before the hall stairs' },
+    { cam: [8.2, 1.2, -0.4], look: [6.2, 1.75, -4.2], focal: 30, what: 'stone spur at the plaza axis: erosion, moss, the hall behind' },
+    { cam: [7.2, 1.75, 33.2], look: [-6, 4, 10], focal: 26, what: 'bridge-head stone stand foreground, pagoda behind' },
+    { cam: [-14.0, 1.1, -5.6], look: [-14.85, 0.35, -8.6], focal: 35, what: 'stepping stones across the west lawn toward the lake rocks' },
   ];
   return {
     object: group,

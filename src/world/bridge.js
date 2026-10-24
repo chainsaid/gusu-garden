@@ -6,8 +6,8 @@
 //     weathered planks with gaps, nail heads and a worn walking line
 //   * side fascia "arch boards": thick vermilion curved girders whose intrados
 //     deepens toward the banks so the arch springs out of granite abutments,
-//     with a dark capping band on top and ornate gilt kazari-kanagu plates
-//   * koran railings: vermilion posts (gold sleeve + detailed lathe giboshi on
+//     with a dark capping band on top and ornate gilt kazari-金物 plates
+//   * railings: posts (dark sleeve + detailed lathe lotus post cap on
 //     every post), oval top rail swept up past the end posts with gilt end caps, flat mid rail with nail
 //     heads, base sill, plumb struts; larger end posts on granite bases
 //   * substructure: inner girders, floor beams, two bents of stacked granite
@@ -59,7 +59,8 @@ export async function build(ctx) {
   const PW = 0.16, EPW = 0.22;                 // post widths
   const GIRDER_X = [-0.82, 0, 0.82];
   const GIRDER_BOT = -0.74;
-  // giboshi lathe landmarks (local metres): chased band A, stud band B, bulb start/height/radius, incised rings
+  // 莲瓣望柱头 lathe landmarks (local metres): chased band A, stud band B,
+  // bud start/height/radius, incised rings. (was: the 拟宝珠(已替换为莲瓣望柱头) onion bulb)
   const GIB = { bandA: [0.0384, 0.0583], bandB: [0.0795, 0.0935], bulb0: 0.1255, H: 0.205, Rm: 0.086, tEnd: 0.93 };
   GIB.rings = [GIB.bulb0 + GIB.H * 0.255, GIB.bulb0 + GIB.H * 0.285, GIB.bulb0 + GIB.H * 0.8];
 
@@ -381,13 +382,13 @@ export async function build(ctx) {
   dark.name = 'bridgeDark';
 
   // gilt fittings
-  // vColor: r = brightness, g = extra roughness (matte punched "nanako" ground), b = tint shift
+  // vColor: r = brightness, g = extra roughness (matte punched "鱼子地" ground), b = tint shift
   const gold = mat.std({ color: 0xffffff, roughness: 0.18, metalness: 1.0, vertexColors: true }, {
     fragHead: 'float g_h; float g_r;',
     fragColor: /* glsl */ `
       {
         vec3 wp = vWPos;
-        // g = matte (+2 when the sheet carries engraved karakusa)
+        // g = matte (+2 when the sheet carries engraved 卷草)
         float engr = step(1.5, vColor.g);
         float bright = vColor.r, rAdd = vColor.g - 2.0 * engr, tsh = vColor.b;
         float n = n_fbm3(wp * 3.1, 3);
@@ -427,7 +428,7 @@ export async function build(ctx) {
   });
   gold.name = 'bridgeGold';
 
-  // gilt-bronze giboshi: uv.x = angle fraction round the finial axis (petals: -1..1 across), uv.y =
+  // 莲瓣望柱头 (lotus post cap): uv.x = angle fraction round the finial axis (petals: -1..1 across), uv.y =
   // local height in metres (petals: 0..1 along); colour r = brightness (+2 on petals), g = cavity
   // (0 polished arris .. 0.5 flat .. 1 deep recess). All chasing fades out once sub-pixel.
   const gibC = (k) => f6(k);
@@ -459,7 +460,7 @@ export async function build(ctx) {
         float gx = 0.0, grv = 0.0, matte = 0.0;
         if (petal < 0.5) {
           float ang = vGib.x;
-          // band A: chased karakusa scroll (running vine with curls) on a punched ground
+          // band A: chased 卷草 scroll (running vine with curls) on a punched ground
           float inA = smoothstep(${gibC(GIB.bandA[0])}, ${gibC(GIB.bandA[0] + 0.0012)}, h) * (1.0 - smoothstep(${gibC(GIB.bandA[1] - 0.0012)}, ${gibC(GIB.bandA[1])}, h));
           if (inA > 0.0) {
             vec2 q = vec2(ang * 40.0, (h - ${gibC((GIB.bandA[0] + GIB.bandA[1]) / 2)}) / 0.0122);
@@ -517,7 +518,7 @@ export async function build(ctx) {
     fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0006);
       { vec3 dn = fwidth(normal); roughnessFactor = max(roughnessFactor, clamp(length(dn) * 0.9, 0.0, 0.42)); }`,
   });
-  gib.name = 'bridgeGiboshi';
+  gib.name = 'bridgeLotusCap';
   const RIVET = new THREE.SphereGeometry(0.0048, 7, 3, 0, Math.PI * 2, 0, Math.PI / 2); RIVET.rotateX(Math.PI / 2); RIVET.scale(1, 1, 0.75);
   const TSUKA_BAND = new RBox(0.074, 0.022, 0.074, 1, 0.004);
   const RIVET_HI = new THREE.SphereGeometry(0.0048, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2); RIVET_HI.rotateX(Math.PI / 2); RIVET_HI.scale(1, 1, 0.75);
@@ -749,7 +750,7 @@ export async function build(ctx) {
   }
 
   // ---------------------------------------------------------------- ornaments (local: plate in XY, facing +Z)
-  // large kazari-kanagu: lobed gilt plate with openwork, raised rosette, boss and karakusa scrolls
+  // large kazari-金物: lobed gilt plate with openwork, raised rosette, boss and 卷草 scrolls
   function scrollCurve(x0, y0, dir, sgn, len, turns, r0) {
     const pts = []; let x = x0, y = y0, a = dir;
     const n1 = 14; const st = len / n1;
@@ -824,7 +825,7 @@ export async function build(ctx) {
     for (let k = 0; k < 20; k++) { const a = (k / 20) * Math.PI * 2; const bd = new THREE.SphereGeometry(0.0036 * S + 0.001, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2); bd.rotateX(Math.PI / 2); bd.translate(Math.cos(a) * 0.08 * S, Math.sin(a) * 0.08 * S, T0); out.push([bd, 0]); }
     return out;
   }
-  // small square fitting with cut corners and a centre boss (sumikiri kanagu)
+  // small square fitting with cut corners and a centre boss (sumikiri 金物)
   function squarePlate(w, h, t = 0.005) {
     const c = Math.min(w, h) * 0.18;
     const s = new THREE.Shape();
@@ -838,7 +839,7 @@ export async function build(ctx) {
     const boss = new THREE.SphereGeometry(Math.min(w, h) * 0.13, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2); boss.rotateX(Math.PI / 2); boss.scale(1, 1, 0.7); boss.translate(0, 0, t * 1.5); out.push([boss, 0]);
     return out;
   }
-  // beam-end fitting (kiguchi kanagu): black-lacquer inset framed by the gilt sleeve, a gilt
+  // beam-end fitting (kiguchi 金物): black-lacquer inset framed by the gilt sleeve, a gilt
   // chrysanthemum boss and corner rivets. returns [[geom, 'gold'|'dark', matte]]
   function endFitting(w, h) {
     const out = [];
@@ -882,13 +883,14 @@ export async function build(ctx) {
     return out;
   }
 
-  // ---------------------------------------------------------------- GIBOSHI (gilt-bronze onion finial)
+  // ---------------------------------------------------------------- 莲瓣望柱头 (lotus-bud post cap)
   // Lathe profile (local: base on the cap plate at y = 0, scale 1 for a 0.16 m post): foot bead,
   // cavetto, a chased band between raised rims, a second cavetto, a stud-ring seat, a waisted neck
-  // with a collar bead, the onion bulb (hoju) and a drawn-out point. A double lotus-petal collar
-  // hugs the base of the bulb. uv = (angle fraction, local height) drives the chasing in the
-  // shader; colour g = cavity (0 polished arris .. 1 deep recess -> patina).
-  function giboshiProfileHi(nb) {
+  // with a collar bead, then a lotus bud that swells and closes to a blunt tip
+  // (was: the 宝珠 onion bulb with a drawn-out point). A double lotus-petal
+  // collar hugs the base of the bud. uv = (angle fraction, local height) drives
+  // the chasing in the shader; colour g = cavity (0 polished arris .. 1 deep recess -> patina).
+  function lotusCapProfileHi(nb) {
     const P = [];
     const add = (r, y) => P.push([Math.max(r, 0.0001), y]);
     const bead = (rb, yc, rad, n) => { for (let i = 0; i <= n; i++) { const a = (i / n) * Math.PI; add(rb + rad * Math.sin(a), yc - rad * Math.cos(a)); } };
@@ -905,26 +907,28 @@ export async function build(ctx) {
     bead(0.0466, 0.1192, 0.0045, 5);
     add(0.0462, 0.1250);
     const { bulb0: y0, H, Rm, tEnd } = GIB;
+    // 莲蕾: the petals swell to their widest about a third of the way up, then
+    // the bud closes with a full convex curve to a blunt, rounded tip
     for (let i = 1; i <= nb; i++) {
       const t = (i / nb) * tEnd; let f;
-      if (t < 0.3) f = 0.535 + 0.465 * Math.pow(Math.sin((t / 0.3) * Math.PI / 2), 0.85);
-      else { const q = (t - 0.3) / 0.7; f = Math.pow(1 - q, 1.55) * (1 + 1.55 * q); }
+      if (t < 0.34) f = 0.60 + 0.40 * Math.pow(Math.sin((t / 0.34) * Math.PI / 2), 0.9);
+      else { const q = (t - 0.34) / (tEnd - 0.34); f = Math.pow(1 - q, 0.85) * (1 - 0.55 * q * q); }
       add(Rm * f, y0 + H * t);
     }
     const yb = y0 + H * tEnd;
-    bead(0.0052, yb + 0.0035, 0.0022, 4);
-    add(0.0040, yb + 0.0095); add(0.0026, yb + 0.016); add(0.0013, yb + 0.023); add(0.0001, yb + 0.03);
+    bead(0.0078, yb + 0.0078, 0.0062, 6);
+    add(0.0042, yb + 0.0155); add(0.0022, yb + 0.0215); add(0.0001, yb + 0.0265);
     return P;
   }
-  const GP_HI = giboshiProfileHi(40);
+  const GP_HI = lotusCapProfileHi(40);
   const bulbR = (y) => {
     for (let j = 1; j < GP_HI.length; j++) if (GP_HI[j][1] >= y) { const [r0, y0] = GP_HI[j - 1], [r1, y1] = GP_HI[j]; return r0 + (r1 - r0) * (y - y0) / Math.max(y1 - y0, 1e-6); }
     return 0;
   };
-  // the giboshi parts as geometries (uv + colour baked), detail level hero / standard
-  function giboshiParts(hero) {
+  // the post-cap parts as geometries (uv + colour baked), detail level hero / standard
+  function lotusCapParts(hero) {
     const out = [];
-    const prof = hero ? GP_HI : giboshiProfileHi(26);
+    const prof = hero ? GP_HI : lotusCapProfileHi(26);
     const cav = prof.map(([r, y], j) => {
       let s = 0, w = 0;
       for (let k = 0; k < prof.length; k++) { const dy = Math.abs(prof[k][1] - y); if (k === j || dy > 0.006) continue; const wt = 1 - dy / 0.006; s += wt * prof[k][0]; w += wt; }
@@ -996,10 +1000,10 @@ export async function build(ctx) {
     }
     return out;
   }
-  const GIB_HERO = giboshiParts(true), GIB_STD = giboshiParts(false);
+  const CAP_HERO = lotusCapParts(true), CAP_STD = lotusCapParts(false);
 
   function addPostTop(x, yTop, z, w, scale, hero = false) {
-    // gold sleeve, rims, cap plate, pendants, giboshi
+    // sleeve, rims, cap plate, pendants, lotus post cap
     const s = w / PW;
     addGold(rbox(w + 0.012, 0.115 * s, w + 0.012, 0.004), mat4([x, yTop - 0.0575 * s, z]), 0.95, 2.12);
     addGold(rbox(w + 0.026, 0.02 * s, w + 0.026, 0.006, 1), mat4([x, yTop - 0.112 * s, z]), 1, 0.04);
@@ -1024,7 +1028,7 @@ export async function build(ctx) {
       }
     }
     const M = mat4([x, yTop + 0.016 * s, z], [0, rnd.next() * 6.28, 0], scale);
-    for (const g of (hero ? GIB_HERO : GIB_STD)) B.add(g, gib, M);
+    for (const g of (hero ? CAP_HERO : CAP_STD)) B.add(g, gib, M);
   }
 
   // ---------------------------------------------------------------- DECK planks
@@ -1229,7 +1233,7 @@ export async function build(ctx) {
       addStone(stoneBlock(1.1, f1Top - (BOTTOM - 0.5), 1.1, 0.05, 0.016, 0.14, zb * 2 + side, 0.006), mat4([px, (f1Top + BOTTOM - 0.5) / 2, zb], [0, (sr.next() - 0.5) * 0.06, 0]), 0.85);
       addStone(stoneBlock(0.84, footTop - f1Top + 0.01, 0.84, 0.045, 0.012, 0.1, zb * 3 + side, 0.006), mat4([px, (footTop + f1Top) / 2, zb], [0, (sr.next() - 0.5) * 0.05, 0]), 0.88);
     }
-    // vermilion through-tie (nuki) binding the pillar pair, gilt end caps
+    // vermilion through-tie (穿枋) binding the pillar pair, gilt end caps
     {
       const ny = footTop + (pillarTop - footTop) * 0.56;
       const nL = 2 * (1.62 + 0.29 + 0.17);
@@ -1319,7 +1323,7 @@ export async function build(ctx) {
     const xr = X0 + side * XR;
     // base sill (jifuku)
     addLac(sweep(arcPts((SILL.v0 + SILL.v1) / 2, zPostN, zPostS, xr, 0.08), rrect(SILL.w, SILL.v1 - SILL.v0, 0.016, 3)), MODE_ARC, 0.15, null, 1);
-    // mid rail (hira-nuki)
+    // mid rail (hira-穿枋)
     addLac(sweep(arcPts((MID.v0 + MID.v1) / 2, zPostN, zPostS, xr, 0.08), rrect(MID.w, MID.v1 - MID.v0, 0.012, 3)), MODE_ARC, 0.05, null, 1);
     // top rail (hoko-gi) with curled ends + gilt end ferrules
     {
@@ -1490,7 +1494,7 @@ export async function build(ctx) {
     finalize: (c) => debugEnv(c),
     showcase: [
       { cam: [3, 0.3, 22.5], look: [10, 1.0, 17], focal: 30 },        // sunlit west face, piers + ties, lotus
-      { cam: [11.15, 3.4, 22], look: [10.3, 4.2, -16], focal: 30 },   // on the deck walking north, giboshi at eye level
+      { cam: [11.15, 3.4, 22], look: [10.3, 4.2, -16], focal: 30 },   // on the deck walking north, post cap at eye level
       { cam: [-2, 1.6, 24], look: [10, 1.2, 15], focal: 28 },         // classic side elevation over the lotus
       { cam: [2, 2.2, 30], look: [10, 1.3, 16], focal: 30 },          // elevated south-west 3/4
       { cam: [5.5, 0.1, 19], look: [8.2, 1.9, 16], focal: 40 },       // crown kazari-kanagu from water level

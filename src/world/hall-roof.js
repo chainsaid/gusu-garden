@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------------
-// hall-roof: hongawara tiled roofs (irimoya main roof + mokoshi skirt roof),
-// eave carpentry (double rafters, kioi, fascia, purlins, hip rafters), ridges
-// (noshi stacks + kanmuri caps + onigawara), irimoya gables, roof warp (sori).
+// hall-roof: 青瓦屋顶 (上檐歇山 xieshan + 下檐副阶 skirt roof), 檐口木作
+// (双椽、连檐、瓦口、挑檐檩、翼角), 屋脊 (正脊层叠 + 宝顶 + 螭吻), 山花,
+// and the roof warp (嫩戗发戗 upturn).
 // All coordinates are hall-local (origin at hall centre on the ground,
 // +X east, +Z south/front, +Y up).
 // ---------------------------------------------------------------------------
 import { cbox, beam, lathe, extrude, sweep, bar, xf, basis, mul, v3, clamp, lerp, sstep, circlePts } from './hall-lib.js';
-import { onigawara, tileDisc, rosette, gegyo, kaerumata, bez, kanagu } from './hall-orn.js';
+import { chiwen, tileDisc, rosette, xuanyu, lotusBlock, bez } from './hall-orn.js';
 import { carveSideGable } from './hall-gable.js';
 import { gap, cnt } from '../core/detail.js';
 import { rafterCap, cornerPlate } from './hall-detail.js';
@@ -56,7 +56,7 @@ export function makeWarp(ex, ez, A, B, u0 = 0.68, pw = 2.2) {
 export function faceList(T) {
   const F = [];
   const mk = (name, o, t, e, aMax, dmax, excl = []) => F.push({ name, o, t, e, aMax, dmax, excl });
-  if (T.kind === 'irimoya') {
+  if (T.kind === 'xieshan') {
     const fb = (a) => (Math.abs(a) <= T.xb ? T.ez - 0.02 : T.ex - Math.abs(a));
     const sd = (a) => Math.min(T.ez - Math.abs(a), T.ex - T.xg);
     mk('front', [0, 1], [1, 0], T.ez, T.ex, fb);
@@ -107,7 +107,7 @@ function samples(prof, d0, d1) {
 }
 
 // Generic row emitters working on a "row geometry" callback rowPt(s) -> {p, n, t}
-// (t = across unit vector). Used by both straight faces and the karahafu.
+// (t = across unit vector). Used by both straight faces and the 唐破风(已移除).
 export function emitRound(ms, smp, rowPt, R, hide, opts = {}) {
   const J = Math.max(3, cnt(7)); const r0 = opts.r0 || TILE.r0; const dR = TILE.dR;
   let prev = null; const jit = new Map();
@@ -228,12 +228,13 @@ export function buildTiles(acc, T, mats, R, opts = {}) {
       const dm = Math.min(F.dmax(a), 0.4);
       if (dm > 0.05) emitPan(ms, samples(T.prof, 0, dm), rowPtFor(a), w0, w1, T.hide);
     }
-    if (!opts.noEaveEnds) eaveEnds(acc, mats, T, F, rows, opts.goldDiscs !== false);
+    // 瓦当 is unglazed grey tile, so the gilt discs are off unless asked for
+    if (!opts.noEaveEnds) eaveEnds(acc, mats, T, F, rows, opts.goldDiscs === true);
   }
 }
 
 // ---------------------------------------------------------------------------
-// ridge stacks (noshi layers + kanmuri cap)
+// ridge stacks (熨斗瓦 layers + 冠木 cap)
 // ---------------------------------------------------------------------------
 export function noshiProfile(w0, layers, lh, capR, bury = 0.45, taper = 0.012) {
   const right = [[w0 / 2 + 0.12, -bury], [w0 / 2, -0.02]];
@@ -288,16 +289,16 @@ export function buildEaves(acc, T, mats, opts = {}) {
       const a = k * sp;
       if (inExcl(F, a, 0.2)) continue;
       const hd = hipD(a) - 0.16;
-      // base rafter (jidaruki)
+      // base rafter (檐椽)
       const dIn = Math.min(dw, hd);
       if (dIn > E.dTip + 0.25) {
         const p0 = P(a, E.dTip, rafterY(E, E.dTip) - E.rafH / 2), p1 = P(a, dIn, rafterY(E, dIn) - E.rafH / 2);
         beam(redA, p0, p1, E.rafW, E.rafH, 0.012);
-        // gilt kibana fitting on the tip
+        // gilt 木鼻 fitting on the tip
         const dir = v3.norm(v3.sub(p0, p1));
         rafterCap(gold, endFrame(p0, dir), E.rafW / 2, E.rafH / 2);
       }
-      // flying rafter (hiendaruki)
+      // flying rafter (飞椽)
       const dF = Math.min(E.dFly, hd);
       if (dF > 0.5 && hipD(a) > 0.22) {
         const p0 = P(a, 0.0, flyY(E, 0) - E.frafH / 2), p1 = P(a, dF, flyY(E, dF) - E.frafH / 2);
@@ -317,14 +318,14 @@ export function buildEaves(acc, T, mats, opts = {}) {
         for (let i = 0; i <= n; i++) pts.push(P(a0 + ((a1 - a0) * i) / n, d, y));
         return pts;
       };
-      // kioi board at base-rafter tips
+      // 木负 board at base-rafter tips
       {
         const d = E.dTip + 0.06;
         const y = rafterY(E, d) + 0.04;
         const pts = along(d, y, -0.05);
         if (pts.length > 1) sweep(redA, pts, [[-0.06, -0.045], [0.06, -0.045], [0.06, 0.045], [-0.06, 0.045]].map(([u, v]) => [u, v]), { closed: true, caps: true });
       }
-      // fascia (kayaoi) at flying rafter tips + gold strip
+      // fascia (连檐) at flying rafter tips + gold strip
       {
         const yb = flyY(E, 0) - 0.01, yt = T.y0 - 0.025;
         const yc = (yb + yt) / 2, hh = (yt - yb) / 2;
@@ -336,7 +337,7 @@ export function buildEaves(acc, T, mats, opts = {}) {
           sweep(gold, ptsG, [[-0.01, -0.025], [0.01, -0.025], [0.01, 0.025], [-0.01, 0.025]], { closed: true, caps: true });
           const ptsG2 = along(-0.004, yt - 0.018, 0.07);
           sweep(gold, ptsG2, [[-0.008, -0.016], [0.008, -0.016], [0.008, 0.016], [-0.008, 0.016]], { closed: true, caps: true });
-          // chased gilt corner fittings (sumi-kanagu) on the fascia next to the hips
+          // chased gilt corner fittings (sumi-金物) on the fascia next to the hips
           for (const [aEnd, sg] of [[s0, 1], [s1, -1]]) {
             if (Math.abs(Math.abs(aEnd) - aLim) > 1e-6) continue;
             const ac = aEnd + sg * (0.075 + 0.26);
@@ -345,7 +346,7 @@ export function buildEaves(acc, T, mats, opts = {}) {
           }
         }
       }
-      // purlin (gangyo) on bracket tips
+      // purlin (挑檐檩) on bracket tips
       if (!opts.noPurlin) {
         const d = E.dP;
         const pts = along(d, E.yP - E.purH / 2, 0.25);
@@ -377,7 +378,7 @@ export function buildEaves(acc, T, mats, opts = {}) {
       strip(-0.01, E.dTip + 0.1, (d) => flyY(E, d), 3);
     }
   }
-  // hip rafters (sumigi + flying sumigi) with gold caps; bell anchors
+  // hip rafters (老角梁 + flying 老角梁) with gold caps; bell anchors
   if (!opts.noSumigi) for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const dirH = v3.norm([sx, 0, sz]);
     const pt = (d, y) => [sx * (T.ex - d), y, sz * (T.ez - d)];
@@ -394,7 +395,7 @@ export function buildEaves(acc, T, mats, opts = {}) {
       const gl = acc.m(mats.goldL || mats.gold);
       cbox(gl, basis(v3.add(q0, v3.scale(dir, -0.1)), dir, up, side), 0.1, h / 2 + 0.014, w / 2 + 0.014, 0.012);
       const Rc = 0.5 * Math.hypot(w, h) + 0.015;
-      // rimmed rectangular kibana plate over the end face (a round domed / cushion
+      // rimmed rectangular 木鼻 plate over the end face (a round domed / cushion
       // cap read as a blown-out gold coin in the low sun), rosette boss, corner nails
       const Fe = endFrame(q0, dir);
       const ww = w / 2 + 0.016, hh2 = h / 2 + 0.016;
@@ -417,10 +418,9 @@ export function buildEaves(acc, T, mats, opts = {}) {
   return anchors;
 }
 
+// ridges & gables for the 歇山 (hip-and-gable) roof
 // ---------------------------------------------------------------------------
-// ridges & gables for the irimoya roof
-// ---------------------------------------------------------------------------
-export function buildIrimoyaRidges(acc, T, mats) {
+export function buildXieshanRidges(acc, T, mats) {
   const tile = acc.m(mats.tile), gold = acc.m(mats.goldL || mats.gold);
   const Y = (d) => T.y0 + T.prof.P(d);
   // main ridge (omune)
@@ -430,16 +430,16 @@ export function buildIrimoyaRidges(acc, T, mats) {
   for (let i = 0; i <= 24; i++) mainPath.push([-xr + (2 * xr * i) / 24, yR, 0]);
   const MW = 0.62, ML = 7, MLH = 0.105, MC = 0.2;
   ridgeAlong(tile, mainPath, MW, ML, MLH, MC, 0.75);
-  // decorative gold band along the main ridge (kirikane strip under the cap)
+  // decorative gold band along the main ridge (截金 strip under the cap)
   const mainTop = ML * MLH;
   for (const s of [-1, 1]) {
     const pth = mainPath.map((p) => [p[0], p[1] + mainTop - 0.05, s * (MW / 2 - (ML - 1) * 0.012 + 0.014)]);
     sweep(gold, pth, [[-0.012, -0.022], [0.012, -0.022], [0.012, 0.022], [-0.012, 0.022]], { closed: true, caps: true });
   }
-  // main onigawara at both ends
+  // 螭吻 at both ends of the main ridge
   for (const s of [-1, 1]) {
     const X = basis([s * (xr + 0.02), yR - 0.25, 0], [0, 0, -s], [0, 1, 0], [s, 0, 0]);
-    onigawara(tile, gold, X, 1.55, 2.05, 0.34, { goldEdge: true, horn: false, shibi: 1.3 });
+    chiwen(tile, gold, X, 1.55, 2.05, 0.34, { goldEdge: true });
   }
   // kudarimune (descending verge ridges) and sumimune (hips)
   const dJ = T.ex - T.xb; // depth where verge meets the hip
@@ -452,12 +452,12 @@ export function buildIrimoyaRidges(acc, T, mats) {
       path.push([xv, Y(d) - 0.02, sz * (T.ez - d)]);
     }
     ridgeAlong(tile, path, 0.44, 4, 0.1, 0.13, 0.4);
-    // onigawara at the lower end of kudarimune, facing down-slope (outward along z)
+    // 垂兽 at the lower end of the descending ridge, facing down-slope (outward along z)
     const pe = path[path.length - 1], pp = path[path.length - 2];
     const dir = v3.norm(v3.sub(pe, pp));
     const dirH = v3.norm([0, 0, dir[2]]);
     void dir;
-    onigawara(tile, gold, basis(v3.add(pe, [0, -0.12, 0]), v3.cross([0, 1, 0], dirH), [0, 1, 0], dirH), 0.9, 1.15, 0.24, { horn: false, goldEdge: false });
+    chiwen(tile, gold, basis(v3.add(pe, [0, -0.12, 0]), v3.cross([0, 1, 0], dirH), [0, 1, 0], dirH), 0.9, 1.15, 0.24);
     // hip ridge from the junction to the eave corner
     const hp = [];
     const m = 14;
@@ -466,17 +466,17 @@ export function buildIrimoyaRidges(acc, T, mats) {
       hp.push([sx * (T.ex - d), Y(d) - 0.03, sz * (T.ez - d)]);
     }
     ridgeAlong(tile, hp, 0.46, 4, 0.1, 0.13, 0.18);
-    // onigawara at the corner end of the hip (faces diagonally outward)
+    // 套兽 at the corner end of the hip (faces diagonally outward)
     const he = hp[hp.length - 1];
     const hd = v3.norm([sx, 0, sz]);
-    onigawara(tile, gold, basis(v3.add(he, [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.82, 1.05, 0.22, { horn: false, goldEdge: false });
-    // small gold kirikane crest on the hip end tile
+    chiwen(tile, gold, basis(v3.add(he, [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.82, 1.05, 0.22);
+    // small gold 截金 crest on the hip end tile
   }
 }
 
-// Gable (tsuma) of the irimoya at x = sx*xg: wall triangle, frame, bargeboards,
-// purlin ends, gegyo/kegyo, verge soffit, gable-foot ridge.
-export function buildIrimoyaGables(acc, T, mats) {
+// 山花 (gable) of the 歇山 at x = sx*xg: wall triangle, frame, bargeboards,
+// purlin ends, 悬鱼, verge soffit, gable-foot ridge.
+export function buildXieshanGables(acc, T, mats) {
   const tile = acc.m(mats.tile), gold = acc.m(mats.gold), red = acc.m(mats.red), redD = acc.m(mats.soffit || mats.redDark), white = acc.m(mats.plaster);
   const redA = acc.m(mats.redA || mats.red);
   const Y = (d) => T.y0 + T.prof.P(d);
@@ -499,7 +499,7 @@ export function buildIrimoyaGables(acc, T, mats) {
     const Xg = basis([xw, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0]);
     extrude(acc.m(mats.panel), Xg, outline, [], -0.25, 0.0);
     void Xw;
-    // horizontal beams on the gable face (koryo + nuki) with gold sleeves
+    // horizontal beams on the gable face (虹梁 + 穿枋) with gold sleeves
     const face = (z, y, dx = 0) => [xw + sx * dx, y, z];
     const beamsY = [Hg + 0.35, Hg + 1.55, Hg + 2.75];
     carveSideGable(acc, mats, xw, sx, zg, beamsY, (z) => Y(T.ez - Math.abs(z)) - under - 0.2);
@@ -510,15 +510,15 @@ export function buildIrimoyaGables(acc, T, mats) {
       beam(redA, face(-zz, by, 0.08), face(zz, by, 0.08), 0.16, 0.26, 0.02);
       for (const s of [-1, 1]) cbox(gold, xf(face(s * (zz - 0.12), by, 0.08)), 0.1, 0.15, 0.12, 0.006);
     }
-    // vertical struts (taiheizuka) + diagonal sasu
+    // vertical struts (平植) + diagonal 斜撑
     for (const z of [-zg * 0.62, 0, zg * 0.62]) {
       const top = Y(T.ez - Math.abs(z)) - under - 0.15;
       beam(redA, face(z, Hg + 0.48, 0.07), face(z, top, 0.07), 0.2, 0.2, 0.02, [0, 0, 1]);
     }
-    // gold ornamental panel (karakusa) between the upper beams at the centre
-    kaerumata(red, gold, mul(xf(face(0, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.4, 0.95, 0.16);
-    kaerumata(red, gold, mul(xf(face(-zg * 0.31, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.1, 0.95, 0.14);
-    kaerumata(red, gold, mul(xf(face(zg * 0.31, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.1, 0.95, 0.14);
+    // 荷叶墩 between the upper beams at the centre and either side
+    lotusBlock(red, gold, mul(xf(face(0, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.4, 0.95, 0.16);
+    lotusBlock(red, gold, mul(xf(face(-zg * 0.31, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.1, 0.95, 0.14);
+    lotusBlock(red, gold, mul(xf(face(zg * 0.31, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.1, 0.95, 0.14);
     // --- gable foot ridge (where the hip face meets the gable wall)
     const fp = [];
     for (let i = 0; i <= 12; i++) fp.push([xw + sx * 0.18, Hg - 0.05, -zg + (2 * zg * i) / 12]);
@@ -535,7 +535,7 @@ export function buildIrimoyaGables(acc, T, mats) {
       }
       redD.begin(null);
       for (let i = 0; i < n; i++) redD.quadN(rows[i][0], rows[i][1], rows[i + 1][1], rows[i + 1][0]);
-      // purlin ends (moya) projecting through the verge to the bargeboard
+      // purlin ends (母屋) projecting through the verge to the bargeboard
       for (const dd of [dJ + 0.6, dJ + (T.ez - dJ) * 0.45, dJ + (T.ez - dJ) * 0.78]) for (const sz of [-1, 1]) {
         const z = sz * (T.ez - dd);
         const y = Y(dd) - under - 0.14;
@@ -544,7 +544,7 @@ export function buildIrimoyaGables(acc, T, mats) {
       const yr = Y(T.ez) - under - 0.16;
       beam(redA, [xw, yr, 0], [sx * (T.xb - 0.05), yr, 0], 0.24, 0.28, 0.02);
     }
-    // --- bargeboards (hafu-ita) following the verge, meeting at the apex
+    // --- bargeboards (博风板) following the verge, meeting at the apex
     for (const sz of [-1, 1]) {
       const path = [];
       const n = 22;
@@ -558,18 +558,17 @@ export function buildIrimoyaGables(acc, T, mats) {
       // gold bottom edging and top edging
       sweep(gold, path.map((p) => [p[0] + sx * 0.0, p[1] - 0.6, p[2]]), [[-0.105, -0.04], [0.105, -0.04], [0.105, 0.03], [-0.105, 0.03]], { closed: true, caps: true });
       sweep(gold, path.map((p) => [p[0], p[1] - 0.02, p[2]]), [[-0.1, -0.025], [0.1, -0.025], [0.1, 0.025], [-0.1, 0.025]], { closed: true, caps: true });
-      // gold rosettes along the bargeboard (kugikakushi) where purlins meet
+      // 门簪 (nail-head bosses) on the bargeboard where the purlins meet
       for (const dd of [dJ + 0.6, dJ + (T.ez - dJ) * 0.45, dJ + (T.ez - dJ) * 0.78]) {
         const z = sz * (T.ez - dd);
         const y = Y(dd) - 0.07 - 0.31;
-        kanagu(gold, basis([sx * (T.xb + 0.128), y, z], [0, 0, 1], [0, 1, 0], [sx, 0, 0]), 0.5, 0.48, 0.01);
         rosette(gold, basis([sx * (T.xb + 0.142), y, z], [0, 0, 1], [0, 1, 0], [sx, 0, 0]), 0.13, 8, 0.035);
       }
-      // kegyo (gold end ornament) at the lower end of the bargeboard
+      // 悬鱼 at the lower end of the bargeboard
       const pe = path[path.length - 1];
-      gegyo(acc.m(mats.goldR || mats.goldL || mats.gold), null, basis([pe[0] + sx * 0.12, pe[1] - 0.05, pe[2]], [0, 0, sz], [0, 1, 0], [sx, 0, 0]).multiply(xf([0, 0, 0], 0, 0, 0, [0.55, 0.7, 1])), 1.0, 0.9, 0.1, acc.m(mats.goldC || mats.gold));
+      xuanyu(acc.m(mats.red || mats.redA), null, basis([pe[0] + sx * 0.12, pe[1] - 0.05, pe[2]], [0, 0, sz], [0, 1, 0], [sx, 0, 0]).multiply(xf([0, 0, 0], 0, 0, 0, [0.55, 0.7, 1])), 1.0, 0.9, 0.1, acc.m(mats.goldC || mats.gold));
     }
-    // gegyo at the apex
-    gegyo(acc.m(mats.goldR || mats.goldL || mats.gold), red, mul(basis([sx * (T.xb + 0.16), Y(T.ez) - 0.42, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0]), xf([0, 0, 0])), 2.0, 1.55, 0.14, acc.m(mats.goldC || mats.gold));
+    // 悬鱼 at the apex
+    xuanyu(acc.m(mats.red || mats.redA), red, mul(basis([sx * (T.xb + 0.16), Y(T.ez) - 0.42, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0]), xf([0, 0, 0])), 2.0, 1.55, 0.14, acc.m(mats.goldC || mats.gold));
   }
 }

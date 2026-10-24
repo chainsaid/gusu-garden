@@ -96,7 +96,7 @@ export function createField(L) {
   const f1 = fbmOf(n1), f2 = fbmOf(n2), f3 = fbmOf(n3), f4 = fbmOf(n4);
 
   const pond = L.pond.outline, island = L.pond.island;
-  // peninsula carrying the south bridgehead (bridge south foot + its two lanterns) into the pond
+  // peninsula carrying the south bridgehead (bridge south foot + its two stone stands) into the pond
   const bS = L.bridge.south;
   const PEN = { cx: bS[0], cz: bS[2] + 4.55, hx: 6.4, hz: 4.75, r: 0.9 }; // x 3.6..16.4, z 26.8..36.3
   const paths = L.paths.map((p) => segInfo(p.from, p.to, p.width));
@@ -110,9 +110,10 @@ export function createField(L) {
     [[-32, -15.45], [-32, -36.0], 2.1],      // west walk: pagoda north stair -> west sub-hall
     [[-33.05, -36.0], [-34.55, -36.0], 1.9], // spur to the west sub-hall front steps
   ]) paths.push(Object.assign(segInfo(a, b, w), { walk: true }));
-  const lanterns = L.stoneLanterns.map(([x, z, h]) => ({ x, z, h, r: 0.36 + h * 0.07 }));
+  // 江南石景小品 (stone spurs / drum stools / lake rocks) — kept clear of paving
+  const stands = L.stoneStands.map(([x, z, h]) => ({ x, z, h, r: 0.36 + h * 0.07 }));
   const trees = L.trees.map((t) => ({ ...t, x: t.at[0], z: t.at[1] }));
-  const shoreLanterns = lanterns.filter((l) => Math.abs(sdPoly(pond, l.x, l.z)) < 2.4);
+  const shoreStands = stands.filter((l) => Math.abs(sdPoly(pond, l.x, l.z)) < 2.4);
 
   const hall = L.hall, pag = L.pagoda, pav = L.pavilion;
   const hallP = { cx: hall.center[0], cz: hall.center[2], hx: hall.platform.w / 2, hz: hall.platform.d / 2 };
@@ -126,7 +127,7 @@ export function createField(L) {
     let s = sdPoly(pond, x, z);
     if (s < 8) {
       s = Math.max(s, -sdPen(x, z));
-      for (const l of shoreLanterns) s = Math.max(s, 1.15 - Math.hypot(x - l.x, z - l.z));
+      for (const l of shoreStands) s = Math.max(s, 1.15 - Math.hypot(x - l.x, z - l.z));
     }
     return s;
   }
@@ -135,9 +136,9 @@ export function createField(L) {
     for (const p of paths) d = Math.min(d, sdSegBox(x, z, p));
     return d;
   }
-  function sdLanterns(x, z) {
+  function sdStands(x, z) {
     let d = Infinity;
-    for (const l of lanterns) d = Math.min(d, Math.hypot(x - l.x, z - l.z) - l.r);
+    for (const l of stands) d = Math.min(d, Math.hypot(x - l.x, z - l.z) - l.r);
     return d;
   }
   // building pads (where other modules put platforms): gravel stays clean around them
@@ -146,7 +147,7 @@ export function createField(L) {
     { cx: pagP.cx, cz: pagP.cz, hx: pagP.h, hz: pagP.h },
     // a hall facing +-x has its long front (w) running along z
     ...L.sideHalls.map((s) => { const fx = Math.abs(s.facing[0]) > 0.5; return { cx: s.center[0], cz: s.center[2], hx: (fx ? s.d : s.w) / 2 + 0.8, hz: (fx ? s.w : s.d) / 2 + 0.8 }; }),
-    { cx: L.bellTower.center[0], cz: L.bellTower.center[2], hx: L.bellTower.w / 2 + 1.2, hz: L.bellTower.d / 2 + 1.2 },
+    { cx: L.bellPavilion.center[0], cz: L.bellPavilion.center[2], hx: L.bellPavilion.w / 2 + 1.2, hz: L.bellPavilion.d / 2 + 1.2 },
   ];
   function sdPads(x, z) {
     let d = Infinity;
@@ -200,7 +201,7 @@ export function createField(L) {
     m = Math.min(m, sdBox(x, z, -45, 26, 9, 21) + e1);
     // north strip behind the hall
     m = Math.min(m, sdBox(x, z, C[0], -45.5, HX + 2, 3.6) + 1.2 * f2(x * 0.08 + 4, z * 0.08, 3));
-    // karesansui islands: low moss hillocks with set rocks in the open gravel fields of the north half
+    // 枯山水 islands: low moss hillocks with set rocks in the open gravel fields of the north half
     for (const I of ISLES) {
       const dx = (x - I.x) / I.ax, dz = (z - I.z) / I.az;
       if (Math.abs(dx) > 3 || Math.abs(dz) > 3) continue;
@@ -241,7 +242,7 @@ export function createField(L) {
     m = Math.max(m, sdRect(x, z) - 0.2); // inside corridor only
     return m;
   }
-  // ---- drip-line gutters (amaochi-mizo) --------------------------------------
+  // ---- drip-line gutters (檐口滴水-mizo) --------------------------------------
   // a granite curb on each side of a bed of dark river cobbles, running round the hall podium,
   // the pagoda podium and both faces of the corridor plinth (eave drip lines). A ring hugs a
   // rectangular face (half sizes X, Z) and extends outward (dir +1) or inward (dir -1).
@@ -262,7 +263,7 @@ export function createField(L) {
       stair: { fx: s.facing[0], fz: s.facing[2], hw: bw * 0.8 + 0.3, d0: hd - 0.3, d1: hd + 2.5 } });
   }
   {
-    const b = L.bellTower;
+    const b = L.bellPavilion;
     gutterRings.push({ name: 'bell', cx: b.center[0], cz: b.center[2], X: 3.44, Z: 3.44, dir: 1, stair: { fx: 0, fz: 1, hw: 1.4, d0: 3.05, d1: 5.6 } });
   }
   function sdGutter(x, z) {
@@ -273,10 +274,10 @@ export function createField(L) {
     }
     return d;
   }
-  // where the gutter has to stop (stairs, paths, lanterns, the gate, the pond, tree trunks)
+  // where the gutter has to stop (stairs, paths, stone stands, the gate, the pond, tree trunks)
   function gutterBlocked(x, z) {
     if (sdPaths(x, z) < 0.1) return true;
-    if (sdLanterns(x, z) < 0.22) return true;
+    if (sdStands(x, z) < 0.22) return true;
     if (sdPondEff(x, z) < 0.4) return true;
     if (Math.abs(x - hallP.cx) < L.hall.stairs.width / 2 + 0.95 && z > hallP.cz + hallP.hz - 0.2 && z < hallP.cz + hallP.hz + 3.4) return true;
     {
@@ -438,7 +439,7 @@ export function createField(L) {
     // clearings
     const cl = f3(x / 140 + 3.3, z / 140 - 1.1, 3);
     f *= smoothstep(-0.42, -0.18, cl);
-    // gate approach (sandō) lane kept open for the telephoto through the gate; wooded on both sides
+    // gate approach (参道) lane kept open for the telephoto through the gate; wooded on both sides
     const gate = L.gate.center;
     f *= smoothstep(1.5, 7, sdBox(x, z, gate[0], R.maxZ + 45, 7, 45));
     // SE camera clearing (tree tops are additionally capped under the crane path)
@@ -501,8 +502,8 @@ export function createField(L) {
       let mound = smoothstep(-0.35, 0.65, mn);
       mound = mound * mound * (3 - 2 * mound);
       let amp = moundAmp(x, z) * smoothstep(0.1, 2.0, -m);
-      // keep stone lantern / tree bases level
-      amp *= smoothstep(0.4, 1.6, sdLanterns(x, z));
+      // keep stone stand / tree bases level
+      amp *= smoothstep(0.4, 1.6, sdStands(x, z));
       let tb = Infinity;
       for (const t of trees) tb = Math.min(tb, Math.hypot(x - t.x, z - t.z));
       amp *= 0.35 + 0.65 * smoothstep(0.6, 2.2, tb);
@@ -513,7 +514,7 @@ export function createField(L) {
       // small cushions and hollows (1.5 - 3 m) on top of the big mounds: the grazing sun models them
       const cu = f2(x * 0.42 + 13.1, z * 0.42 - 7.7, 3);
       const cush = smoothstep(-0.45, 0.55, cu);
-      const small = 0.085 * (cush * cush * (3 - 2 * cush) - 0.45) * smoothstep(0.15, 1.2, -m) * smoothstep(0.3, 1.3, sdLanterns(x, z)) * smoothstep(0.3, 1.4, sdPaths(x, z)) * smoothstep(0.0, 1.2, sp) * gq;
+      const small = 0.085 * (cush * cush * (3 - 2 * cush) - 0.45) * smoothstep(0.15, 1.2, -m) * smoothstep(0.3, 1.3, sdStands(x, z)) * smoothstep(0.3, 1.4, sdPaths(x, z)) * smoothstep(0.0, 1.2, sp) * gq;
       h += amp * mound + small + 0.025 * f3(x * 2.1, z * 2.1, 2) * smoothstep(0.05, 0.5, -m) * gq;
     }
     // paving bed: bedding soil / moss in the joints comes up to ~1.5 cm under the slab tops so the
@@ -566,9 +567,9 @@ export function createField(L) {
   }
 
   return {
-    L, R, C, HX, HZ, DOM, APRON, PEN, paths, lanterns, trees, pads, hallP, pagP, ISLES,
+    L, R, C, HX, HZ, DOM, APRON, PEN, paths, stands, trees, pads, hallP, pagP, ISLES,
     noise: { n1, n2, n3, n4, f1, f2, f3, f4 },
-    sdRect, sdPen, sdPondEff, sdPaths, sdLanterns, sdPads, sdMoss, sdSoil, sdTreeMoss, sdGutter, gutterBlocked, gutterRings, GUT,
+    sdRect, sdPen, sdPondEff, sdPaths, sdStands, sdPads, sdMoss, sdSoil, sdTreeMoss, sdGutter, gutterBlocked, gutterRings, GUT,
     mossAt, soilAt, groundHeight, heightAt, landHeight, landRaw, sunCap, sunUpwind, treeTopCap, forestDensity, mountains,
     grid: { CELL, NX, NZ, gMoss, gSoil, gRake, gH, gPath, gPond, sample: sampleGrid },
     sdPond: (x, z) => sdPoly(pond, x, z), sdIsland: (x, z) => sdPoly(island, x, z),

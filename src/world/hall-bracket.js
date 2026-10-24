@@ -1,13 +1,13 @@
 // ---------------------------------------------------------------------------
-// hall-bracket: kumimono / tokyō bracket sets. Local frame at the column top
+// hall-bracket: 组物 / tokyō bracket sets. Local frame at the column top
 // centre: +X outward (perpendicular to the wall), +Z along the wall, +Y up.
 // ---------------------------------------------------------------------------
 import { cbox, extrude, xf, basis, mul } from './hall-lib.js';
-import { kaerumata, rosette } from './hall-orn.js';
+import { lotusBlock, rosette } from './hall-orn.js';
 
 const C = 0.014; // chamfer
 
-// Bracket arm (hijiki) along local Z with curved undersides at the ends.
+// Bracket arm (肘木) along local Z with curved undersides at the ends.
 function armZ(ms, X, x, y, z, half, h = 0.19, w = 0.19) {
   const pts = [[-half, h], [-half, h * 0.45]];
   const n = 5;
@@ -32,7 +32,7 @@ function armX(ms, X, x0, x1, y, z, h = 0.19, w = 0.19) {
   ms.tint = t0;
 }
 
-// gilt end plates (kibana kanagu) on the visible end faces of bracket arms
+// gilt end plates (木鼻 金物) on the visible end faces of bracket arms
 function armEndZ(gold, X, x, y, z, half, h = 0.19, w = 0.19) {
   for (const sz of [-1, 1]) cbox(gold, mul(X, xf([x, y + h * 0.725, z + sz * (half + 0.003)])), w / 2 + 0.005, h * 0.275 + 0.004, 0.005, 0.003);
 }
@@ -45,8 +45,8 @@ function makito(red, gold, X, x, y, z, s = 0.15, h = 0.15, goldFace = true) {
   if (goldFace) cbox(gold, mul(X, xf([x + s + 0.004, y + h * 0.62, z])), 0.005, h * 0.3, s * 0.82, 0.003);
 }
 
-// type: 'mitesaki' (3 steps), 'demitsudo' (1 step), 'flat' (no projection)
-// opts.inter: intermediate set (sits on a kaerumata instead of a column)
+// type: '三手先' (3 steps), '出三斗' (1 step), 'flat' (no projection)
+// opts.inter: intermediate set (sits on a 蛙股(已替换为荷叶墩) instead of a column)
 export function bracketSet(acc, mats, X, type = 'mitesaki', opts = {}) {
   const red = acc.m(mats.bkt || mats.red), gold = acc.m(mats.gold), redD = acc.m(mats.redDark), redA = acc.m(mats.redA || mats.red);
   const AH = 0.19, MH = 0.15; // arm height, makito height
@@ -54,13 +54,13 @@ export function bracketSet(acc, mats, X, type = 'mitesaki', opts = {}) {
   const P = 0.44; // projection per step
   const lat = opts.lat || 0.62; // lateral arm half length
   let y = 0;
-  red.tint = 0; // blocks / kaerumata: plain lacquer (arms set their own paint code)
+  red.tint = 0; // blocks / 荷叶墩: plain lacquer (arms set their own paint code)
   if (opts.inter) {
-    kaerumata(red, gold, mul(X, basis([0.0, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0])), opts.kw || 1.0, 0.45, 0.18);
+    lotusBlock(red, gold, mul(X, basis([0.0, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0])), opts.kw || 1.0, 0.45, 0.18);
     makito(red, gold, X, 0, 0.45, 0, 0.17, 0.15);
     return 0.6;
   } else {
-    // daito (bearing block)
+    // 大斗 (bearing block)
     cbox(red, mul(X, xf([0, 0.13, 0])), 0.34, 0.13, 0.34, C, { taper: [0.8, 0.8] });
     cbox(gold, mul(X, xf([0.34 + 0.004, 0.17, 0])), 0.005, 0.07, 0.28, 0.003);
     y = 0.26;
@@ -88,7 +88,7 @@ export function bracketSet(acc, mats, X, type = 'mitesaki', opts = {}) {
     if (s < steps) makito(red, gold, X, (s + 1) * P, y, 0);
     y += MH;
   }
-  // tail rafter (odaruki) for mitesaki: sloping member through the set
+  // tail rafter (尾垂木) for 三手先: sloping member through the set
   if (steps === 3) {
     const p0 = [-0.6, 0.62, 0], p1 = [3 * P + 0.32, 1.05, 0];
     const d = [p1[0] - p0[0], p1[1] - p0[1], 0]; const L = Math.hypot(d[0], d[1]);
@@ -103,8 +103,8 @@ export function bracketSet(acc, mats, X, type = 'mitesaki', opts = {}) {
   return y; // top height of the set (purlin bottom)
 }
 
-// Continuous lateral members connecting bracket sets along a wall (toshi-hijiki
-// / tesaki-geta). Called by the wall builder with world endpoints.
+// Continuous lateral members connecting bracket sets along a wall (toshi-肘木
+// / 手先桁). Called by the wall builder with world endpoints.
 // p0,p1: wall-line points at column-top height (y of p0/p1 = column top).
 export function bracketBeams(acc, mats, p0, p1, outward, type) {
   const red = acc.m(mats.bkt || mats.red), gold = acc.m(mats.gold);
@@ -123,7 +123,7 @@ export function bracketBeams(acc, mats, p0, p1, outward, type) {
     red.tint = 2; // gunjō-blue soffit code for the paint shader
     cbox(red, M, L / 2, AH / 2, 0.095, C);
     red.tint = 1;
-    // thin gold kirikane line along the outer face
+    // thin gold 截金 line along the outer face
     const sgn = side[0] * outward[0] + side[2] * outward[2] > 0 ? 1 : -1;
     cbox(gold, mul(M, xf([0, -AH * 0.32, sgn * 0.099])), L / 2 - 0.02, 0.012, 0.004, 0.002);
   }

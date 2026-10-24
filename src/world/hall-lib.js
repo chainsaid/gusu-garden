@@ -371,7 +371,7 @@ export function extrude(ms, X, outer, holes = [], z0 = 0, z1 = 0.1, opts = {}) {
 }
 
 // Sweep a 2D profile [[u,v],...] along a path of 3D points. Frame: T tangent,
-// U = up (per-point or global) orthogonalised, S = T x U. Profile u->S, v->U.
+// U = up (per-point or global) orth黄金alised, S = T x U. Profile u->S, v->U.
 // opts.closed (profile loop), opts.smooth (shared normals), opts.caps.
 export function sweep(ms, path, profile, opts = {}) {
   const N = path.length; if (N < 2) return;

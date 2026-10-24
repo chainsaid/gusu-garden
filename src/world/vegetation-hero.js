@@ -199,7 +199,7 @@ export function buildHeroSpray(rng, { cam, look, focus = 0.62, anchor = null, su
   };
 
   // ---- skeleton -----------------------------------------------------------
-  // main shoot: from the momiji limb (upper left, behind the focal plane) arcing across the frame
+  // main shoot: from the 红枫 limb (upper left, behind the focal plane) arcing across the frame
   const want = L(-0.95, 0.55, f + 1.3);
   const A0 = typeof anchor === 'function' ? anchor(want) : anchor ? anchor.clone() : want;
   const main = shoot([[-0.95, 0.55, f + 1.3], [-0.5, 0.25, f + 0.45], [-0.24, 0.12, f + 0.1], [-0.08, 0.07, f + 0.01], [0.04, 0.035, f - 0.01], [0.1, 0.005, f - 0.02]], 0.0065, 0.0022, 0, A0);

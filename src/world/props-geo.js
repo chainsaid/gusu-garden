@@ -463,7 +463,7 @@ export function scrollPoints(origin, out, R0, turns = 1.15, shrink = 0.35, steps
 }
 
 // ---------------------------------------------------------------------------
-// Hipped polygonal roof cap (stone kasa / bronze lantern roof).
+// Hipped polygonal roof cap (stone 笠 / bronze lantern roof).
 //  n, rot: polygon; A: eave apothem; knobA: apothem where the roof meets the knob;
 //  yEave: top of the eave edge at mid-side; H: rise eave->knob; rise(t): 0..1 shape (t=0 knob, 1 eave);
 //  thick: eave edge thickness; lift: corner up-turn; soffitA: apothem where the flat soffit ends;

@@ -1,18 +1,18 @@
 {
-  "name": "golden-temple",
+  "name": "gusu-garden",
   "version": "1.0.0",
-  "description": "A photoreal golden-hour Japanese temple complex built entirely in code with Three.js (no models, textures or HDRIs), rendered offline into a 70-second 1080p60 film.",
+  "description": "A Suzhou classical garden (姑苏园林) built entirely in code with Three.js — no models, textures or HDRIs — rendered offline into a 70-second 1080p60 film.",
   "license": "MIT",
   "author": "Leon Lin",
   "private": true,
   "type": "module",
-  "homepage": "https://github.com/Leonxlnx/golden-temple#readme",
+  "homepage": "https://github.com/chainsaid/gusu-garden#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Leonxlnx/golden-temple.git"
+    "url": "git+https://github.com/chainsaid/gusu-garden.git"
   },
   "bugs": {
-    "url": "https://github.com/Leonxlnx/golden-temple/issues"
+    "url": "https://github.com/chainsaid/gusu-garden/issues"
   },
   "keywords": [
     "threejs",
@@ -21,8 +21,9 @@
     "procedural-generation",
     "offline-rendering",
     "cinematic",
-    "japanese-architecture",
-    "golden-hour"
+    "chinese-garden",
+    "suzhou-garden",
+    "jiangnan"
   ],
   "engines": {
     "node": ">=22"

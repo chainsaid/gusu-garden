@@ -219,7 +219,7 @@ export function buildBanner(B, M, K, { x, y, z, w = 0.62, plates = 6, plateH = 0
     for (let k = 0; k < 4; k++) addStrand(K, ...P(sx * (cw / 2 + 0.03), -0.4, (k - 1.5) * 0.1), 0.6 + 0.15 * rnd(), rnd, 1);
   }
   B.add(new THREE.CylinderGeometry(0.012, 0.012, 1.0, 6), M.gold, mat4(P(0, 0.5, 0), [0, ry, 0]));
-  // plates: tall roundel plates (alternating peony / hosoge) joined by short scroll plates
+  // plates: tall roundel plates (alternating peony / 宝相花) joined by short scroll plates
   let yy = -0.46;
   for (let i = 0; i < plates; i++) {
     const link = i % 2 === 1;

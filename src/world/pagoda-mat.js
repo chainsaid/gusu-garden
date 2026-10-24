@@ -102,7 +102,7 @@ float pg_line(float d, float w, float fq){ return 1.0 - smoothstep(w, w + fq * 1
       float petal = pg_line(abs(rr - rp), 0.011, fq) * step(rr, 0.29);
       vec2 cq = abs(q) - vec2(0.41);
       float corner = pg_line(abs(length(cq + vec2(0.07)) - 0.05), 0.01, fq) * step(max(abs(q.x), abs(q.y)), 0.41);
-      // scroll tendrils (karakusa) between ring and frame on the diagonals
+      // scroll tendrils (卷草) between ring and frame on the diagonals
       float sc = pg_line(abs(length(abs(q) - vec2(0.3, 0.13)) - 0.065), 0.009, fq) * step(0.3, rr);
       float sc2 = pg_line(abs(length(abs(q) - vec2(0.13, 0.3)) - 0.065), 0.009, fq) * step(0.3, rr);
       float grv = max(max(frame, ring), max(petal, max(corner, max(sc, sc2)))) * aL;

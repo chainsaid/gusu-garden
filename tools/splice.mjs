@@ -1,13 +1,13 @@
 // Replace a frame range of a rendered film with a re-rendered segment (frame-accurate).
 // Video only: run tools/score.mjs on the result afterwards to re-mux the score. Needs ffmpeg on PATH.
-// usage: node tools/splice.mjs --base out/temple.mp4 --seg out/seg.mp4 --from 2520 --to 2940 --out out/temple_spliced.mp4
+// usage: node tools/splice.mjs --base out/gusu-garden.mp4 --seg out/seg.mp4 --from 2520 --to 2940 --out out/gusu-garden_spliced.mp4
 //   (seg = node tools/render.mjs --from 2520 --to 2940 --out out/seg.mp4)
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const o = { base: 'out/temple.mp4', seg: 'out/seg.mp4', from: 0, to: 0, out: 'out/temple_spliced.mp4', crf: 12 };
+const o = { base: 'out/gusu-garden.mp4', seg: 'out/seg.mp4', from: 0, to: 0, out: 'out/gusu-garden_spliced.mp4', crf: 12 };
 const a = process.argv.slice(2);
 for (let i = 0; i < a.length; i++) { const k = a[i].replace(/^--/, ''); if (k in o) o[k] = typeof o[k] === 'number' ? +a[++i] : a[++i]; }
 if (!(o.to > o.from)) { console.error('[splice] pass the replaced frame range: --from A --to B (B > A)'); process.exit(1); }

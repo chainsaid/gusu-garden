@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------------
 // Architectural assemblies for buildings.js: eaves (rafters, soffits, fascia,
-// corner rafters), bracket sets, irimoya roof (tiles, ridges, onigawara,
-// gable, hafu, gegyo), columns with gold fittings, koran railings.
+// corner rafters), bracket sets, 歇山 roof (tiles, ridges, 螭吻,
+// gable, 破风(已移除), 蟇股(已替换为悬鱼)), columns with gold fittings, 栏杆 railings.
 // Everything in building-LOCAL coordinates (x along facade, z depth, +z front).
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import {
-  LB, m4, beamM, chamferBox, block, taper, extrude, lathe, armGeo, rosette, giboshi, colBand, ornBand,
+  LB, m4, beamM, chamferBox, block, taper, extrude, lathe, armGeo, rosette, lotusFinial, colBand, ornBand,
   sweep, rectProfile, roundProfile, roofSurface, tileCapGeos, makeLift, sstep, clamp, hash3, ni,
 } from './buildings-kit.js';
 
@@ -29,7 +29,7 @@ export function linePath(a, b, yFn, step = 0.25) {
   return pts;
 }
 
-// ridge stack profile (noshi layers + round kanmuri cap); drop = skirt below the ridge line
+// ridge stack profile (熨斗瓦 layers + round 冠木 cap); drop = skirt below the ridge line
 export function ridgeProfile(w, h, layers, capR, drop) {
   const P = [];
   P.push([-w * 0.62, -drop], [w * 0.62, -drop]);
@@ -81,10 +81,10 @@ export function hipSides(hx, hz) {
 }
 
 // ---------------------------------------------------------------------------
-// EAVES: rafters (one or two tiers), soffit boards, kioi, fascia, purlin,
+// EAVES: rafters (one or two tiers), soffit boards, 木负, fascia, purlin,
 // wall plate, corner rafters. Returns levels + bell hook points.
-// E = { cx, cz, ov, yWall, sBase, d1, rB:[w,h], kioiH, sFly, rF:[w,h], sp, fasciaH,
-//       proj, lift, twoTier, K:{rafter, soffit, cap, beam}, capGold, sumigi:true }
+// E = { cx, cz, ov, yWall, sBase, d1, rB:[w,h], 木负H, sFly, rF:[w,h], sp, fasciaH,
+//       proj, lift, twoTier, K:{rafter, soffit, cap, beam}, capGold, 老角梁:true }
 // ---------------------------------------------------------------------------
 export function eaves(lb, E) {
   const K = E.K;
@@ -141,14 +141,14 @@ export function eaves(lb, E) {
     lb.add(geo, K.soffit);
   };
   if (two) { soff(yFT, 0, d1); soff(yBT, d1 - 0.005, ov + 0.06); } else soff(yBT, 0, ov + 0.06);
-  // kioi + infill boards
+  // 木负 + infill boards
   if (two) {
     const hx = E.cx + ov - d1, hz = E.cz + ov - d1;
     const path = loopPath(hx, hz, (x, z) => yBT(d1) + lift(x, z), 0.3);
     lb.add(sweep(path, rectProfile(0.13, E.kioiH), { closed: true, outward: true }), K.beam);
     lb.add(sweep(path, rectProfile(0.035, yFT(d1) - yBT(d1) + 0.01, 0), { closed: true, outward: true }), K.soffit);
   }
-  // fascia (kayaoi) with a top shelf reaching under the tile lip
+  // fascia (连檐) with a top shelf reaching under the tile lip
   {
     const hx = E.cx + ov - 0.045, hz = E.cz + ov - 0.045;
     const path = loopPath(hx, hz, (x, z) => yTipTop + lift(x, z), 0.25);
@@ -163,7 +163,7 @@ export function eaves(lb, E) {
   }
   lb.add(sweep(loopPath(E.cx, E.cz, (x, z) => E.yWall - 0.17 + lift(x, z), 0.3), rectProfile(0.17, 0.17), { closed: true, outward: true }), K.beam);
 
-  // corner rafters (sumigi)
+  // corner rafters (老角梁)
   if (E.sumigi !== false) {
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
       const Q = (t) => [sx * (E.cx + t), sz * (E.cz + t)];
@@ -198,9 +198,9 @@ export function eaves(lb, E) {
 }
 
 // ---------------------------------------------------------------------------
-// BRACKET SET (kumimono). Frame: origin at the plate top over the column,
+// BRACKET SET (组物). Frame: origin at the plate top over the column,
 // +x along the wall, +z outward. tiers: 1..3. corner: arms along +z, +x, diag.
-// S = { tiers, proj:[p1,p2], armH, armW, blockH, daito:[w,h], mak:[w,h], wall:[L1,L2,L3], inner, corner, K }
+// S = { tiers, proj:[p1,p2], armH, armW, blockH, 大斗:[w,h], mak:[w,h], wall:[L1,L2,L3], inner, corner, K }
 // returns total height
 // ---------------------------------------------------------------------------
 export function bracketSet(lb, frame, S) {
@@ -209,7 +209,7 @@ export function bracketSet(lb, frame, S) {
   const aH = S.armH, aW = S.armW, bH = S.blockH;
   const [dW, dH] = S.daito, [mW] = S.mak;
   const gold = (pos, w, h, rot = [0, 0, 0]) => b.add(chamferBox(w, h, 0.008, 0), K.gold, m4(pos, rot));
-  // daito
+  // 大斗
   b.add(block(dW, dH, dW), K.wood);
   if (S.goldDaito) gold([0, dH * 0.62, dW / 2 + 0.004], dW * 0.8, dH * 0.5);
   let y = dH;
@@ -276,7 +276,7 @@ export function column(lb, K, x, z, yb, yt, r, o = {}) {
   lb.add(new THREE.CylinderGeometry(r, r * 1.01, yt - yb, o.seg || 28, 1), K.col, m4([x, (yb + yt) / 2, z]));
   // top chamfer ring (makigata)
   if (o.base) {
-    // stone base (soseki) with a round rim
+    // stone base (础石) with a round rim
     const R = r * 1.55;
     lb.add(lathe([[0, -0.3], [R * 1.05, -0.3], [R * 1.05, -0.02], [R, 0.0], [r * 1.25, 0.03], [r * 1.12, o.baseH || 0.08], [0, o.baseH || 0.08]], 24, 'soseki' + r), K.stone, m4([x, yb - (o.baseH || 0.08), z]));
   }
@@ -286,8 +286,8 @@ export function column(lb, K, x, z, yb, yt, r, o = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// IRIMOYA ROOF: tiles, ridges, onigawara, gable (tsuma), hafu, gegyo.
-// R = { ex, ez, y0, prof(d), gd, ov, lift, T, K, ridge:{h,w}, hip:{w,h}, oni:{s}, gableDeco }
+// 歇山屋顶: tiles, ridges, 螭吻, gable (山花), 破风(已移除), 悬鱼.
+// R = { ex, ez, y0, prof(d), gd, ov, lift, T, K, ridge:{h,w}, hip:{w,h}, chiwen:{s}, gableDeco }
 // ---------------------------------------------------------------------------
 export function irimoyaRoof(lb, R) {
   const K = R.K, T = R.T, lift = R.lift;
@@ -353,46 +353,61 @@ export function irimoyaRoof(lb, R) {
     const x = sx * (xg + 0.08);
     lb.add(sweep(linePath([x, -zb + 0.05], [x, zb - 0.05], () => R.y0 + R.prof(gd) - 0.02, 0.5), ridgeProf(0.18, 0.12, 2, 0.05, 0.1)), K.tile);
   }
-  // ---- onigawara
-  const oniGeo = (s) => {
+  // ---- 螭吻 (chiwen) — the dragon-head ridge-end ornament.
+  // Silhouette: a flaring jaw, the mouth line, wide cheekbones, a brow, two
+  // horns curling up over a crown. (was: 鬼瓦(已替换为螭吻) + tori-busuma)
+  const chiwenGeo = (s) => {
     const sh = new THREE.Shape();
-    sh.moveTo(-0.5 * s, 0); sh.lineTo(0.5 * s, 0); sh.lineTo(0.52 * s, 0.5 * s);
-    sh.quadraticCurveTo(0.56 * s, 0.78 * s, 0.34 * s, 0.86 * s);
-    sh.quadraticCurveTo(0.18 * s, 0.9 * s, 0.1 * s, 1.0 * s);
-    sh.lineTo(0, 1.08 * s); sh.lineTo(-0.1 * s, 1.0 * s);
-    sh.quadraticCurveTo(-0.18 * s, 0.9 * s, -0.34 * s, 0.86 * s);
-    sh.quadraticCurveTo(-0.56 * s, 0.78 * s, -0.52 * s, 0.5 * s);
-    sh.lineTo(-0.5 * s, 0);
-    const body = extrude(sh, 0.16 * s, 0.025 * s, 'oni' + s, 8);
+    sh.moveTo(-0.43 * s, 0); sh.lineTo(0.43 * s, 0);
+    sh.lineTo(0.49 * s, 0.13 * s);
+    sh.quadraticCurveTo(0.40 * s, 0.20 * s, 0.41 * s, 0.25 * s);          // mouth line
+    sh.quadraticCurveTo(0.53 * s, 0.33 * s, 0.49 * s, 0.50 * s);          // cheekbone
+    sh.quadraticCurveTo(0.51 * s, 0.63 * s, 0.44 * s, 0.72 * s);          // brow
+    sh.quadraticCurveTo(0.33 * s, 0.89 * s, 0.22 * s, 1.00 * s);          // horn
+    sh.quadraticCurveTo(0.12 * s, 0.94 * s, 0, 0.85 * s);                 // crown between the horns
+    sh.quadraticCurveTo(-0.12 * s, 0.94 * s, -0.22 * s, 1.00 * s);
+    sh.quadraticCurveTo(-0.33 * s, 0.89 * s, -0.44 * s, 0.72 * s);
+    sh.quadraticCurveTo(-0.51 * s, 0.63 * s, -0.49 * s, 0.50 * s);
+    sh.quadraticCurveTo(-0.53 * s, 0.33 * s, -0.41 * s, 0.25 * s);
+    sh.quadraticCurveTo(-0.40 * s, 0.20 * s, -0.49 * s, 0.13 * s);
+    sh.lineTo(-0.43 * s, 0);
+    const body = extrude(sh, 0.16 * s, 0.025 * s, 'chiwen' + s, 8);
     const rim = new THREE.Shape();
-    rim.moveTo(-0.38 * s, 0.1 * s); rim.lineTo(0.38 * s, 0.1 * s); rim.lineTo(0.4 * s, 0.5 * s);
-    rim.quadraticCurveTo(0.42 * s, 0.7 * s, 0.22 * s, 0.76 * s); rim.lineTo(0, 0.88 * s); rim.lineTo(-0.22 * s, 0.76 * s);
-    rim.quadraticCurveTo(-0.42 * s, 0.7 * s, -0.4 * s, 0.5 * s); rim.lineTo(-0.38 * s, 0.1 * s);
-    const inner = extrude(rim, 0.05 * s, 0.012 * s, 'onir' + s, 8).translate(0, 0, 0.09 * s);
+    rim.moveTo(-0.36 * s, 0.13 * s); rim.lineTo(0.36 * s, 0.13 * s); rim.lineTo(0.40 * s, 0.32 * s);
+    rim.quadraticCurveTo(0.42 * s, 0.60 * s, 0.30 * s, 0.74 * s);
+    rim.quadraticCurveTo(0.20 * s, 0.84 * s, 0.16 * s, 0.90 * s); rim.lineTo(0, 0.79 * s); rim.lineTo(-0.16 * s, 0.90 * s);
+    rim.quadraticCurveTo(-0.20 * s, 0.84 * s, -0.30 * s, 0.74 * s);
+    rim.quadraticCurveTo(-0.42 * s, 0.60 * s, -0.40 * s, 0.32 * s); rim.lineTo(-0.36 * s, 0.13 * s);
+    const inner = extrude(rim, 0.05 * s, 0.012 * s, 'chiwenr' + s, 8).translate(0, 0, 0.09 * s);
     return [body, inner];
   };
-  const placeOni = (pos, yaw, s, goldMon = false) => {
-    const [body, inner] = oniGeo(s);
+  const placeChiwen = (pos, yaw, s) => {
+    const [body, inner] = chiwenGeo(s);
     const mm = m4(pos, [0, yaw, 0]);
     lb.add(body, K.tile, mm); lb.add(inner, K.tile, mm);
-    // tori-busuma: curved projecting tile on top
-    const pts = [];
-    for (let i = 0; i <= 8; i++) { const t = i / 8; pts.push(new V3(0, 0.9 * s + Math.sin(t * 1.4) * 0.35 * s, -0.25 * s + t * 0.75 * s)); }
-    const tb = sweep(pts, roundProfile(0.06 * s, 0, 6), { smooth: true });
-    lb.add(tb, K.tile, mm);
+    // bulging eyes
+    for (const sx of [-1, 1]) {
+      const e = new THREE.SphereGeometry(0.075 * s, 10, 6);
+      e.scale(1, 1, 0.7); e.translate(sx * 0.21 * s, 0.54 * s, 0.10 * s);
+      lb.add(e, K.tile, mm);
+    }
+    // 剑把 — the sword hilt that pins the dragon to the ridge
+    const guard = new THREE.BoxGeometry(0.17 * s, 0.035 * s, 0.06 * s); guard.translate(0, 0.86 * s, -0.02 * s);
+    const grip = new THREE.BoxGeometry(0.055 * s, 0.19 * s, 0.05 * s); grip.translate(0, 0.95 * s, -0.02 * s);
+    lb.add(guard, K.tile, mm); lb.add(grip, K.tile, mm);
   };
   for (const sx of [-1, 1]) {
-    placeOni([sx * (xv + 0.14), yRidge - 0.32, 0], sx * Math.PI / 2, R.oni.s);
+    placeChiwen([sx * (xv + 0.14), yRidge - 0.32, 0], sx * Math.PI / 2, R.chiwen.s);
     for (const sz of [-1, 1]) {
-      // corner oni (hip ends)
+      // corner beast (hip ends)
       const cxp = sx * (ex + 0.08), czp = sz * (ez + 0.08);
-      placeOni([cxp, Math.min(yFront(cxp, czp), ySide(cxp, czp)) - 0.08, czp], Math.atan2(sx, sz), R.oni.s * 0.55);
-      // kudarimune lower end oni
+      placeChiwen([cxp, Math.min(yFront(cxp, czp), ySide(cxp, czp)) - 0.08, czp], Math.atan2(sx, sz), R.chiwen.s * 0.55);
+      // descending-ridge lower end beast
       const xk = sx * (xv - R.hip.w * 0.55), zk = sz * (zj - 0.05);
-      placeOni([xk, yFront(xk, zk) - 0.1, zk], sz > 0 ? 0 : Math.PI, R.oni.s * 0.5, false);
+      placeChiwen([xk, yFront(xk, zk) - 0.1, zk], sz > 0 ? 0 : Math.PI, R.chiwen.s * 0.5);
     }
   }
-  // ---- gable: hafu bargeboards, verge round tiles, gegyo, verge soffit, tsuma wall
+  // ---- gable: 破风(已移除) bargeboards, verge round tiles, 蟇股(已替换为悬鱼), verge soffit, 山花 wall
   for (const sx of [-1, 1]) {
     const xh = sx * (xv + 0.035);
     const vy = (z) => yFront(sx * xv, z);
@@ -400,17 +415,17 @@ export function irimoyaRoof(lb, R) {
     lb.add(sweep(vpath, rectProfile(0.07, R.hafuH || 0.38, -(R.hafuH || 0.38))), K.red);
     // verge round tile (kerabagawara)
     lb.add(sweep(linePath([sx * (xv - 0.02), -zj], [sx * (xv - 0.02), zj], (x, z) => vy(z) + T.rh * 0.35, 0.12), roundProfile(T.rw * 0.55, 0, 8), { smooth: true }), K.tile);
-    // studs on the hafu: dark wood
+    // studs on the 破风(已移除): dark wood
     const darkMat = K.redDark || K.red;
     for (const zz of [-zj * 0.7, -zj * 0.4, zj * 0.4, zj * 0.7]) {
       lb.add(chamferBox(0.03, 0.03, 0.01, 0.003), darkMat, m4([sx * (xv + 0.072), vy(zz) - 0.06 - (R.hafuH || 0.38) * 0.5, zz], [0, sx * Math.PI / 2, 0]));
     }
-    // hafu ends: wood fittings
+    // 破风(已移除) ends: wood fittings
     for (const sz of [-1, 1]) {
       const zz = sz * (zj - 0.12);
       lb.add(chamferBox(0.085, (R.hafuH || 0.38) + 0.02, 0.22, 0.008), darkMat, m4([xh, vy(zz) - 0.06 - (R.hafuH || 0.38) / 2, zz]));
     }
-    // gegyo at the apex: wood
+    // 蟇股(已替换为悬鱼) at the apex: wood
     const gs = R.gegyo || 0.6;
     const gsh = new THREE.Shape();
     gsh.moveTo(0, 0.05 * gs);
@@ -438,7 +453,7 @@ export function irimoyaRoof(lb, R) {
       lb.add(chamferBox(ov + 0.12, 0.18, 0.15, 0.012), K.red, m4([sx * (xg + ov / 2 - 0.02), yy, zz]));
       lb.add(chamferBox(0.012, 0.19, 0.16, 0.003), K.gold, m4([sx * (xv - 0.0), yy, zz]));
     }
-    // tsuma (gable wall): plaster triangle + vermilion frame + gold
+    // 山花 (gable wall): plaster triangle + vermilion frame + gold
     const nz = 16;
     const tri = [];
     const gx = sx * xg;
@@ -484,7 +499,7 @@ export function irimoyaRoof(lb, R) {
 
 // ---------------------------------------------------------------------------
 // KORAN railing along an open polyline (local plan points) at floor height y0.
-// S = { H, post, gib, K, giboshiEvery, panel }
+// S = { H, post, gib, K, lotusEvery, panel }
 // ---------------------------------------------------------------------------
 export function railing(lb, pts, y0, S) {
   const K = S.K;

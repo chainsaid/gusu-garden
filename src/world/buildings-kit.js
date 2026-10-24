@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
-// Japanese temple carpentry kit (procedural): primitives, tiled hongawara roof
-// generator, profile sweeps, eaves (two-tier rafters), bracket sets (kumimono),
-// railings with giboshi, gold fittings. Used by buildings.js.
+// Japanese temple carpentry kit (procedural): primitives, tiled 青瓦 roof
+// generator, profile sweeps, eaves (two-tier rafters), bracket sets (组物),
+// railings with 莲瓣望柱头 post caps, dark iron fittings. Used by buildings.js.
 // All functions work in a building-LOCAL frame: x along the facade, z depth
 // (+z = front), y up. A LocalBuilder (LB) maps local -> world.
 // ---------------------------------------------------------------------------
@@ -159,7 +159,7 @@ export function lathe(profile, seg = 24, key = null) {
   return key ? cached('la' + key + seg, build) : build();
 }
 
-// bracket arm (hijiki) along local x, length L, height H, width W; origin at bottom center
+// bracket arm (肘木) along local x, length L, height H, width W; origin at bottom center
 export function armGeo(L, H, W, lo = false) {
   return cached(`arm${L},${H},${W},${lo}`, () => {
     const s = new THREE.Shape();
@@ -173,7 +173,7 @@ export function armGeo(L, H, W, lo = false) {
   });
 }
 
-// kibana: carved projecting beam end (scroll profile) along +x from x=0, height H, width W; origin bottom at x=0
+// 木鼻: carved projecting beam end (scroll profile) along +x from x=0, height H, width W; origin bottom at x=0
 export function kibanaGeo(L, H, W) {
   return cached(`kib${L},${H},${W}`, () => {
     const s = new THREE.Shape();
@@ -185,7 +185,7 @@ export function kibanaGeo(L, H, W) {
     return extrude(s, W, Math.min(0.01, W * 0.08), null, 6);
   });
 }
-// gold scroll plate for the kibana side (spiral lines approximated by a ring + tail)
+// gold scroll plate for the 木鼻 side (spiral lines approximated by a ring + tail)
 export function scrollPlate(R) {
   return cached(`scr${R}`, () => {
     const parts = [];
@@ -196,7 +196,7 @@ export function scrollPlate(R) {
   });
 }
 
-// rosette (kugikakushi / rokuyo): flower plate facing +z, radius R; origin at back center
+// rosette (钉隐 / rokuyo): flower plate facing +z, radius R; origin at back center
 export function rosette(R, petals = 6, thick = 0.012, lo = false) {
   if (lo) {
     return cached(`rosl${R},${thick}`, () => {
@@ -221,18 +221,18 @@ export function rosette(R, petals = 6, thick = 0.012, lo = false) {
   });
 }
 
-// giboshi (onion finial) on railing posts. base radius ~ r, origin at bottom
-export function giboshi(r = 0.075, seg = 40) {
+// 莲瓣望柱头 (lotus-bud railing post cap). base radius ~ r, origin at bottom.
+// (was: 拟宝珠(已替换为莲瓣望柱头), the Japanese onion finial)
+export function lotusFinial(r = 0.075, seg = 12) {
   const P = [
-    [r * 1.02, 0], [r * 1.06, 0.006], [r * 1.06, 0.03], [r * 0.98, 0.036], [r * 0.82, 0.042], [r * 0.78, 0.058],
-    [r * 0.94, 0.064], [r * 0.98, 0.074], [r * 0.94, 0.084], [r * 0.74, 0.09], [r * 0.7, 0.104], [r * 0.88, 0.122],
-    [r * 1.08, 0.148], [r * 1.17, 0.175], [r * 1.16, 0.2], [r * 1.05, 0.228], [r * 0.82, 0.255], [r * 0.55, 0.28],
-    [r * 0.32, 0.3], [r * 0.16, 0.318], [r * 0.1, 0.33], [r * 0.16, 0.338], [r * 0.15, 0.35], [r * 0.08, 0.362], [0, 0.372],
+    [r * 1.02, 0], [r * 1.06, 0.006], [r * 1.06, 0.028], [r * 0.99, 0.034], [r * 0.82, 0.042], [r * 0.80, 0.062],
+    [r * 0.88, 0.086], [r * 1.00, 0.122], [r * 1.14, 0.162], [r * 1.18, 0.196], [r * 1.06, 0.230], [r * 0.86, 0.268],
+    [r * 0.66, 0.302], [r * 0.46, 0.334], [r * 0.28, 0.360], [r * 0.13, 0.380], [0, 0.392],
   ].map(([a, y]) => [a, y * (r / 0.075)]);
-  return lathe(P, seg, 'gib' + r);
+  return lathe(P, seg, 'lotusCap' + r);
 }
 
-// gold band wrapping a round column (nemaki / kanagu), radius r, height h, origin at bottom
+// gold band wrapping a round column (根卷 / 金物), radius r, height h, origin at bottom
 export function colBand(r, h, seg = 32, studs = 0, lo = false) {
   if (lo) return cached(`bandl${r},${h},${seg}`, () => lathe([[r, 0], [r + 0.012, 0], [r + 0.016, h * 0.5], [r + 0.012, h], [r, h]], seg));
   return cached(`band${r},${h},${seg},${studs}`, () => {
@@ -250,7 +250,7 @@ export function colBand(r, h, seg = 32, studs = 0, lo = false) {
   });
 }
 
-// ornate gold column band (kazari-kanagu) for gate pillars: beads, recessed field,
+// ornate gold column band (kazari-金物) for gate pillars: beads, recessed field,
 // two rows of studs and vertical leaf plates. origin at bottom.
 export function ornBand(r, h, seg = 40) {
   return cached(`orn${r},${h},${seg}`, () => {
@@ -379,7 +379,7 @@ export function roundProfile(r, y0 = 0, seg = 10) {
 }
 
 // ---------------------------------------------------------------------------
-// Tiled roof (hongawara) generator.
+// Tiled roof (青瓦) generator.
 // faces: { O:[x,z], a:[x,z] (along eave), n:[x,z] (inward), u0, u1, dmin(u), dmax(u),
 //          y0, prof(d), lip }  -> plan point P = O + a u + n d ; y = y0 + prof(d) + lift(P)
 // T: tile params or null (smooth surface, e.g. soffits).
@@ -524,7 +524,7 @@ export function roofSurface(faces, T, lift = () => 0, opt = {}) {
   return { geo: g, caps };
 }
 
-// Round tile end cap (tomoe-gawara) facing +z, radius r; returns [darkPart, goldPart]
+// Round tile end cap (巴纹-gawara) facing +z, radius r; returns [darkPart, goldPart]
 export function tileCapGeos(r, detail = 2) {
   return cached(`cap${r},${detail}`, () => {
     if (detail < 2) {
@@ -536,7 +536,7 @@ export function tileCapGeos(r, detail = 2) {
     const seg = 14;
     const dark = lathe([[0, 0], [r, 0], [r * 1.02, 0.006], [r * 1.0, 0.03], [r * 0.9, 0.032], [r * 0.86, 0.026], [r * 0.62, 0.026], [r * 0.58, 0.03], [0, 0.03]], seg)
       .rotateX(Math.PI / 2);
-    // tomoe relief / boss (gold)
+    // 巴纹 relief / boss (gold)
     const gold = lathe([[0, 0.024], [r * 0.5, 0.024], [r * 0.52, 0.034], [r * 0.4, 0.04], [r * 0.18, 0.046], [0, 0.048]], seg).rotateX(Math.PI / 2);
     return [ni(dark), ni(gold)];
   });

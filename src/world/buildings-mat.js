@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // buildings-mat.js — hero surface shaders for the buildings (pavilion, gate,
 // corridor, halls): worn vermilion urushi lacquer (negoro edge wear, brush
-// streaks, clearcoat breakup), engraved gilt fittings (kanagu) and an
+// streaks, clearcoat breakup), engraved gilt fittings (金物) and an
 // anti-aliased lacquered plank floor. Hooks for ctx.mat.patch().
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
@@ -155,8 +155,8 @@ export function lacquerHooks({ base = 'vec3(0.50, 0.072, 0.028)', grain = 'h', e
   };
 }
 
-// Gilt bronze fittings (kanagu): matte punched ground with polished raised
-// karakusa scroll, tarnish in the recesses. amp scales the relief.
+// Gilt bronze fittings (金物): matte punched ground with polished raised
+// 卷草 scroll, tarnish in the recesses. amp scales the relief.
 export function giltHooks({ base = 'vec3(1.0, 0.70, 0.30)', period = 0.05, amp = 1.0 } = {}) {
   return {
     fragHead: /* glsl */ `
@@ -189,7 +189,7 @@ export function giltHooks({ base = 'vec3(1.0, 0.70, 0.30)', period = 0.05, amp =
       vec3 base = ${base};
       vec3 col = base * (0.92 + 0.12 * n);
       col = mix(col, base * vec3(0.52, 0.40, 0.24), g_tar * 0.32);
-      // punched (nanako) ground reads darker & warmer, relief polished bright
+      // punched (鱼子地) ground reads darker & warmer, relief polished bright
       col = mix(col * vec3(0.80, 0.74, 0.62), col * 1.04, g_rel);
       // grime in the ground on lower / sheltered fittings
       col *= 1.0 - (1.0 - g_rel) * smoothstep(0.2, 0.9, -wn.y + 0.3) * 0.15;

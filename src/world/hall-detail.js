@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // hall-detail: secondary / tertiary relief for the hall close-ups.
-//  - rafterCap: gilt kibana fitting (wrapping sleeve + rimmed end plate + boss)
-//  - tomoeDisc: eave tile end (rimmed disc, bead ring, gilt mitsudomoe)
+//  - rafterCap: gilt 木鼻 fitting (wrapping sleeve + rimmed end plate + boss)
+//  - lotusDisc: eave tile end (rimmed disc, 弦纹 ring, lotus petals, seed pod)
 //  - cornerPlate: scalloped gilt corner fitting with nail heads + engraved rim
 //  - hinge: long gilt door strap with cusped end and studs
 // Frames: flat ornaments face local +Z and lie in local XY (centred).
@@ -25,42 +25,40 @@ export function rafterCap(ms, F, hw, hh, opts = {}) {
   if (opts.boss !== false) lathe(ms, mul(F, xf([0, 0, 0.002], 0, Math.PI / 2)), [[r, 0], [r * 0.95, 0.005], [r * 0.62, 0.011], [0, 0.014]], 8);
 }
 
-// Comma (tomoe) outline: round head (radius a) centred at distance c from the
-// disc centre at angle ang0, tail sweeping clockwise and drifting outward.
-function tomoeOutline(a, c, ang0, sweepA = 1.45) {
+// One lotus petal in the disc face plane: base at radius r0, tip at r1, half
+// width hw at the middle, pointing along angle a.
+function petalPoly(r0, r1, hw, a) {
+  const ca = Math.cos(a), sa = Math.sin(a);
+  const px = (r, o) => [ca * r - sa * o, sa * r + ca * o];
   const pts = [];
-  const N = 10;
-  const dir = (t) => [Math.cos(t), Math.sin(t)];
-  const hc = [Math.cos(ang0) * c, Math.sin(ang0) * c];
-  // head arc on the leading (counter-clockwise) side: outer point -> inner point
-  for (let i = 0; i <= N; i++) { const d = dir(ang0 + (i / N) * Math.PI); pts.push([hc[0] + d[0] * a, hc[1] + d[1] * a]); }
-  const T = 8;
-  const rc = (u) => c + 0.55 * a * u;
-  const hw = (u) => a * Math.pow(1 - u, 0.85);
-  // inner edge of the tail (head inner point -> tip), then outer edge back
-  for (let i = 1; i <= T; i++) { const u = i / T; const d = dir(ang0 - u * sweepA); const r = rc(u) - hw(u) * 0.8; pts.push([d[0] * r, d[1] * r]); }
-  for (let i = T - 1; i >= 1; i--) { const u = i / T; const d = dir(ang0 - u * sweepA); const r = rc(u) + hw(u); pts.push([d[0] * r, d[1] * r]); }
+  const N = 6;
+  for (let i = 0; i <= N; i++) { const t = i / N; pts.push(px(r0 + (r1 - r0) * t, -hw * Math.sin(Math.PI * t))); }
+  for (let i = N; i >= 0; i--) { const t = i / N; pts.push(px(r0 + (r1 - r0) * t, hw * Math.sin(Math.PI * t))); }
   return pts;
 }
 
-// Eave tile end disc (axis = local +Y, face toward +Y). Dark rimmed disc with a
-// bead ring (renju) and a gilt mitsudomoe in relief.
-export function tomoeDisc(msTile, msGold, X, R = 0.122, th = 0.05) {
+// 莲花瓦当 — eave tile end (axis = local +Y, face toward +Y).
+// A rimmed dark tile disc with a 弦纹 ring, eight lotus petals and a domed
+// seed pod. (was: 巴纹Disc, with a gilt mitsudomoe — a Shinto shrine motif)
+export function lotusDisc(msTile, msGold, X, R = 0.122, th = 0.05) {
   lathe(msTile, X, [[0, -th], [R, -th], [R, 0], [R * 0.93, 0.014], [R * 0.84, 0.014], [R * 0.8, 0.004], [0, 0.004]], 16, { hardDeg: 40 });
   // flat frame for planar relief: XY plane = disc face, +Z = disc axis
   const F = mul(X, xf([0, 0.004, 0], 0, -Math.PI / 2));
-  // bead ring
-  const nb = 12, rb = R * 0.66, br = R * 0.055;
-  for (let i = 0; i < nb; i++) {
-    const a = (i / nb) * Math.PI * 2;
-    lathe(msTile, mul(F, xf([Math.cos(a) * rb, Math.sin(a) * rb, 0], 0, Math.PI / 2)), [[br, 0], [br * 0.8, br * 0.7], [0, br * 0.95]], 6);
+  // 弦纹: the raised ring that divides the rim from the field
+  lathe(msTile, X, [[R * 0.78, 0.004], [R * 0.86, 0.010], [R * 0.86, 0.015], [R * 0.78, 0.019]], 20, { hardDeg: 40 });
+  // 莲瓣: eight petals
+  const NP = 8;
+  for (let i = 0; i < NP; i++) {
+    const a = (i / NP) * Math.PI * 2 + Math.PI / NP;
+    extrude(msTile, F, petalPoly(R * 0.30, R * 0.80, R * 0.21, a), [], 0, 0.010, { back: false });
   }
-  {
-    const mg = msGold || msTile;
-    const a = R * 0.14, c = R * 0.25;
-    for (let k = 0; k < 3; k++) extrude(mg, F, tomoeOutline(a, c, (k / 3) * Math.PI * 2 + 0.3), [], 0, 0.011 + k * 0.0006, { back: false });
-    lathe(mg, mul(F, xf([0, 0, 0], 0, Math.PI / 2)), [[R * 0.07, 0], [R * 0.06, 0.012], [0, 0.016]], 8);
+  // 莲蓬: the seed pod at the centre with its seeds
+  lathe(msTile, mul(F, xf([0, 0, 0], 0, Math.PI / 2)), [[R * 0.28, 0], [R * 0.26, 0.008], [R * 0.19, 0.014], [0, 0.018]], 12);
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    lathe(msTile, mul(F, xf([Math.cos(a) * R * 0.13, Math.sin(a) * R * 0.13, 0.016], 0, Math.PI / 2)), [[R * 0.036, 0], [R * 0.03, R * 0.032], [0, R * 0.046]], 6);
   }
+  void msGold;
 }
 
 // Scalloped gilt corner plate (w x h), faces +Z, centred, with an engraved
@@ -103,7 +101,7 @@ export function hinge(ms, X, L = 0.6, h = 0.09, t = 0.007) {
 
 export { circlePts };
 
-// Gilt column band (kazari-kanagu) with rolled rims and a ring of nail heads,
+// Gilt column band (kazari-金物) with rolled rims and a ring of nail heads,
 // wrapped around a round column of radius r, bottom at y0 (frame X at the axis).
 export function columnBand(ms, X, r, H = 0.2, nails = 12) {
   const e = r + 0.004;

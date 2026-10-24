@@ -18,13 +18,13 @@ export default {
     pondHero: { kind: 'flower', size: 1.0, open: 0.9 },
   },
   8: {
-    name: 'Borrowed Reflection — low water skim on beaded lotus pad, swinging up to mirror reflections of pagoda and bridge',
+    name: 'Borrowed Reflection — low water skim on beaded lotus pad, swinging up to mirror reflections of the borrowed Beisi Pagoda and the stone bridge',
     ease: 'reveal',
     keys: [
       { pos: [30.2, -0.42, 27.2], look: [29.718, -0.507, 27.302], focal: 50, focus: 0.5, fstop: 11 },
       { pos: [29.55, -0.16, 26.9], look: [25.55, -0.3, 26.76], focal: 35, focus: 3.5, fstop: 8 },
       { pos: [29.0, 0.35, 26.35], look: [0.8, 1.85, 16.1], focal: 28, focus: 18, fstop: 8 },
-      { pos: [28.6, 0.9, 25.8], look: [-30, 9.5, -6.5], focal: 24, focus: 40, fstop: 8 },
+      { pos: [28.6, 0.9, 25.8], look: [-105, 28, -48], focal: 24, focus: 150, fstop: 8 },
     ],
     near: 0.03,
     shadow: { center: [6, 0, 10], radius: 60 },

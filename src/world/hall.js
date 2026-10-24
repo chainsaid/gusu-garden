@@ -1,16 +1,19 @@
 // ---------------------------------------------------------------------------
-// MAIN HALL (hondō) — exterior shell. Two-tier roof (mokoshi skirt roof +
-// irimoya main roof with chidori-hafu), karahafu porch over the stairs,
-// granite podium, vermilion columns, rich bracket sets and gold fittings.
+// 主厅 — exterior shell. 重檐歇山（下檐副阶 + 上檐歇山顶），嫩戗发戗起翘，
+// 青石台基，栗壳色桐油木柱，斗拱与暗哑铁件。
 // Built in hall-local coordinates and placed at L.hall.center (faces +Z).
+// (was: a Japanese main hall with a 副阶 skirt roof, a 歇山 main roof with a
+//  千鸟破风 dormer and a 唐破风 porch over the stairs: all removed)
+//  and a 唐破风(已移除) porch over the stairs: all removed for the Jiangnan style)
 // ---------------------------------------------------------------------------
 import { Acc, xf, basis, mul, v3, sweep, cbox, lathe } from './hall-lib.js';
-import { makeProfile, makeWarp, buildTiles, buildEaves, buildIrimoyaRidges, buildIrimoyaGables, ridgeAlong } from './hall-roof.js';
-import { onigawara } from './hall-orn.js';
-import { karahafuParams, buildKarahafu, buildChidori } from './hall-kara.js';
+import { makeProfile, makeWarp, buildTiles, buildEaves, buildXieshanRidges, buildXieshanGables, ridgeAlong } from './hall-roof.js';
+import { chiwen } from './hall-orn.js';
+// hall-kara.js (唐破风(已移除) 唐破风 / chidori 千鸟破风) is no longer imported:
+// both are Japanese-only roof forms and have been removed from the Jiangnan hall.
 import { HB, buildPodium, buildStairs, buildVeranda, buildWalls, buildInterior, buildUpper, placeBrackets, kentoku, railing } from './hall-body.js';
 import { stairBalustrade } from './hall-stair.js';
-import { aoVariant, weatherHooks, paintHooks, mergeHooks, agedGiltHooks, lacquerMicroHooks } from './hall-mats.js';
+import { aoVariant, weatherHooks, mergeHooks, agedGiltHooks, lacquerMicroHooks } from './hall-mats.js';
 
 let _interiorMats = [];
 
@@ -170,33 +173,31 @@ export async function build(ctx) {
   const t0 = performance.now();
 
   // ------------------------------------------------------------ parameters
-  const K = karahafuParams();
+  const PORCH_Z = 12.4;                      // front porch / stair column line
   const xi = HB.up.xs[HB.up.xs.length - 1], zi = HB.up.zs[HB.up.zs.length - 1];
+  // no 唐破风(已移除) porch any more, so the lower roof is continuous all the way round
   const mok = {
-    kind: 'mokoshi', ex: 16.8, ez: 12.3, y0: 8.55, prof: makeProfile(0.28, 0.40, 7.5, 1.5), xi, zi,
-    frontExcl: [[-K.Wk - 0.05, K.Wk + 0.05]],
+    kind: 'skirt', ex: 16.8, ez: 12.3, y0: 8.55, prof: makeProfile(0.28, 0.40, 7.5, 1.5), xi, zi,
     E: { dP: 3.36, yP: 9.2, sb: 0.32, dTip: 0.85, yF0: 8.36, sf: 0.22, dFly: 1.7, rafW: 0.11, rafH: 0.13, frafW: 0.1, frafH: 0.115, dwX: 3.8, dwZ: 3.8, purW: 0.22, purH: 0.26, spacing: 0.3 },
     bellScale: 0.85,
   };
   const main = {
-    kind: 'irimoya', ex: xi + 5.4, ez: zi + 5.4, y0: 13.95, prof: makeProfile(0.30, 1.155, zi + 5.4, 1.5), xg: 10.7, xb: 11.6,
+    kind: 'xieshan', ex: xi + 5.4, ez: zi + 5.4, y0: 13.95, prof: makeProfile(0.30, 1.155, zi + 5.4, 1.5), xg: 10.7, xb: 11.6,
     E: { dP: 4.08, yP: 14.82, sb: 0.33, dTip: 0.9, yF0: 13.74, sf: 0.22, dFly: 1.95, rafW: 0.13, rafH: 0.15, frafW: 0.12, frafH: 0.13, dwX: 5.4, dwZ: 5.4, purW: 0.26, purH: 0.3, spacing: 0.3 },
     bellScale: 1.1,
   };
   const warpM = makeWarp(mok.ex, mok.ez, 1.15, 0.55, Math.max(13 / mok.ex, 8.5 / mok.ez) - 0.04);
   const warpU = makeWarp(main.ex, main.ez, 1.75, 0.85, Math.max(xi / main.ex, zi / main.ez) - 0.04);
   const tmp = [0, 0, 0];
-  // mokoshi tile height (with warp lift) for intersections
+  // lower roof tile height (with warp lift) for intersections
   const mokY = (x, z) => {
     const d = Math.min(mok.ez - Math.abs(z), mok.ex - Math.abs(x));
     warpM(x, 0, z, tmp);
     return mok.y0 + mok.prof.P(Math.max(d, 0)) + tmp[1];
   };
-  // karahafu hides mokoshi tiles under it
-  mok.hide = (x, z, y) => Math.abs(x) < K.Wk + 0.02 && z < K.zf && z > 6.0 && y < K.f(x) - 0.03;
   const mainYc = (z) => main.y0 + main.prof.P(main.ez - z);
 
-  // ------------------------------------------------------------ mokoshi tier
+  // ------------------------------------------------------------ 下檐 (lower roof tier)
   const accM = new Acc();
   buildTiles(accM, mok, mats, R);
   const bellsM = buildEaves(accM, mok, mats);
@@ -210,7 +211,7 @@ export async function build(ctx) {
       // shallow bury: the corner end overhangs the eave, a deep bury hung below it as a dark slab
       ridgeAlong(tile, path, 0.42, 3, 0.1, 0.13, 0.16);
       const hd = v3.norm([sx, 0, sz]);
-      onigawara(tile, gold, basis(v3.add(path[0], [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.74, 0.95, 0.2, { horn: false, goldEdge: false });
+      chiwen(tile, gold, basis(v3.add(path[0], [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.74, 0.95, 0.2);
     }
     // flashing ridges against the upper wall
     const yF = (d) => Y(d) - 0.02;
@@ -227,18 +228,15 @@ export async function build(ctx) {
   const accU = new Acc();
   buildTiles(accU, main, mats, R);
   const bellsU = buildEaves(accU, main, mats);
-  buildIrimoyaRidges(accU, main, mats);
-  buildIrimoyaGables(accU, main, mats);
-  buildChidori(accU, mats, R, { zf: 7.65, W: 4.3, ye: 15.02, H: 3.45 }, mainYc);
+  buildXieshanRidges(accU, main, mats);
+  buildXieshanGables(accU, main, mats);
+  // 千鸟破风 千鸟破风(已移除) removed: a Chinese hip-gable roof has no dormer gable
+  // standing on the front slope (was: buildChidori(accU, mats, R, {...}, mainYc))
   buildUpper(accU, mats, R);
   placeBrackets(accU, mats, HB.up.xs, HB.up.zs, HB.up.top, 'mitesaki', { kw: 1.05, fullInter: true });
   kentoku(accU, mats, xi, zi, HB.up.top - 0.02, main.E.yP + main.E.sb * (main.E.dwX - main.E.dP) + 0.03, HB.up.r);
   accU.warp(warpU);
   for (const b of bellsU.bells) { warpU(b.pos[0], b.pos[1], b.pos[2], tmp); b.pos = [tmp[0], tmp[1], tmp[2]]; anchors.bells.push(b); }
-
-  // ------------------------------------------------------------ karahafu (removed for Jiangnan style)
-  const accK = new Acc();
-  // buildKarahafu(accK, mats, R, K, mokY, anchors);
 
   // ------------------------------------------------------------ body
   const accB = new Acc();
@@ -251,7 +249,7 @@ export async function build(ctx) {
     ['panel', 'renji', 'renji', 'renji', 'renji'],
     ['board', 'renji', 'board', 'renji', 'board']);
   buildInterior(accB, mats, R);
-  // stair railings (bridge-like, following the slope, gold giboshi)
+  // stair railings (bridge-like, following the slope, lotus-bud post caps)
   {
     const S = HB.stair;
     for (const sx of [-1, 1]) {
@@ -260,7 +258,7 @@ export async function build(ctx) {
       const yAt = (z) => HB.pod.h + 0.32 + ((0.5 - (HB.pod.h + 0.32)) * (z - zTop)) / (zBot - zTop) + 0.06;
       const zN = zBot + 0.13; // heavy newel on the stone plinth at the stair foot
       const yTopRail = yAt(zTop + 0.05);
-      const posts = [[x, yTopRail, K.zc + 0.5, yTopRail - HB.pod.h], [x, yTopRail, zTop + 0.05]];
+      const posts = [[x, yTopRail, PORCH_Z + 0.5, yTopRail - HB.pod.h], [x, yTopRail, zTop + 0.05]];
       for (let k = 1; k <= 2; k++) { const z = zTop + 0.05 + ((zN - zTop - 0.05) * k) / 3; posts.push([x, yAt(z), z]); }
       posts.push([x, yAt(zN), zN]);
       stairBalustrade(accB, mats, posts, posts.length - 1, { h: 0.95, outX: sx });
@@ -291,7 +289,7 @@ export async function build(ctx) {
     const ax = Math.abs(x), az = Math.abs(z);
     const up = Math.max(0, ny), down = Math.max(0, -ny);
     const inUpper = ax < xi + 0.35 && az < zi + 0.35 && y > 10.2;
-    // under the mokoshi skirt roof
+    // under the lower skirt roof
     if (!inUpper && y > 1.4 && ax < mok.ex + 0.4 && az < mok.ez + 0.4) {
       const ym = mokY(x, z);
       if (y < ym - 0.14) {
@@ -304,11 +302,7 @@ export async function build(ctx) {
       const t = Math.min(main.ex - ax, main.ez - az) + 0.3;
       ao *= occl(t, Math.max(0, 13.75 - y) + 0.35, up, down, 0.82);
     }
-    // karahafu porch (under the vault)
-    if (ax < K.Wk + 0.1 && z > 8.4 && z < K.zf + 0.25 && y > 1.5 && y < K.f(x) - 0.35) {
-      const t = Math.min(K.Wk - ax, K.zf - z) + 0.2;
-      ao *= occl(t, Math.max(0, K.f(x) - 0.7 - y) + 0.3, up, down, 0.75);
-    }
+    // (the 唐破风(已移除) porch AO volume went with the porch)
     // bracket clusters (deep cavities between arms and blocks)
     {
       const wM = Math.max(ax - 13, az - 8.5);

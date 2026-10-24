@@ -219,9 +219,9 @@ function unitBay(lb, K) {
   for (const s of [-1, 1]) fascia(lb, K, [[0, s * (CW - TIP - 0.045)], [bay, s * (CW - TIP - 0.045)]], [bay / 2, 0]);
   lb.add(sweep(linePath([0, 0], [bay, 0], () => CORRIDOR_RIDGE_Y - 0.02, 0.9), ridgeProfile(0.42, 0.36, 4, 0.08, 0.3)), K.tile);
 }
-// column line: koryo (rainbow beam) across, kaerumata, ridge block, funahijiki on both columns
+// column line: 虹梁 (rainbow beam) across, 蛙股(已替换为荷叶墩), ridge block, funa肘木 on both columns
 function unitLine(lb, K) {
-  // koryo
+  // 虹梁
   const top = Y_PLATE;
   const s = new THREE.Shape();
   s.moveTo(-1.82, top - 0.26); s.lineTo(-1.5, top - 0.28);
@@ -229,7 +229,7 @@ function unitLine(lb, K) {
   s.lineTo(1.86, top - 0.12); s.lineTo(1.8, top); s.lineTo(-1.8, top); s.lineTo(-1.86, top - 0.12); s.lineTo(-1.82, top - 0.26);
   lb.add(extrude(s, 0.17, 0.012, 'koryo', 4), K.red, m4([0, 0, 0], [0, Math.PI / 2, 0]));
   for (const sz of [-1, 1]) lb.add(chamferBox(0.18, 0.2, 0.012, 0.003), K.cap, m4([0, top - 0.13, sz * 1.86]));
-  // kaerumata (frog-leg strut) from koryo top to the ridge daito
+  // 蛙股(已替换为荷叶墩) (frog-leg strut) from 虹梁 top to the ridge 大斗
   const kh = yRB(CW) - 0.18 - 0.11 - 0.14 - top;
   const k = new THREE.Shape();
   k.moveTo(-0.42, 0); k.lineTo(-0.3, 0);
@@ -242,7 +242,7 @@ function unitLine(lb, K) {
   lb.add(rosette(0.045, 6, 0.01, true), K.cap, m4([-0.06, top + kh * 0.35, 0], [0, -Math.PI / 2, 0]));
   lb.add(block(0.26, 0.14, 0.26), K.red, m4([0, top + kh + 0.02, 0]));
   lb.add(armGeo(0.9, 0.11, 0.12, true), K.red, m4([0, top + kh + 0.16, 0]));
-  // funahijiki on the column daito, along the run
+  // funa肘木 on the column 大斗, along the run
   for (const sz of [-1, 1]) lb.add(armGeo(1.24, 0.12, 0.13, true), K.red, m4([0, Y_COLTOP + 0.17, sz * COLZ]));
 }
 function unitColumn(lb, K) {

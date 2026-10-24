@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // Koi (Nishikigoi) swimming slowly just under the surface — deterministic in
 // time (closed loops, body undulation in the vertex shader), procedural
-// varieties (kohaku, sanke, showa, ogon, chagoi, orange, asagi) with scales.
+// varieties (红白, sanke, 昭和三色, 黄金, 茶鲤, orange, 浅黄) with scales.
 // Floating debris: red/orange maple leaves and a few cherry petals.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
@@ -201,8 +201,10 @@ export function buildKoi(ctx, site, U, plan) {
     { x: -16.0, z: 25.0, n: 3 }, // south-west bay
     { x: 2.0, z: 26.0, n: 3 },   // south of the island
   ];
-  // colour types: 0 kohaku, 1 taisho sanke, 2 showa, 3 yamabuki ogon, 4 chagoi, 5 orange ogon, 6 asagi, 7 platinum ogon, 8 tancho
-  const types = [0, 1, 0, 2, 3, 0, 5, 1, 4, 6, 0, 8, 7, 2, 5, 0, 1, 3, 6, 0, 2, 8];
+  // colour types: 0 全红, 1 红白花, 2 红黑花, 3 金黄, 4 青黑, 5 橙红, 6 银白
+  // (was: Japanese koi breeds — 红白/大正三色/昭和三色/丹顶/浅黄/黄金. A Suzhou
+  //  pond holds 红鲫鱼、花鲤、金鱼, so the palette is narrowed to those.)
+  const types = [0, 1, 0, 2, 3, 0, 5, 1, 4, 6, 0, 1, 3, 2, 5, 0, 1, 3, 6, 0, 2, 1];
   let fi = 0;
   for (const gr of groups) {
     for (let k = 0; k < gr.n; k++, fi++) {
@@ -309,7 +311,7 @@ export function buildKoi(ctx, site, U, plan) {
         else if (type < 6.5) { col = mix(vec3(0.20, 0.27, 0.33), orange, 1.0 - smoothstep(-0.05, 0.02, lp.y)); }
         else if (type < 7.5) { col = vec3(0.86, 0.87, 0.86); g_metal = 0.85; g_rough = 0.24; }
         else { col = white; float hd = length(vec2(s - 0.06, lp.y - 0.03) * vec2(1.0, 1.3)); col = mix(col, red, (1.0 - smoothstep(0.03, 0.04, hd)) * topF); }
-        // head is usually clean (white/orange) for kohaku-likes
+        // head is usually clean (white/orange) for 红白-likes
         if (type < 1.5) col = mix(col, mix(white, red, smoothstep(0.0, 0.1, n2)), smoothstep(0.16, 0.05, s) * topF);
         // gill cover (operculum) line and the darker lateral line
         float fwS = max(fwidth(s), 1e-4);

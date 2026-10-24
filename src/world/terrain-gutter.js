@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Drip-line gutters (amaochi-mizo): two lines of granite curb stones with a bed
+// Drip-line gutters (檐口滴水-mizo): two lines of granite curb stones with a bed
 // of dark river cobbles between them, round the hall and pagoda podiums and
 // along both faces of the corridor plinth. Curbs are real stones (merged into
 // the paving mesh); the cobble bed is a strip mesh with a procedural, filtered

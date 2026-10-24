@@ -1,7 +1,8 @@
 // ---------------------------------------------------------------------------
-// Five-storey pagoda (goju-no-to) — fully procedural.
+// 借景·北寺塔 (Beisi Pagoda) — a nine-storey tower standing outside the garden and
+// borrowed into it as distant scenery. Fully procedural.
 //
-// Side-local frame: every side j (0..3) is generated in a local frame
+// Side-local frame: every side j (0..NS-1, NS = 8) is generated in a local frame
 // (x = lateral along the wall, y = up, p = outward distance from the centre)
 // and rotated by j*90deg about the pagoda axis. Corner elements belong to the
 // side's -x corner so nothing is generated twice.
@@ -21,17 +22,27 @@ const RW = 0.106; // rafter width (rafters nearly as wide as the gaps)
 
 export function makeStoreys(L) {
   const P = L.pagoda;
-  const NS = P.stories || 5;
+  const NST = P.stories || 5;
+  // the plan is a regular NS-gon. NS = 4 reproduces the old square pagoda exactly:
+  // every formula in this file is written in terms of TAN = tan(pi/NS), SEC = 1/cos(pi/NS).
+  const NS = P.sides || 8;
+  const TAN = Math.tan(Math.PI / NS);
   const S = [];
-  const kk = [1, 0.95, 0.91, 0.875, 0.85];
+  // per-storey width multiplier; the taper keeps going gently all the way up a
+  // nine-storey tower instead of flattening out after the fifth
+  const kk = [1, 0.95, 0.91, 0.875, 0.85, 0.83, 0.81, 0.795, 0.78, 0.77];
   let F = P.platform.h + 0.16;
-  for (let i = 0; i < NS; i++) {
+  for (let i = 0; i < NST; i++) {
     const k = kk[i] ?? 0.85;
-    const s = { i, k, top: i === NS - 1 };
+    const s = { i, k, top: i === NST - 1 };
     s.kv = 0.85 * k; // vertical scale of the bracket tiers
-    s.a = (P.baseWidth * Math.pow(P.shrink, i)) / 2;
+    s.a = (P.baseWidth * Math.pow(P.shrink, i)) / 2;   // apothem: wall plane to the axis
+    s.h = s.a * TAN;                                   // lateral half-extent of one face
     s.F = F;
-    s.Hc = i === 0 ? 2.7 : 1.4 - 0.02 * (i - 1);
+    // 报恩寺塔: nine storeys from the 基台 top to the 塔刹 base span
+    // 76 - 15.2 = 60.8 m, i.e. ~6.6 m per storey (the bottom storey, which
+    // carries the 副阶, is the tallest).
+    s.Hc = i === 0 ? 5.31 : 3.03 - 0.031 * (i - 1);
     s.T = F + s.Hc;
     s.p1 = s.a + 0.46 * k; s.p2 = s.a + 0.92 * k; s.p3 = s.a + 1.38 * k;
     s.gh = 0.22 * s.kv; // gangyo (eave purlin) height
@@ -40,7 +51,7 @@ export function makeStoreys(L) {
     s.flare = 0.6 * k;
     s.lift = (s.top ? 1.45 : 1.35) * k;
     s.liftExp = 1.7;
-    s.Xc = s.a + s.O + s.flare;
+    s.Xc = (s.a + s.O + s.flare) * TAN;   // lateral half-extent of the eave at the corner
     s.Rt = s.top ? 0.42 : (P.baseWidth * Math.pow(P.shrink, i + 1)) / 2 + 0.12;
     s.qa = s.top ? 0.28 : 0.42;
     const run = s.a + s.O - s.Rt;
@@ -76,12 +87,23 @@ export async function build(ctx) {
   const PG = L.pagoda;
   const C = PG.center;
   const S = makeStoreys(L);
+  // The borrowed tower stands outside the courtyard grid, so its foot has to be
+  // taken from the landscape rather than from the (flat, y = 0) courtyard.
+  const _terr = ctx.modules && ctx.modules.terrain;
+  const _gy = _terr && typeof _terr.heightAt === 'function' ? _terr.heightAt(C[0], C[2]) : 0;
+  const CY = Number.isFinite(_gy) ? _gy : C[1];
   const root = new THREE.Group();
   root.name = 'pagoda';
-  root.position.set(C[0], C[1], C[2]);
+  root.position.set(C[0], CY, C[2]);
   const B = new geom.Builder();
   const I = new PP.InstSet();
-  const R = [0, 1, 2, 3].map((j) => new THREE.Matrix4().makeRotationY((j * Math.PI) / 2));
+  // 八角 plan: NS faces, each rotated TAU/NS about the tower axis. NS = 4 gives
+  // the old square plan back, so nothing below is hard-coded to four sides.
+  const NS = PG.sides || 8;
+  const TAU = Math.PI * 2;
+  const TAN = Math.tan(Math.PI / NS), SEC = 1 / Math.cos(Math.PI / NS);
+  const SN = Math.sin(Math.PI / NS), CS = Math.cos(Math.PI / NS);
+  const R = Array.from({ length: NS }, (_, j) => new THREE.Matrix4().makeRotationY((j * TAU) / NS));
   const anchors = { bells: [], hangingLanterns: [] };
 
   // ---------------------------------------------------------------- materials
@@ -125,22 +147,26 @@ export async function build(ctx) {
   const rig = (proc, kind) => ({ ...proc, fragLight: (proc.fragLight || '') + rigGLSL(kind) });
   const P = mat.PROC;
   const MT = {
-    red: mat.phys({ color: 0xffffff, roughness: 0.5, metalness: 0, clearcoat: 0.15, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.082, 0.046, 0.028)', C, { wear: 0.8 }), 'wood')),
-    redDark: mat.phys({ color: 0xffffff, roughness: 0.55, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.050, 0.028, 0.018)', C, { wear: 0.6 }), 'wood')),
+    // 北寺塔: 砖身抹赭黄, 木构髹红棕 (vermilion-red-brown), 铁件乌黑
+    red: mat.phys({ color: 0xffffff, roughness: 0.5, metalness: 0, clearcoat: 0.15, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.34, 0.13, 0.06)', C, { wear: 0.8 }), 'wood')),
+    redDark: mat.phys({ color: 0xffffff, roughness: 0.55, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.22, 0.085, 0.04)', C, { wear: 0.6 }), 'wood')),
+    iron: mat.std({ color: 0x46464a, roughness: 0.5, metalness: 0.85 }, rig(goldProc('vec3(0.10, 0.10, 0.11)'), 'gold')),
     gold: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(goldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
     capGold: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(capGoldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
     capSatin: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(capGoldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
     tile: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(P.roofTile(), 'tile')),
     tileRound: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(tileProc('round'), 'tile')),
     tileFlat: mat.std({ color: 0xffffff, roughness: 0.45, metalness: 0.1 }, rig(tileProc('flat'), 'tile')),
-    plaster: mat.std({ color: 0xffffff, roughness: 0.93, metalness: 0 }, rig(P.plaster(), 'wall')),
-    green: mat.std({ color: 0xffffff, roughness: 0.6, metalness: 0 }, rig(P.chestnutWood('vec3(0.05, 0.12, 0.08)'), 'wood')),
+    // 赭黄砖身 plaster (the brick body is lime-washed ochre)
+    plaster: mat.std({ color: 0xc49a57, roughness: 0.93, metalness: 0 }, rig(P.plaster(), 'wall')),
+    // 窗格木框: dark red-brown wood
+    green: mat.std({ color: 0xffffff, roughness: 0.6, metalness: 0 }, rig(P.chestnutWood('vec3(0.16, 0.07, 0.04)'), 'wood')),
     dark: M.woodDark,
     granite: M.granite,
     graniteC: M.graniteClean,
-    soffit: mat.std({ color: 0xffffff, roughness: 0.66, metalness: 0 }, rig(woodProc('vec3(0.065, 0.038, 0.022)', C, { wear: 0.0, grime: 0.6, planks: true }), 'wood')),
-    // stained dark wood of the eave structure (brackets, rafters, purlins)
-    wood: mat.phys({ color: 0xffffff, roughness: 0.58, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.075, 0.042, 0.026)', C), 'wood')),
+    soffit: mat.std({ color: 0xffffff, roughness: 0.66, metalness: 0 }, rig(woodProc('vec3(0.20, 0.085, 0.045)', C, { wear: 0.0, grime: 0.6, planks: true }), 'wood')),
+    // stained red-brown wood of the eave structure (brackets, rafters, purlins)
+    wood: mat.phys({ color: 0xffffff, roughness: 0.58, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.26, 0.10, 0.05)', C), 'wood')),
     goldSatin: mat.std({ color: 0xffffff, roughness: 0.5, metalness: 0.6 }, rig(goldProc('vec3(0.12, 0.11, 0.10)'), 'gold')),
     spireGold: mat.std({ color: 0xffffff, roughness: 0.45, metalness: 0.7 }, rig(goldProc('vec3(0.15, 0.14, 0.13)'), 'gold')),
   };
@@ -185,7 +211,7 @@ export async function build(ctx) {
       for (const sx of [-1, 1]) eyeAt(j, V3(x + sx * (w / 2 - 0.002), y0 + h * 0.56, pB - 0.13 * sc), V3(sx, 0, 0), sc);
     }
   };
-  const toWorld = (j, v) => v.clone().applyMatrix4(R[j]).add(new THREE.Vector3(C[0], C[1], C[2]));
+  const toWorld = (j, v) => v.clone().applyMatrix4(R[j]).add(new THREE.Vector3(C[0], CY, C[2]));
 
   // ---------------------------------------------------------------- instanced parts
   I.def('daito', PP.masuCoveGeo(0.58, 0.34, { c: 0.016 }), MT.wood, { jitter: 0.07, tint: [0.1, -0.05, -0.1] });
@@ -206,13 +232,14 @@ export async function build(ctx) {
   const nrng = ctx.rng('pagoda-noshi');
   I.def('stud', PP.studGeo(), MT.gold);
   I.def('rosette', PP.rosetteGeo(), MT.gold);
-  I.def('giboshi', PP.giboshiGeo(), MT.gold);
+  I.def('lotusCap', PP.lotusFinialGeo(), MT.gold);
 
   // =====================================================================
-  // PODIUM (kidan): granite, steps on four sides
+  // 台基 (podium): granite, steps on the four cardinal sides
   // =====================================================================
   function podium() {
-    const H = PG.platform.h, hw = PG.platform.w / 2;
+    const H = PG.platform.h, hw = PG.platform.w / 2;   // apothem of the platform
+    const hpw = hw * TAN;                              // lateral half-extent of one face
     const stW = 1.45; // stair half width
     const nSt = 5, rise = H / nSt, run = 0.31;
     const rowBlocks = (j, mt, x0, x1, seg, h, d, y0, pc, c = 0.02, skip = null) => {
@@ -225,25 +252,27 @@ export async function build(ctx) {
         box(j, mt, L1 - 0.004, h, d, cx, y0 + h / 2, pc, 0, c);
       }
     };
-    for (let j = 0; j < 4; j++) {
+    const stairEvery = Math.max(1, Math.round(NS / 4));   // stairs on the four cardinal faces
+    for (let j = 0; j < NS; j++) {
       // plinth course
-      rowBlocks(j, MT.granite, -(hw + 0.1), hw + 0.1 - 0.5, 1.7, 0.18, 0.5, 0, hw + 0.1 - 0.25, 0.025);
+      rowBlocks(j, MT.granite, -(hpw + 0.1), hpw + 0.1 - 0.5, 1.7, 0.18, 0.5, 0, hw + 0.1 - 0.25, 0.025);
       // wall: corner post, posts flanking the stair, panels
-      const posts = [-hw + 0.18, -(stW + 0.55), stW + 0.55];
+      const posts = [-hpw + 0.18, -(stW + 0.55), stW + 0.55];
       for (const x of posts) box(j, MT.granite, 0.36, 0.8, 0.36, x, 0.18 + 0.4, hw - 0.17, 0, 0.03);
       // panels between posts (recessed)
-      const spans = [[-hw + 0.36, -(stW + 0.73)], [stW + 0.73, hw - 0.36]];
+      const spans = [[-hpw + 0.36, -(stW + 0.73)], [stW + 0.73, hpw - 0.36]];
       for (const [x0, x1] of spans) rowBlocks(j, MT.granite, x0, x1, 1.45, 0.8, 0.3, 0.18, hw - 0.17, 0.02);
       // coping
-      rowBlocks(j, MT.granite, -(hw + 0.07), hw + 0.07 - 0.62, 1.5, 0.22, 0.62, 0.98, hw + 0.07 - 0.31, 0.03);
+      rowBlocks(j, MT.granite, -(hpw + 0.07), hpw + 0.07 - 0.62, 1.5, 0.22, 0.62, 0.98, hw + 0.07 - 0.31, 0.03);
       // stairs
+      if (j % stairEvery) continue;
       for (let n = 1; n <= nSt; n++) {
         const yt = H - rise * n;
         const pf = hw + 0.07 + run * n;
         const p0 = hw - 0.2;
         box(j, MT.graniteC, 2 * stW + 0.06, yt, pf - p0, 0, yt / 2, (pf + p0) / 2, 0, 0.02);
       }
-      // side parapets (sode-ishi)
+      // side parapets (袖石)
       for (const sx of [-1, 1]) {
         const xi = sx * stW, xo = sx * (stW + 0.34);
         const pe = hw + 0.07 + run * nSt + 0.08;
@@ -268,57 +297,62 @@ export async function build(ctx) {
       }
       z += dz;
     }
-    // core fill
-    B.add(new THREE.BoxGeometry(2 * hw - 0.2, H - 0.12, 2 * hw - 0.2), MT.granite, m4(null, 0, (H - 0.12) / 2, 0));
+    // core fill (an NS-gonal prism, not a box)
+    B.add(PP.lathe([[0, 0], [hw * SEC - 0.1, 0], [hw * SEC - 0.1, H - 0.12], [0, H - 0.12]], NS), MT.granite, m4(null, 0, 0, 0));
   }
 
   // =====================================================================
-  // WALLS: columns, nageshi, plaster, doors with gold studs, lattice windows
+  // WALLS: 砖身 columns, 腰枋, ochre plaster, doors with iron studs, lattice
+  // windows. 报恩寺塔 divides each of the eight faces into THREE bays with the
+  // door in the central one (当心间辟门).
   // =====================================================================
   function walls(s) {
-    const { a, F, Hc, k, i } = s;
-    const rc = i === 0 ? 0.27 : 0.215 * k;
+    const { a, h, F, Hc, k, i } = s;
+    const rc = i === 0 ? 0.34 : 0.27 * k;
     const hj = i === 0 ? 0.24 : 0.12;
     const hw0 = i === 0 ? 0.78 : 0.36;
     const hn = i === 0 ? 0.2 : 0.16;
     const hL = i === 0 ? 1.95 : Hc - 0.27 * k - hn;
     const kb = Hc - 0.27 * k, kt = Hc - 0.04;
-    const bay = (2 * a) / 3;
+    // three bays per face: a column at each corner and one either side of the
+    // central bay (the +h corner column belongs to the next face)
+    const bay = (2 * h) / 3;
+    const cols = [-h, -h / 3, h / 3];
     const pN = a + rc - 0.015;
-    for (let j = 0; j < 4; j++) {
+    for (let j = 0; j < NS; j++) {
       const jy = (j % 2) * 0.01;
-      for (const x of [-a, -a / 3, a / 3]) {
+      for (const x of cols) {
         B.add(new THREE.CylinderGeometry(rc * 0.97, rc, Hc, dseg(24), 1), MT.red, m4(j, x, F + Hc / 2, a));
-        B.add(new THREE.CylinderGeometry(rc + 0.014, rc + 0.016, 0.1, dseg(24), 1), MT.gold, m4(j, x, F + 0.05, a));
+        B.add(new THREE.CylinderGeometry(rc + 0.014, rc + 0.016, 0.1, dseg(24), 1), MT.iron, m4(j, x, F + 0.05, a));
         if (i === 0) {
           B.add(new THREE.CylinderGeometry(0.42, 0.46, 0.16, 24, 1), MT.granite, m4(j, x, F - 0.08, a));
         }
       }
-      if (i === 0) box(j, MT.granite, 2 * a + 0.2, 0.16, 0.3, 0, F - 0.08, a, 0, 0.02);
-      // nageshi (wrap the outside of the columns)
-      const nx0 = -(a + rc + 0.035), nx1 = a + rc - 0.065;
-      const nb = (y0, h) => box(j, MT.red, nx1 - nx0, h, 0.1, (nx0 + nx1) / 2, y0 + h / 2, pN, 0, 0.014);
+      if (i === 0) box(j, MT.granite, 2 * h + 0.2, 0.16, 0.3, 0, F - 0.08, a, 0, 0.02);
+      // 腰枋 / 上枋 (wrap the outside of the columns)
+      const nx0 = -(h + rc + 0.035), nx1 = h + rc - 0.065;
+      const nb = (y0, hh) => box(j, MT.red, nx1 - nx0, hh, 0.1, (nx0 + nx1) / 2, y0 + hh / 2, pN, 0, 0.014);
       nb(F, hj);
       nb(F + hL, hn);
-      // head tie (kashiranuki), projecting past the corners with gilt ends
-      const kx = a + 0.32 * k;
+      // 檐枋, projecting past the corners with gilt ends
+      const kx = h + 0.32 * k;
       box(j, MT.red, 2 * kx, kt - kb + jy * 2, 0.15 * k, 0, F + (kb + kt) / 2, a, 0, 0.012);
       for (const sx of [-1, 1]) capAt(j, V3(sx * kx, F + (kb + kt) / 2, a), V3(sx, 0, 0), 0.15 * k, kt - kb);
-      // gilt rosettes on the lintel at every column
-      for (const x of [-a, -a / 3, a / 3, a]) {
+      // iron bosses on the lintel at every column
+      for (const x of cols) {
         I.add('rosette', m4(j, x, F + hL + hn / 2, pN + 0.05, 0, 0, 0, k * (i === 0 ? 1.15 : 1), k * (i === 0 ? 1.15 : 1), 1));
         I.add('rosette', m4(j, x, F + hj / 2, pN + 0.05, 0, 0, 0, k * 0.8, k * 0.8, 1));
       }
-      // bays
+      // three bays: the central one carries the door, the flanking two windows
       for (let b = 0; b < 3; b++) {
-        const xb0 = -a + b * bay, xb1 = xb0 + bay;
+        const xb0 = -h + b * bay, xb1 = xb0 + bay;
         const x0 = xb0 + rc * 0.7, x1 = xb1 - rc * 0.7, cx = (x0 + x1) / 2, w = x1 - x0;
-        // upper plaster (kokabe)
+        // upper plaster
         const yk0 = F + hL + hn, yk1 = F + kb;
         if (yk1 - yk0 > 0.03) box(j, MT.plaster, w, yk1 - yk0, 0.07, cx, (yk0 + yk1) / 2, a - 0.005, 0, 0.006);
         if (b === 1) {
-          // doors
-          const cl = a / 3 - rc; // clear half span
+          // 当心间: the door
+          const cl = bay / 2 - rc * 0.7; // clear half span of the central bay
           const dh = hL - hj;
           for (const sx of [-1, 1]) box(j, MT.red, 0.13, dh, 0.17, sx * (cl - 0.065), F + hj + dh / 2, a + 0.03, 0, 0.012);
           const wl = cl - 0.13;
@@ -334,13 +368,13 @@ export async function build(ctx) {
               const xx = lx + (wl - 0.02) * (-0.5 + (c + 0.5) / nc);
               I.add('stud', m4(j, xx, yy, a + 0.035, 0, 0, 0, i === 0 ? 1 : 0.8, i === 0 ? 1 : 0.8, 1));
             }
-            // gilt hinge bands
-            for (const fy of [0.06, 0.94]) box(j, MT.gold, wl - 0.03, 0.05 * (i === 0 ? 1 : 0.8), 0.012, lx, F + hj + dh * fy, a + 0.04, 0, 0.004);
+            // iron hinge bands
+            for (const fy of [0.06, 0.94]) box(j, MT.iron, wl - 0.03, 0.05 * (i === 0 ? 1 : 0.8), 0.012, lx, F + hj + dh * fy, a + 0.04, 0, 0.004);
             // ring pull
-            B.add(new THREE.TorusGeometry(0.04 * k, 0.007, 6, 16), MT.gold, m4(j, sx * 0.06, F + hj + dh * 0.47, a + 0.05));
+            B.add(new THREE.TorusGeometry(0.04 * k, 0.007, 6, 16), MT.iron, m4(j, sx * 0.06, F + hj + dh * 0.47, a + 0.05));
           }
         } else {
-          // lower plaster, sill, renji lattice window
+          // 次间: lower plaster, sill, lattice window
           box(j, MT.plaster, w, hw0 - hj, 0.07, cx, F + (hj + hw0) / 2, a - 0.005, 0, 0.006);
           const wy0 = F + hw0, wy1 = F + hL;
           box(j, MT.green, w, 0.075, 0.16, cx, wy0 + 0.0375, a + 0.02, 0, 0.01);
@@ -357,24 +391,28 @@ export async function build(ctx) {
         }
       }
       // plaster behind the bracket zone
-      box(j, MT.plaster, 2 * a, 1.3 * s.kv + 0.05, 0.06, 0, s.T - 0.04 + (1.3 * s.kv + 0.05) / 2, a - 0.045, 0, 0.005);
+      box(j, MT.plaster, 2 * h, 1.3 * s.kv + 0.05, 0.06, 0, s.T - 0.04 + (1.3 * s.kv + 0.05) / 2, a - 0.045, 0, 0.005);
     }
   }
 
   // =====================================================================
-  // BRACKET COMPLEXES (three-stepped mitesaki)
+  // BRACKET COMPLEXES (three-stepped 三手先)
   // =====================================================================
   function brackets(s) {
-    const { a, k, kv, T, p1, p2, p3 } = s;
+    const { a, h, k, kv, T, p1, p2, p3 } = s;
     const bh = 0.24 * kv, bd = 0.13 * k;
     const yA1 = T + 0.22 * kv, yA2 = T + 0.64 * kv, yA3 = T + 1.06 * kv;
     const yM1 = T + 0.46 * kv, yM2 = T + 0.88 * kv, yM3 = T + 1.24 * kv;
     const ky = kv / k;
-    const midX = [-2 * a / 3, 0, (2 * a) / 3];
-    const setX = [-a / 3, a / 3, ...midX];
+    const midX = [-h / 3, h / 3];            // the two side 槏柱 of the 3-bay face
+    const colX = [-h, -h / 3, h / 3];         // corner + two side columns (+h belongs to next face)
+    const setX = colX;                        // a full bracket set above every column
     const jTop = (x, p) => roofY(s, x, p) - TH - JD;
     const gB = (x) => jTop(x, p3) - RH - s.gh; // gangyo bottom
-    const sq2 = Math.SQRT2;
+    // SEC is the diagonal factor: a distance measured outward from the wall plane
+    // corresponds to SEC times that distance along the corner diagonal.
+    // For NS = 4 it is sqrt(2), which is what this used to be hard-coded to.
+    const sq2 = SEC;
     const mk = (j, x, y, p, sc = 1, syMul = 1) => I.add('makito', m4(j, x, y, p, 0, 0, 0, k * sc, kv * sc * syMul, k * sc));
     // block with a gilt plate on its outward face
     const mkc = (j, x, y, p, sc = 1, syMul = 1) => {
@@ -382,30 +420,30 @@ export async function build(ctx) {
       const hh = 0.18 * kv * sc * syMul;
       capAt(j, V3(x, y + hh * 0.71, p + 0.15 * k * sc + 0.012), V3(0, 0, 1), 0.22 * k * sc, hh * 0.5);
     };
-    for (let j = 0; j < 4; j++) {
+    for (let j = 0; j < NS; j++) {
       const jy = (j % 2) * 0.012 * k;
-      for (const x of [-a, -a / 3, a / 3]) I.add('daito', m4(j, x, T, a, 0, 0, 0, k, kv, k));
+      for (const x of colX) I.add('daito', m4(j, x, T, a, 0, 0, 0, k, kv, k));
       for (const x of midX) {
         box(j, MT.wood, 0.17 * k, 0.085 * kv + 0.04, 0.15 * k, x, T - 0.04 + (0.085 * kv + 0.04) / 2, a, 0, 0.01);
         I.add('daito', m4(j, x, T + 0.085 * kv, a, 0, 0, 0, 0.75 * k, 0.75 * kv, 0.75 * k));
       }
-      // continuous beams (toshi-hijiki)
+      // continuous beams (toshi-肘木)
       const beamX = (p, y0, X, capEnds = true) => {
         box(j, MT.wood, 2 * X, bh + 2 * jy, bd, 0, y0 + bh / 2, p, 0, 0.012);
         if (capEnds) for (const sx of [-1, 1]) capAt(j, V3(sx * X, y0 + bh * 0.62, p), V3(sx, 0, 0), bd, bh * 0.6);
       };
-      beamX(a, yA1, a + 0.46 * k + 0.22 * k);
-      beamX(a, yA2, a + 0.92 * k + 0.22 * k);
-      beamX(a, yA3, a + 0.3 * k);
-      beamX(p1, yA2, p1 + 0.26 * k);
-      beamX(p1, yA3, p1 + 0.26 * k);
-      beamX(p2, yA3, p2 + 0.26 * k);
+      beamX(a, yA1, h + (0.46 + 0.22) * k);
+      beamX(a, yA2, h + (0.92 + 0.22) * k);
+      beamX(a, yA3, h + 0.3 * k);
+      beamX(p1, yA2, p1 * TAN + 0.26 * k);
+      beamX(p1, yA3, p1 * TAN + 0.26 * k);
+      beamX(p2, yA3, p2 * TAN + 0.26 * k);
       // projecting sets
       for (const x of setX) {
-        const big = Math.abs(Math.abs(x) - a / 3) < 1e-3;
+        const big = Math.abs(Math.abs(x) - h) < 1e-3;
         armP(j, x, yA1 - 0.01 * kv, a - 0.28 * k, p1 + 0.22 * k, bh + 0.02 * kv, 0.15 * k);
         armP(j, x, yA2 - 0.01 * kv, a - 0.28 * k, p2 + 0.22 * k, bh + 0.02 * kv, 0.15 * k);
-        // odaruki (tail rafter) sloping down & out, carrying the third block
+        // 尾垂木 (tail rafter) sloping down & out, carrying the third block
         const pa = a - 0.4 * k, pb = p3 + 0.34 * k;
         const ow = (big ? 0.17 : 0.15) * k, oh = 0.27 * kv;
         const ytop = (p) => yM3 + 0.12 * (p3 - p);
@@ -419,35 +457,35 @@ export async function build(ctx) {
         const g0 = gB(x);
         mkc(j, x, yM3, p3, 1, (g0 - yM3) / (0.18 * kv));
       }
-      // makito rows on the wall plane and on the p1 beam
+      // 卷斗 rows on the wall plane and on the p1 beam, spread across the 3 bays
       const wallX = [];
-      for (const xc of [-a, -a / 3, a / 3, a]) {
+      for (const xc of [-h, -h / 3, 0, h / 3, h]) {
         wallX.push(xc - 0.46 * k, xc + 0.46 * k);
-        if (xc !== a) wallX.push(xc);
+        if (Math.abs(Math.abs(xc) - h) > 1e-3) wallX.push(xc);
       }
-      wallX.push(...midX);
       for (const x of wallX) { mkc(j, x, yM1, a); mkc(j, x, yM2, a); }
-      for (const sx of [-1, 1]) mk(j, sx * (a + 0.92 * k), yM2, a);
-      const p1X = [-a, a, -a / 3, a / 3, -a / 3 - 0.46 * k, -a / 3 + 0.46 * k, a / 3 - 0.46 * k, a / 3 + 0.46 * k, ...midX];
+      for (const sx of [-1, 1]) mk(j, sx * (h + 0.92 * k), yM2, a);
+      const p1X = [-h, h, -h / 3, h / 3, 0, -0.46 * k, 0.46 * k];
       for (const x of p1X) mk(j, x, yM2, p1);
-      // ---- corner (diagonal) set at the -x corner
-      const dpos = (t) => [-a - t / sq2, a + t / sq2];
-      const ryD = (-3 * Math.PI) / 4;
-      const diagArm = (y0, tEnd, h, w) => {
+      // ---- corner (diagonal) set at the -x corner: along the corner bisector,
+      // lateral = outward * TAN, so dpos() follows the NS-gon corner, not a 45deg line
+      const dpos = (t) => [-h - t * SN, a + t * CS];
+      const ryD = -Math.PI / 2 - Math.PI / NS;
+      const diagArm = (y0, tEnd, hh, w) => {
         const t0 = -0.2 * k;
         const [cx, cp] = dpos((t0 + tEnd) / 2);
-        I.add('arm', m4(j, cx, y0, cp, 0, ryD, 0, tEnd - t0, h / 0.24, w / 0.14));
+        I.add('arm', m4(j, cx, y0, cp, 0, ryD, 0, tEnd - t0, hh / 0.24, w / 0.14));
         const [ex, ep] = dpos(tEnd);
-        capAt(j, V3(ex, y0 + h * 0.72, ep), V3(-1 / sq2, 0, 1 / sq2), w, h * 0.5);
-        const sc = h / 0.24;
+        capAt(j, V3(ex, y0 + hh * 0.72, ep), V3(-SN, 0, CS), w, hh * 0.5);
+        const sc = hh / 0.24;
         const [qx, qp] = dpos(tEnd - 0.13 * sc);
-        for (const sg of [-1, 1]) eyeAt(j, V3(qx + sg * (w / 2 - 0.002) / sq2, y0 + h * 0.56, qp + sg * (w / 2 - 0.002) / sq2), V3(sg / sq2, 0, sg / sq2), sc);
+        for (const sg of [-1, 1]) eyeAt(j, V3(qx + sg * (w / 2 - 0.002) * CS, y0 + hh * 0.56, qp + sg * (w / 2 - 0.002) * SN), V3(sg * CS, 0, sg * SN), sc);
       };
       diagArm(yA1 - 0.025 * kv, 0.46 * k * sq2 + 0.24 * k, bh + 0.05 * kv, 0.16 * k);
       diagArm(yA2 - 0.025 * kv, 0.92 * k * sq2 + 0.24 * k, bh + 0.05 * kv, 0.16 * k);
-      mk(j, -p1, yM1, p1);
-      mk(j, -p1, yM2, p1);
-      mk(j, -p2, yM2, p2);
+      mk(j, -p1 * TAN, yM1, p1);
+      mk(j, -p1 * TAN, yM2, p1);
+      mk(j, -p2 * TAN, yM2, p2);
       {
         const t0 = -0.5 * k, t1 = 1.38 * k * sq2 + 0.52 * k;
         const ow = 0.2 * k, oh = 0.31 * kv;
@@ -463,11 +501,11 @@ export async function build(ctx) {
         B.add(PP.chamferBox(ow, oh, len, 0.016), MT.wood, m4(j, mid.x, mid.y, mid.z, pitch, yaw, 0));
         capAt(j, Bv, d, ow, oh);
         const gc = gB(p3);
-        mk(j, -p3, yM3, p3, 1.25, (gc - yM3) / (0.18 * kv * 1.25));
+        mk(j, -p3 * TAN, yM3, p3, 1.25, (gc - yM3) / (0.18 * kv * 1.25));
       }
-      // gangyo (eave purlin): follows the slight corner rise of the rafters
+      // 挑檐檩 (eave purlin): follows the slight corner rise of the rafters
       {
-        const X = p3 + 0.3 * k;
+        const X = (p3 + 0.3 * k) * TAN;
         const pts = [], N = 28;
         for (let q = 0; q <= N; q++) {
           const x = -X + (2 * X * q) / N;
@@ -511,7 +549,7 @@ export async function build(ctx) {
     const Xf = fixX((x) => pr(x) - 0.018, s.Xc), Xb = fixX((x) => pr(x) - 0.15, s.Xc);
     const pT2 = (x) => pTip(s, x) - 0.035;
     const X2 = fixX(pT2, s.Xc);
-    for (let j = 0; j < 4; j++) {
+    for (let j = 0; j < NS; j++) {
       for (let r = -N; r <= N; r++) {
         const x = r * sp, X = Math.abs(x);
         const pjx = pj(x), prx = pr(x);
@@ -540,12 +578,12 @@ export async function build(ctx) {
         const x = -Xi + 2 * Xi * u; const p = pj(x);
         return V3(x, jTop(x, p) - 0.002 + v * (JD + 0.004), p);
       }, dseg(64), 1, V3(0, 0, 1)), MT.soffit);
-      // fascia (kayaoi), mitred on the diagonals
+      // fascia, mitred on the diagonals
       {
         const secs = [];
-        const NS = 72;
-        for (let q = 0; q <= NS; q++) {
-          const u = -1 + (2 * q) / NS;
+        const NF = 72;
+        for (let q = 0; q <= NF; q++) {
+          const u = -1 + (2 * q) / NF;
           const xf = u * Xf, xb = u * Xb;
           const pf = pr(xf) - 0.018, pb = pr(xb) - 0.15;
           secs.push([
@@ -556,8 +594,8 @@ export async function build(ctx) {
         addG(j, PP.loft(secs), MT.red);
         // gilt edge strip along the top of the fascia (catches the low sun)
         const secsG = [];
-        for (let q = 0; q <= NS; q++) {
-          const u = -1 + (2 * q) / NS;
+        for (let q = 0; q <= NF; q++) {
+          const u = -1 + (2 * q) / NF;
           const xa = u * fixX((x) => pr(x) - 0.006, s.Xc), xb2 = u * fixX((x) => pr(x) - 0.04, s.Xc);
           const pa = pr(xa) - 0.006, pb2 = pr(xb2) - 0.04;
           const ya = roofY(s, xa, pa) - 0.05, yb = roofY(s, xb2, pb2) - 0.05;
@@ -566,8 +604,8 @@ export async function build(ctx) {
         addG(j, PP.loft(secsG), MT.gold);
         // tile bed underside between fascia and disc row
         const secs2 = [];
-        for (let q = 0; q <= NS; q++) {
-          const u = -1 + (2 * q) / NS;
+        for (let q = 0; q <= NF; q++) {
+          const u = -1 + (2 * q) / NF;
           const xf = u * Xf, x2 = u * X2;
           const pf = pr(xf) - 0.018, p2 = pT2(x2);
           const y1 = roofY(s, xf, pf) - 0.05, y2 = roofY(s, x2, p2) - 0.08;
@@ -575,14 +613,15 @@ export async function build(ctx) {
         }
         addG(j, PP.loft(secs2), MT.tile);
       }
-      // hip rafters (ji-sumigi + hien-sumigi) at the -x corner
+      // hip rafters (ji-老角梁 + hien-老角梁) at the -x corner
       {
         const dJ = Xi, dR = fixX(pr, s.Xc);
         const mkSumi = (d0, d1, top, w, h, n = 10) => {
           const pts = [];
           for (let q = 0; q <= n; q++) {
             const d = d0 + ((d1 - d0) * q) / n;
-            pts.push(V3(-d, top(d, d) - h / 2, d));
+            // along the corner bisector: lateral = outward * TAN
+            pts.push(V3(-d * TAN, top(d * TAN, d) - h / 2, d));
           }
           addG(j, PP.sweep(pts, PP.rectProfile(w, h, 0.02)), MT.wood);
           const E = pts[n], t = V3().subVectors(pts[n], pts[n - 1]).normalize();
@@ -603,7 +642,7 @@ export async function build(ctx) {
         };
         mkSumi(a + 0.15, dJ + 0.06, jTop, 0.21 * k, 0.27 * k);
         const { E, t } = mkSumi(dJ - 0.5, dR + 0.08, hTop, 0.2 * k, 0.25 * k);
-        // bell hook under the hien-sumigi tip
+        // bell hook under the hien-老角梁 tip
         const side = V3().crossVectors(t, UP).normalize();
         const u2 = V3().crossVectors(side, t).normalize();
         const hook = E.clone().addScaledVector(t, -0.12).addScaledVector(u2, -0.125 * k - 0.05);
@@ -619,7 +658,7 @@ export async function build(ctx) {
         const wp = toWorld(j, hook);
         // sails turned ~25deg off the hip diagonal: a sail facing straight down the diagonal mirrors the low
         // WSW sun into every camera on that diagonal (blown-out white plate)
-        anchors.bells.push({ pos: [wp.x, wp.y, wp.z], scale: 1.9 - 0.1 * s.i, rotY: (-j * Math.PI) / 2 - Math.PI / 4 + 0.44 });
+        anchors.bells.push({ pos: [wp.x, wp.y, wp.z], scale: 1.9 - 0.1 * s.i, rotY: (-j * TAU) / NS - Math.PI / NS + 0.44 });
       }
       // smaller bell at the middle of each side, hung from a gilt eye under the flying rafters
       {
@@ -627,13 +666,13 @@ export async function build(ctx) {
         const yh = hTop(0, pm) - RH;
         B.add(new THREE.TorusGeometry(0.03, 0.008, 5, 12), MT.gold, m4(j, 0, yh - 0.02, pm, 0, Math.PI / 2, 0));
         const wp = toWorld(j, V3(0, yh - 0.045, pm));
-        anchors.bells.push({ pos: [wp.x, wp.y, wp.z], scale: 1.3 - 0.06 * s.i, rotY: (-j * Math.PI) / 2 });
+        anchors.bells.push({ pos: [wp.x, wp.y, wp.z], scale: 1.3 - 0.06 * s.i, rotY: (-j * TAU) / NS });
       }
     }
   }
 
   // =====================================================================
-  // ROOF: hongawara tiling, disc eave tiles, hip ridges with onigawara
+  // ROOF: 青瓦 tiling, disc eave tiles, hip ridges with 螭吻
   // =====================================================================
   function roof(s) {
     const tp = gap(0.29), Ls = gap(0.295);
@@ -644,7 +683,7 @@ export async function build(ctx) {
       const dp = (roofY(s, x, p + e) - roofY(s, x, p - e)) / (2 * e);
       return V3(-dx, 1, -dp).normalize();
     };
-    for (let j = 0; j < 4; j++) {
+    for (let j = 0; j < NS; j++) {
       const place = (key, x, f, b, sc = 1) => {
         const A = V3(x, roofY(s, x, f), f), Bp = V3(x, roofY(s, x, b), b);
         const z = V3().subVectors(A, Bp); const len = z.length(); z.normalize();
@@ -682,12 +721,13 @@ export async function build(ctx) {
       const pts = [];
       for (let q = 0; q <= NR; q++) {
         const d = dTip + ((dTop - dTip) * q) / NR;
-        pts.push(V3(-d, roofY(s, d, d) - 0.02, d));
+        // hip ridge along the corner bisector
+        pts.push(V3(-d * TAN, roofY(s, d * TAN, d) - 0.02, d));
       }
       const kr = 1.38 * Math.min(1, 0.85 + 0.15 * s.k);
-      // hidden core (the visible body is made of individual noshi tiles below)
+      // hidden core (the visible body is made of individual 熨斗瓦 tiles below)
       const prof = [[-0.17, -0.07], [0.17, -0.07], [0.17, 0.2], [-0.17, 0.2]].map(([u, v]) => [u * kr, v * kr]);
-      // stacked, staggered noshi-gawara: individual tiles with joints that break up the sunlit sides
+      // stacked, staggered 叠瓦: individual tiles with joints that break up the sunlit sides
       {
         const cum = [0];
         for (let q = 1; q <= NR; q++) cum.push(cum[q - 1] + pts[q].distanceTo(pts[q - 1]));
@@ -740,48 +780,38 @@ export async function build(ctx) {
           const pos = P1.clone().addScaledVector(y, 0.215 * kr - 0.01).addScaledVector(z, -0.17);
           I.add(lod ? 'tileRs' : 'tileR', basisM(j, pos, xA, y, z, 1.3 * kr, 1.3 * kr, 1));
         }
-        // end disc of the cap line + onigawara
+        // end disc of the cap line + 螭吻
         const P0 = pts[0], P1 = pts[1];
         const z = V3().subVectors(P0, P1).normalize();
         const side = V3().crossVectors(z, UP).normalize();
         const y = V3().crossVectors(side, z).normalize();
         const xA = V3().crossVectors(y, z).normalize();
         I.add('disc', basisM(j, P0.clone().addScaledVector(y, 0.215 * kr + 0.03).addScaledVector(z, 0.05), xA, y, z, 1.25 * kr, 1.25 * kr, 1.25 * kr));
-        const og = PP.onigawaraGeo();
-        B.add(og, MT.tile, m4(j, P0.x + 0.03, P0.y + 0.05, P0.z - 0.03, 0.06, -Math.PI / 4, 0, 0.7 * kr, 0.7 * kr, 0.7 * kr));
-        // toribusuma: an upturned round tile with its own mon disc, riding over the onigawara crown
-        {
-          const h = V3(z.x, 0, z.z).normalize();
-          const zU = h.clone().multiplyScalar(Math.cos(0.55)).addScaledVector(UP, Math.sin(0.55)).normalize();
-          const xU = V3().crossVectors(UP, zU).normalize();
-          const yU = V3().crossVectors(zU, xU).normalize();
-          const sc = 0.82 * kr, Lt = PP.TILE.L * sc * 1.15;
-          const base = P0.clone().addScaledVector(h, -0.3 * kr).addScaledVector(UP, 0.42 * kr);
-          I.add(lod ? 'tileRs' : 'tileR', basisM(j, base.clone().addScaledVector(zU, Lt / 2), xU, yU, zU, sc, sc, 1.15 * sc));
-          I.add(lod ? 'discS' : 'disc', basisM(j, base.clone().addScaledVector(zU, Lt + 0.004).addScaledVector(yU, 0.03 * sc), xU, yU, zU, sc, sc, sc));
-        }
+        const og = PP.chiwenGeo();
+        B.add(og, MT.tile, m4(j, P0.x + 0.03, P0.y + 0.05, P0.z - 0.03, 0.06, -Math.PI / NS, 0, 0.7 * kr, 0.7 * kr, 0.7 * kr));
       }
     }
   }
 
   // =====================================================================
-  // BALCONY (koshi) with railing and gilt giboshi (storeys 2..5)
+  // BALCONY (平坐) with railing and 莲瓣望柱头 post caps (storeys 2..9)
   // =====================================================================
   function balcony(s, below) {
-    const { a, F, k } = s;
+    const { a, h, F, k } = s;
     const bw = 0.8 * k, pb = a + bw;
     const eb = 0.19 * k; // edge beam height
-    B.add(PP.chamferBox(2 * pb - 0.02, 0.1, 2 * pb - 0.02, 0.01), MT.soffit, m4(null, 0, F - 0.05, 0));
+    // the balcony floor is an NS-gonal slab, not a box
+    B.add(PP.lathe([[0, -0.05], [pb * SEC - 0.01, -0.05], [pb * SEC - 0.01, 0.05], [0, 0.05]], NS), MT.soffit, m4(null, 0, F, 0));
     const pS = pb - 0.3 * k;
-    for (let j = 0; j < 4; j++) {
+    for (let j = 0; j < NS; j++) {
       const jy = (j % 2) * 0.012;
       // edge beam
-      box(j, MT.red, 2 * pb - 0.09, eb + jy, 0.09, -0.045, F - eb / 2 + 0.005, pb - 0.045, 0, 0.012);
+      box(j, MT.red, 2 * (pb * TAN) - 0.09, eb + jy, 0.09, -0.045, F - eb / 2 + 0.005, pb - 0.045, 0, 0.012);
       // small brackets under the overhang
       const yArm = F - eb - 0.1 * k, yMk = yArm - 0.126 * k;
-      const nM = Math.max(3, Math.round((2 * pS) / (0.48 * k)));
+      const nM = Math.max(3, Math.round((2 * pS * TAN) / (0.48 * k)));
       for (let q = 0; q <= nM; q++) {
-        const x = -pS + (2 * pS * q) / nM;
+        const x = -pS * TAN + (2 * pS * TAN * q) / nM;
         if (q === nM) continue; // next side's corner
         I.add('makito', m4(j, x, yMk, pS, 0, 0, 0, 0.7 * k, 0.7 * k, 0.7 * k));
         if (q > 0) armP(j, x, yArm, pS - 0.12 * k, pb - 0.05, 0.1 * k, 0.08 * k, false);
@@ -789,10 +819,10 @@ export async function build(ctx) {
       // skirt board down to the roof below
       {
         const secs = [];
-        const NS = 36;
-        const XF = pS + 0.03, XB = pS - 0.03;
-        for (let q = 0; q <= NS; q++) {
-          const u = -1 + (2 * q) / NS;
+        const NF = 36;
+        const XF = (pS + 0.03) * TAN, XB = (pS - 0.03) * TAN;
+        for (let q = 0; q <= NF; q++) {
+          const u = -1 + (2 * q) / NF;
           const xf = u * XF, xb = u * XB;
           const yt = yMk;
           secs.push([
@@ -802,25 +832,25 @@ export async function build(ctx) {
         }
         addG(j, PP.loft(secs), MT.red);
       }
-      // railing (koran)
+      // railing (栏杆)
       const pr = pb - 0.07;
       const yH = F + 0.74 * k, yM = F + 0.44 * k, yB = F + 0.05 * k;
-      const mainX = [-pr, -a, -a / 3, a / 3, a];
+      const mainX = [-pr * TAN, -h, 0, h];
       for (const x of mainX) {
         box(j, MT.red, 0.12 * k, 0.86 * k, 0.12 * k, x, F + 0.43 * k, pr, 0, 0.014);
-        I.add('giboshi', m4(j, x, F + 0.86 * k, pr, 0, 0, 0, 0.85 * k, 0.85 * k, 0.85 * k));
+        I.add('lotusCap', m4(j, x, F + 0.86 * k, pr, 0, 0, 0, 0.85 * k, 0.85 * k, 0.85 * k));
         box(j, MT.gold, 0.135 * k, 0.035 * k, 0.135 * k, x, F + 0.86 * k - 0.018, pr, 0, 0.005);
         box(j, MT.gold, 0.135 * k, 0.03 * k, 0.135 * k, x, yH - 0.065 * k, pr, 0, 0.005);
       }
-      const RX = pr + 0.13;
+      const RX = pr * TAN + 0.13;
       B.add(new THREE.CylinderGeometry(0.044 * k, 0.044 * k, 2 * RX, 12, 1), MT.red, m4(j, 0, yH + jy, pr, 0, 0, Math.PI / 2));
       for (const sx of [-1, 1]) B.add(new THREE.CylinderGeometry(0.049 * k, 0.049 * k, 0.08, 12, 1), MT.gold, m4(j, sx * (RX - 0.035), yH + jy, pr, 0, 0, Math.PI / 2));
-      box(j, MT.red, 2 * (pr + 0.08), 0.075 * k + jy, 0.065 * k, 0, yM, pr, 0, 0.01);
-      box(j, MT.red, 2 * (pr + 0.06), 0.09 * k + jy, 0.085 * k, 0, yB, pr, 0, 0.01);
+      box(j, MT.red, 2 * (pr * TAN + 0.08), 0.075 * k + jy, 0.065 * k, 0, yM, pr, 0, 0.01);
+      box(j, MT.red, 2 * (pr * TAN + 0.06), 0.09 * k + jy, 0.085 * k, 0, yB, pr, 0, 0.01);
       // short struts
-      const nT = Math.round((2 * pr) / 0.42);
+      const nT = Math.round((2 * pr * TAN) / 0.42);
       for (let q = 0; q < nT; q++) {
-        const x = -pr + (2 * pr * (q + 0.5)) / nT;
+        const x = -pr * TAN + (2 * pr * TAN * (q + 0.5)) / nT;
         if (mainX.some((m) => Math.abs(m - x) < 0.1)) continue;
         box(j, MT.red, 0.06 * k, yH - yM, 0.05 * k, x, (yH + yM) / 2, pr, 0, 0.008);
         box(j, MT.red, 0.05 * k, yM - yB, 0.045 * k, x, (yM + yB) / 2, pr, 0, 0.006);
@@ -829,109 +859,124 @@ export async function build(ctx) {
   }
 
   // =====================================================================
-  // SORIN (spire) + chains with bells
+  // 副阶 — the surrounding veranda (周匝回廊) at the ground storey. A ring of
+  // columns under the first-storey eave with a low balustrade (栏杆) and floor
+  // slab (雁翅板). The 副阶 eave and the first-storey eave flow in one slope
+  // (一坡而下), so no second eave is built here.
+  // =====================================================================
+  function fujie(s) {
+    const { a, O, k } = s;
+    const rC = a + O * 0.5;                 // apothem of the colonnade
+    const yBase = PG.platform.h;            // 基台 top
+    const yTop = roofY(s, 0, a) - TH - 0.18; // just under the eave soffit at the wall
+    const colH = yTop - yBase;
+    const rc = 0.34 * k;
+    const ang = Math.PI / NS, sc = Math.sin(ang);
+    // veranda floor slab (octagonal disc out to the colonnade)
+    B.add(PP.lathe([[0, -0.06], [rC * SEC - 0.01, -0.06], [rC * SEC - 0.01, 0.06], [0, 0.06]], NS), MT.soffit, m4(null, 0, yBase + 0.06, 0));
+    // low balustrade ring (雁翅板) + top rail
+    const yLow = yBase + 0.62 * k, yRail = yBase + 0.95 * k;
+    B.add(PP.lathe([[0, -0.05], [(rC - 0.1) * SEC - 0.01, -0.05], [(rC - 0.1) * SEC - 0.01, 0.05], [0, 0.05]], NS), MT.red, m4(null, 0, yLow, 0));
+    B.add(PP.lathe([[0, -0.025], [(rC - 0.05) * SEC - 0.01, -0.025], [(rC - 0.05) * SEC - 0.01, 0.025], [0, 0.025]], NS), MT.red, m4(null, 0, yRail, 0));
+    for (let j = 0; j < NS; j++) {
+      // face-centre column + corner column (the corner is shared with face j+1)
+      for (const [xx, pp] of [[0, rC], [rC * sc, rC / SEC]]) {
+        B.add(new THREE.CylinderGeometry(rc * 0.9, rc, colH, 18, 1), MT.red, m4(j, xx, yBase + colH / 2, pp));
+        B.add(new THREE.CylinderGeometry(rc + 0.06, rc + 0.08, 0.18, 18, 1), MT.granite, m4(j, xx, yBase + 0.09, pp));
+        B.add(new THREE.CylinderGeometry(rc + 0.04, rc + 0.06, 0.14, 18, 1), MT.red, m4(j, xx, yTop - 0.07, pp));
+      }
+    }
+  }
+
+  // =====================================================================
+  // 塔刹 — the iron finial of 报恩寺塔. The real tower is 76 m to the tip of
+  // the 铁制塔刹, which is about a fifth of that (~15.2 m). The eighth and
+  // ninth storeys carry a 0.85 m 木刹柱 whose top projects through the roof
+  // and carries the iron spire:
+  //   露盘 + 覆钵 + 仰莲 + a slender 刹杆 with nine 相轮 + 宝盖 + 宝顶
+  // Segment heights are fractions of P.spireHeight so the whole finial scales.
   // =====================================================================
   function spire() {
     const s4 = S[S.length - 1];
     const Yp = roofY(s4, 0, s4.Rt) - 0.02;
-    const G = MT.spireGold, G2 = MT.gold;
-    // roban (dew basin): stepped square base with gilt panels
-    B.add(PP.chamferBox(1.62, 0.26, 1.62, 0.03), G, m4(null, 0, Yp - 0.08, 0));
-    B.add(PP.chamferBox(1.48, 0.08, 1.48, 0.02), G2, m4(null, 0, Yp + 0.09, 0));
-    B.add(PP.chamferBox(1.24, 0.4, 1.24, 0.02), M.bronze, m4(null, 0, Yp + 0.33, 0));
+    const G = MT.spireGold, G2 = MT.gold;   // dark iron, never gilt
+    const H = PG.spireHeight;                // 15.2 m
+    const hBase = H * 0.0725;               // 露盘   1.10
+    const hBowl = H * 0.0526;               // 覆钵   0.80
+    const hGap = H * 0.0362;                // 仰莲->刹杆 0.55
+    const hMast = H * 0.7150;               // 刹杆  10.87
+    const hCan = H * 0.0145;                // 宝盖   0.22
+    const hPearl = H * 0.1090;              // 宝顶   1.66
+
+    // ---- 露盘: stepped base, square by tradition even on an octagonal tower
+    const yL = Yp;
+    B.add(PP.chamferBox(2.0, hBase * 0.35, 2.0, 0.04), G, m4(null, 0, yL + hBase * 0.175, 0));
+    B.add(PP.chamferBox(1.8, hBase * 0.12, 1.8, 0.03), G2, m4(null, 0, yL + hBase * 0.47, 0));
+    B.add(PP.chamferBox(1.5, hBase * 0.53, 1.5, 0.03), G2, m4(null, 0, yL + hBase * 0.765, 0));
     for (let j = 0; j < 4; j++) {
-      box(j, G2, 0.9, 0.26, 0.03, 0, Yp + 0.33, 0.62, 0, 0.008);
-      B.add(PP.rosetteGeo(), G2, m4(j, 0, Yp + 0.33, 0.64, 0, 0, 0, 1.4, 1.4, 1.4));
+      box(j, G2, 1.0, hBase * 0.35, 0.04, 0, yL + hBase * 0.765, 0.78, 0, 0.01);
+      B.add(PP.rosetteGeo(), G2, m4(j, 0, yL + hBase * 0.765, 0.80, 0, 0, 0, 1.8, 1.8, 1.8));
     }
-    B.add(PP.chamferBox(1.44, 0.1, 1.44, 0.02), G2, m4(null, 0, Yp + 0.58, 0));
-    // fukubachi (inverted bowl) with a beaded band
-    const yb = Yp + 0.63;
-    B.add(PP.lathe([[0.0001, 0], [0.54, 0], [0.57, 0.04], [0.56, 0.14], [0.5, 0.28], [0.38, 0.4], [0.22, 0.47], [0.13, 0.5], [0.0001, 0.51]], 40), G2, m4(null, 0, yb, 0));
-    B.add(new THREE.TorusGeometry(0.555, 0.028, 6, 40), G, m4(null, 0, yb + 0.08, 0, Math.PI / 2));
-    // ukebana (lotus) — two whorls of petals
-    const yu = yb + 0.52;
-    B.add(PP.lathe([[0.0001, -0.04], [0.15, -0.04], [0.17, 0.06], [0.26, 0.14], [0.0001, 0.15]], 24), G, m4(null, 0, yu - 0.02, 0));
+    // ---- 覆钵 (inverted bowl) with a beaded band
+    const yb = yL + hBase;
+    B.add(PP.lathe([[0.0001, 0], [0.70, 0], [0.75, 0.06], [0.74, 0.20], [0.66, 0.42], [0.50, 0.62], [0.30, 0.72], [0.17, 0.78], [0.0001, 0.80]], 40), G2, m4(null, 0, yb, 0));
+    B.add(new THREE.TorusGeometry(0.74, 0.05, 6, 40), G, m4(null, 0, yb + 0.11, 0, Math.PI / 2));
+    // ---- 仰莲 (upward lotus) — two whorls of petals
+    const yu = yb + hBowl;
+    B.add(PP.lathe([[0.0001, -0.06], [0.20, -0.06], [0.23, 0.09], [0.34, 0.19], [0.0001, 0.20]], 24), G, m4(null, 0, yu - 0.03, 0));
     for (let r = 0; r < 2; r++) for (let q = 0; q < 12; q++) {
       const ang = ((q + r * 0.5) / 12) * Math.PI * 2;
       const pet = new THREE.SphereGeometry(1, 8, 6);
-      pet.scale(0.12, 0.26, 0.045);
-      pet.translate(0, 0.21, 0);
+      pet.scale(0.16, 0.34, 0.06);
+      pet.translate(0, 0.27, 0);
       pet.rotateX(0.62 - r * 0.28);
-      pet.translate(0, 0, 0.14 + r * 0.05);
-      B.add(pet, r ? G : G2, m4(null, 0, yu + r * 0.05, 0, 0, ang, 0, 1 - r * 0.12, 1 - r * 0.1, 1 - r * 0.12));
+      pet.translate(0, 0, 0.18 + r * 0.06);
+      B.add(pet, r ? G : G2, m4(null, 0, yu + r * 0.06, 0, 0, ang, 0, 1 - r * 0.12, 1 - r * 0.1, 1 - r * 0.12));
     }
-    // mast
-    const y0 = yu + 0.42;
-    const ringStep = 0.47;
-    B.add(new THREE.CylinderGeometry(0.1, 0.12, 8 * ringStep + 0.9, 16, 1), G, m4(null, 0, y0 + 4 * ringStep, 0));
-    // kurin: nine thick torus rings (close-stacked) with small bells at the diagonals
-    for (let n = 0; n < 9; n++) {
-      const yr = y0 + n * ringStep;
-      const Rr = 0.58 - 0.014 * n;
-      const tr = 0.12 - 0.002 * n; // tube radius
+    // ---- 刹杆 (the wooden mast, 0.85 m across, tapering as it rises)
+    const y0 = yu + hGap;
+    const mastTop = y0 + hMast;
+    B.add(new THREE.CylinderGeometry(0.20, 0.425, hMast, 20, 1), G, m4(null, 0, (y0 + mastTop) / 2, 0));
+    // ---- 相轮: nine iron bands clamped round the mast
+    const NR = 9;
+    const ringStep = (hMast - 1.6) / (NR - 1);
+    const ringR = 0.85, ringT = 0.13;
+    for (let n = 0; n < NR; n++) {
+      const yr = y0 + 0.8 + n * ringStep;
+      const Rr = ringR * (1 - 0.06 * (n / (NR - 1)));
       const prof = [];
       for (let q = 0; q <= 14; q++) {
         const th = -Math.PI / 2 + (q / 14) * Math.PI * 2;
-        prof.push([Rr - tr + tr * Math.cos(th), tr * 0.92 * Math.sin(th)]);
+        prof.push([Rr - ringT + ringT * Math.cos(th), ringT * 0.92 * Math.sin(th)]);
       }
       B.add(PP.lathe(prof, 44), G2, m4(null, 0, yr, 0));
-      // web + collar to the mast
-      B.add(PP.lathe([[0.12, -0.035], [Rr - tr * 1.4, -0.035], [Rr - tr * 1.4, 0.035], [0.12, 0.035]], 24), G, m4(null, 0, yr, 0));
-      B.add(PP.lathe([[0.125, -0.12], [0.16, -0.08], [0.16, 0.08], [0.125, 0.12]], 16), G, m4(null, 0, yr, 0));
-      for (let q = 0; q < 4; q++) {
-        const ang = (q / 4) * Math.PI * 2 + Math.PI / 4;
-        const bx = Math.cos(ang) * (Rr - tr * 0.7), bz = Math.sin(ang) * (Rr - tr * 0.7);
-        B.add(new THREE.TorusGeometry(0.013, 0.004, 4, 8), G, m4(null, bx, yr - tr * 0.95, bz, 0, ang, 0));
-        B.add(PP.smallBellGeo(1.05), G, m4(null, bx, yr - tr * 0.95 - 0.012, bz));
-      }
+      // web + collar joining the ring to the mast
+      B.add(PP.lathe([[0.20, -0.035], [Rr - ringT * 1.3, -0.035], [Rr - ringT * 1.3, 0.035], [0.20, 0.035]], 24), G, m4(null, 0, yr, 0));
+      B.add(PP.lathe([[0.21, -0.12], [0.26, -0.09], [0.26, 0.09], [0.21, 0.12]], 16), G, m4(null, 0, yr, 0));
     }
-    const yTopRing = y0 + 8 * ringStep;
-    // suien (water flame) openwork: a cross of flame panels + diagonal half-size flames
-    const ys = yTopRing + 0.3;
-    B.add(PP.lathe([[0.0001, -0.12], [0.17, -0.12], [0.21, -0.03], [0.14, 0.07], [0.0001, 0.09]], 20), G, m4(null, 0, ys - 0.06, 0));
-    for (const ang of [0, Math.PI / 2]) B.add(PP.suienGeo(2.0, 0.7), G2, m4(null, 0, ys, 0, 0, ang, 0));
-    for (const ang of [Math.PI / 4, -Math.PI / 4]) B.add(PP.suienGeo(1.3, 0.48), G2, m4(null, 0, ys + 0.05, 0, 0, ang, 0));
-    // ryusha + hoju
-    const yr = ys + 2.02;
-    B.add(PP.lathe([[0.0001, 0], [0.09, 0], [0.12, 0.04], [0.16, 0.13], [0.15, 0.23], [0.1, 0.29], [0.06, 0.31], [0.1, 0.35], [0.0001, 0.37]], 24), G, m4(null, 0, yr, 0));
-    B.add(PP.lathe([[0.0001, 0], [0.08, 0], [0.15, 0.07], [0.19, 0.18], [0.18, 0.3], [0.13, 0.41], [0.07, 0.5], [0.03, 0.57], [0.012, 0.64], [0.0001, 0.68]], 28), G2, m4(null, 0, yr + 0.36, 0));
-    const spireTop = yr + 1.04;
-    // chains (kusari) from the top ring to the four roof corners
-    const yc = yTopRing + 0.12;
-    for (let c = 0; c < 4; c++) {
-      const ang = (c / 4) * Math.PI * 2 + Math.PI / 4;
-      const dx = Math.cos(ang), dz = Math.sin(ang);
-      const A = V3(dx * 0.2, yc, dz * 0.2);
-      const dE = s4.Xc - 0.8;
-      const Bp = V3(dx * dE * Math.SQRT2, roofY(s4, dE, dE) + 0.3, dz * dE * Math.SQRT2);
-      const sag = 0.42;
-      const cp = [];
-      for (let q = 0; q <= 40; q++) {
-        const t = q / 40;
-        cp.push(V3().lerpVectors(A, Bp, t).add(V3(0, -sag * 4 * t * (1 - t), 0)));
-      }
-      const curve = new THREE.CatmullRomCurve3(cp);
-      // interlocking oval links, alternating 90 degrees (kusari)
-      const linkG = new THREE.TorusGeometry(0.03, 0.0085, 4, 10);
-      const clen = curve.getLength();
-      const NL = Math.round(clen / 0.062);
-      for (let q = 0; q <= NL; q++) {
-        const u = q / NL;
-        const p = curve.getPointAt(u);
-        const T = curve.getTangentAt(u).normalize();
-        const n1 = V3().crossVectors(T, UP).normalize();
-        const n = q % 2 ? V3().crossVectors(T, n1).normalize() : n1;
-        const y = V3().crossVectors(n, T).normalize();
-        B.add(linkG, G2, basisM(null, p, T, y, n, 1.45, 1, 1));
-      }
-      for (const t of [0.22, 0.42, 0.62, 0.8]) {
-        const p = curve.getPoint(t);
-        B.add(PP.smallBellGeo(1.25), G2, m4(null, p.x, p.y - 0.01, p.z));
-      }
-      // anchor ring on the ridge
-      B.add(new THREE.TorusGeometry(0.06, 0.015, 6, 12), G2, m4(null, Bp.x, Bp.y, Bp.z, Math.PI / 2, ang, 0));
+    // ---- 宝盖 (the parasol that caps the rings)
+    const yCan = mastTop;
+    B.add(PP.lathe([[0.0001, -0.20], [0.20, -0.20], [0.23, -0.05], [0.19, 0.08], [0.0001, 0.10]], 20), G, m4(null, 0, yCan - 0.10, 0));
+    B.add(PP.lathe([[0.0001, 0], [1.00, 0], [1.06, 0.06], [0.97, 0.12], [0.50, 0.18], [0.25, 0.21], [0.0001, 0.22]], 40), G2, m4(null, 0, yCan, 0));
+    for (let q = 0; q < 8; q++) {
+      const ang = (q / 8) * Math.PI * 2;
+      B.add(new THREE.TorusGeometry(0.035, 0.010, 4, 8), G, m4(null, Math.cos(ang) * 0.95, yCan + 0.125, Math.sin(ang) * 0.95));
     }
-    return spireTop;
+    // ---- 宝顶: the flaming pearl that finishes the finial
+    const yFl = yCan + hCan;
+    B.add(PP.lathe([[0.0001, 0], [0.14, 0], [0.22, 0.07], [0.25, 0.18], [0.23, 0.30], [0.16, 0.38], [0.0001, 0.41]], 24), G, m4(null, 0, yFl, 0));
+    B.add(new THREE.SphereGeometry(0.32, 20, 14), G2, m4(null, 0, yFl + 0.62, 0));
+    const flameProf = [];
+    for (let q = 0; q <= 12; q++) {
+      const t = q / 12;
+      flameProf.push([0.12 * Math.sin(Math.PI * t) * (1 - 0.4 * t) + 0.0001, t * 0.72]);
+    }
+    const flameGeo = PP.lathe(flameProf, 12);
+    for (let q = 0; q < 8; q++) {
+      const ang = (q / 8) * Math.PI * 2;
+      B.add(flameGeo, G2, m4(null, Math.cos(ang) * 0.22, yFl + 0.50, Math.sin(ang) * 0.22, 0, ang, -0.3));
+    }
+    return yFl + 0.62 + 0.32 + 0.72;   // top of the 宝顶
   }
 
   // =====================================================================
@@ -945,20 +990,21 @@ export async function build(ctx) {
     roof(s);
     if (s.i > 0) balcony(s, S[s.i - 1]);
   }
+  fujie(S[0]);
   const spireTop = spire();
 
   const merged = B.build({ name: 'pagoda_merged', castShadow: true, receiveShadow: true });
   root.add(merged);
   I.build(root, ctx.rng('pagoda-instance-colors'));
 
-  const c = (x, y, z) => [C[0] + x, C[1] + y, C[2] + z];
+  const c = (x, y, z) => [C[0] + x, CY + y, C[2] + z];
   const showcase = [
-    { cam: c(-10.5, 1.8, 12.5), look: c(-1.5, 13, 1), focal: 24, note: 'hero: low angle up the sunlit SW corner (onigawara, bells, brackets, disc tiles)' },
-    { cam: c(10.5, 1.8, 9.0), look: c(0.5, 13, 0), focal: 24, note: 'shot-5 replacement: SE corner cascade of eaves (shade side), outside the eave line' },
-    { cam: c(-28, 13, 22), look: c(0, 13, 0), focal: 30, note: 'west elevation, fully sunlit, all five storeys' },
-    { cam: c(52, 6, 38), look: c(0, 17, 0), focal: 50, note: 'backlit telephoto from the ESE' },
-    { cam: c(-13, 16, 12), look: c(-6.5, 13.3, 6.5), focal: 35, note: 'roof level: hip ridge, onigawara, balcony, corner bell' },
-    { cam: c(10, 25, 12), look: c(0, 30.5, 0), focal: 45, note: 'sorin: nine rings, suien, hoju, chains with bells' },
+    { cam: c(-10.5, 1.8, 12.5), look: c(-1.5, 13, 1), focal: 24, note: 'hero: low angle up the sunlit SW corner (chiwen, wind chimes, brackets, disc tiles)' },
+    { cam: c(10.5, 1.8, 9.0), look: c(0.5, 13, 0), focal: 24, note: 'SE corner cascade of eaves (shade side), outside the eave line' },
+    { cam: c(-28, 13, 22), look: c(0, 22, 0), focal: 30, note: 'west elevation, fully sunlit, all nine storeys' },
+    { cam: c(52, 6, 38), look: c(0, 24, 0), focal: 50, note: 'backlit telephoto from the ESE' },
+    { cam: c(-13, 16, 12), look: c(-6.5, 13.3, 6.5), focal: 35, note: 'roof level: hip ridge, chiwen, balcony, corner wind chime' },
+    { cam: c(10, 25, 12), look: c(0, 44, 0), focal: 45, note: '塔刹: 覆钵, 相轮, 宝盖, 火焰珠' },
   ];
   const mname = new Map(Object.entries(MT).map(([kk, v]) => [v, kk]));
   const stats = [];
@@ -976,7 +1022,7 @@ export async function build(ctx) {
   const ambientVolumes = S.map((s) => {
     const h = s.a + s.O * 0.55;
     const y0 = s.i === 0 ? s.F - 0.3 : s.F + 0.55; // keep clear of the roof below (no blotches near the hips)
-    return { min: [C[0] - h, C[1] + y0, C[2] - h], max: [C[0] + h, C[1] + s.yG + 0.3, C[2] + h], tint: [0.34, 0.27, 0.22], soft: s.i === 0 ? 0.8 : 0.6 };
+    return { min: [C[0] - h, CY + y0, C[2] - h], max: [C[0] + h, CY + s.yG + 0.3, C[2] + h], tint: [0.34, 0.27, 0.22], soft: s.i === 0 ? 0.8 : 0.6 };
   });
   return { object: root, anchors, showcase, ambientVolumes };
 }

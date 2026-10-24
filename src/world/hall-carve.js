@@ -3,8 +3,8 @@
 // beam faces and panels. Everything is laid out in a local XY plane and raised
 // toward local +Z, then mapped by a frame matrix X (hall-local).
 //  - ridge2: tapered half-round strand along a 2D polyline (vines, leaves)
-//  - scroll / leaf / peony / cloud: karakusa vocabulary
-//  - karakusaBand: a non-repeating scrolling-vine composition that fills a
+//  - scroll / leaf / peony / cloud: 卷草 vocabulary
+//  - 卷草Band: a non-repeating scrolling-vine composition that fills a
 //    band [yLo(x), yHi(x)] over [x0, x1], splitting into rows when tall
 //  - beamMotif: discrete symmetric gilt motif for a beam face
 // ---------------------------------------------------------------------------
@@ -125,7 +125,7 @@ export function cloud(ms, X, cx, cy, S, h, dir = 1, z0 = 0) {
   ridge2(ms, X, tail, (t) => w * (1 - 0.8 * t), (t) => h * (1 - 0.5 * t), 5, { z0 });
 }
 
-// Scrolling-vine (karakusa) composition filling a band. yLo/yHi: fn(x).
+// Scrolling-vine (卷草) composition filling a band. yLo/yHi: fn(x).
 // opts: { R (rng for variation), minH, maxRowH, scale (stroke scale), flowers }
 export function karakusaBand(ms, X, x0, x1, yLo, yHi, opts = {}) {
   const maxRowH = opts.maxRowH || 0.75;

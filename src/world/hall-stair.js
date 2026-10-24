@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------------
-// hall-stair: vermilion balustrades flanking the main stair (bridge-style):
-// stout square posts on gilt socks, every post crowned
-// by a gilt-bronze giboshi, round top rail, mid and bottom rails with short
+// hall-stair: balustrades flanking the main stair (bridge-style):
+// stout square posts on dark socks, every post crowned
+// by a 莲瓣望柱头, round top rail, mid and bottom rails with short
 // struts, and a heavy newel post at the foot of the stair carrying black
-// lacquer plaques with carved gilt crests. Hall-local coordinates.
+// lacquer plaques with carved crests. Hall-local coordinates.
 // ---------------------------------------------------------------------------
 import { cbox, bar, beam, xf, basis, mul, v3 } from './hall-lib.js';
-import { giboshi, rosette } from './hall-orn.js';
+import { lotusFinial, rosette } from './hall-orn.js';
 import { peony, scroll, ridge2 } from './hall-carve.js';
 
 // posts: [[x, yBase, z], ...]; newel: index of the heavy foot post
@@ -27,7 +27,7 @@ export function stairBalustrade(acc, mats, posts, newel = -1, opts = {}) {
     cbox(gold, xf([p[0], top - 0.065, p[2]]), pw / 2 + 0.013, 0.065, pw / 2 + 0.013, 0.006);
     cbox(red, xf([p[0], top + 0.03, p[2]]), pw / 2 + 0.035, 0.03, pw / 2 + 0.035, 0.01);
     cbox(gold, xf([p[0], top + 0.066, p[2]]), pw / 2 + 0.02, 0.006, pw / 2 + 0.02, 0.003);
-    giboshi(goldB, xf([p[0], top + 0.072, p[2]]), pw * 0.64, pw * 2.35, 22);
+    lotusFinial(goldB, xf([p[0], top + 0.072, p[2]]), pw * 0.64, pw * 2.35, 12);
     if (isN) {
       // plaques on the front (+z) face and the outer side face
       const faces = [

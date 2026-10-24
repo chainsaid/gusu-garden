@@ -9,7 +9,7 @@
 //   B: track 85.96 s ... end   -> film 39 s     (biggest hit 88.96 s lands on the 42 s cut to the Buddha)
 //   A fades out 38-41 s, B fades in 39-40.5 s, master fade-out 67.5-70 s.
 //
-// usage: node tools/score.mjs [--video out/temple.mp4] [--out out/temple_final.mp4] [--music assets_audio/finding_movement.mp3]
+// usage: node tools/score.mjs [--video out/gusu-garden.mp4] [--out out/gusu-garden_final.mp4] [--music assets_audio/finding_movement.mp3]
 // The track is not part of this repository: run `npm run fetch-music` first. Needs ffmpeg on PATH.
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const o = { video: 'out/temple.mp4', out: 'out/temple_final.mp4', music: 'assets_audio/finding_movement.mp3', score: 'out/score.wav' };
+const o = { video: 'out/gusu-garden.mp4', out: 'out/gusu-garden_final.mp4', music: 'assets_audio/finding_movement.mp3', score: 'out/score.wav' };
 const a = process.argv.slice(2);
 for (let i = 0; i < a.length; i++) { const k = a[i].replace(/^--/, ''); if (k in o) o[k] = a[++i]; }
 

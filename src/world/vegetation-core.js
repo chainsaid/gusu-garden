@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// VEGETATION — opaque foliage cores. A clipped niwaki pine pad is a dense,
+// VEGETATION — opaque foliage cores. A clipped 仕立木 pine pad is a dense,
 // light-tight cushion of needles: an alpha-card cloud alone reads as fuzzy
 // "cotton" from 40-90 m (light leaks through, every card shades differently).
 // Each pad therefore gets a closed, lobed super-ellipsoid core sitting just

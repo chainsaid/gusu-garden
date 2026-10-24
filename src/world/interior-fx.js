@@ -20,7 +20,7 @@ uniform sampler2DShadow uShadowMap;
 uniform mat4 uShadowMatrix;
 uniform float uHasShadow;
 uniform vec3 uShellMin, uShellMax, uSunToward, uHall;
-// analytic openings of the hall shell (hall.js layout): west renji windows (bays 1-4,
+// analytic openings of the hall shell (hall.js layout): west 竖棂窗 windows (bays 1-4,
 // diagonal bars every 0.19 m) and the three open front bays. Used only for sun rays whose
 // shadow-map occluder lies outside the shell.
 float shellOpen(vec3 wp, vec3 d){

@@ -45,16 +45,16 @@ export function buildPaving(ctx, F) {
 
   const main = F.paths[1]; // bridge -> hall stairs (hero)
   const pathTop = 0.055;
-  // sandō: the stone approach continuing south from the gate through the wooded forecourt
+  // 甬道: the stone approach continuing south from the gate through the wooded forecourt
   const gx = F.L.gate.center[0];
-  const sando = segInfo([gx, F.R.maxZ + 3.8], [gx, F.R.maxZ + 46], 3.4);
-  sando.sando = true;
-  const allPaths = [...F.paths, sando];
+  const yongdao = segInfo([gx, F.R.maxZ + 3.8], [gx, F.R.maxZ + 46], 3.4);
+  yongdao.yongdao = true;
+  const allPaths = [...F.paths, yongdao];
   allPaths.forEach((P, pi) => {
     const walk = !!P.walk;
     const W = P.width, kerbW = walk ? 0.24 : 0.30;
-    const outside = !!P.sando;
-    // slab top: courtyard paths sit on the level bed (y 0); the sandō follows the forecourt ground
+    const outside = !!P.yongdao;
+    // slab top: courtyard paths sit on the level bed (y 0); the 甬道 follows the forecourt ground
     const yBase = (x, z, hw, hd) => {
       if (!outside) return pathTop;
       let m = -1e9;

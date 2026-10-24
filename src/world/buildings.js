@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------------
-// BUILDINGS: viewing pavilion (hero), enclosing corridor (kairo), south gate
-// (romon), bell tower (shoro), two side halls. Fully procedural.
+// BUILDINGS: viewing pavilion (hero), enclosing corridor (回廊), south gate
+// (楼门), bell tower (钟楼), two side halls. Fully procedural.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { LB, m4, chamferBox, block, lathe, rosette, colBand, sweep, rectProfile, tileParams, makeLift, buildIx, hash3, extrude, giboshi, kibanaGeo, scrollPlate } from './buildings-kit.js';
+import { LB, m4, chamferBox, block, lathe, rosette, colBand, sweep, rectProfile, tileParams, makeLift, buildIx, hash3, extrude, lotusFinial, kibanaGeo, scrollPlate } from './buildings-kit.js';
 import { eaves, bracketSet, column, irimoyaRoof, railing, loopPath, linePath } from './buildings-arch.js';
 import { buildCorridor } from './buildings-corridor.js';
-import { buildGate, buildBellTower, buildSideHall } from './buildings-halls.js';
+import { buildGate, buildBellPavilion, buildSideHall } from './buildings-halls.js';
 import { makeHeroMats, withClearcoatMod } from './buildings-mat.js';
 import { kanaguHooks } from './buildings-kanagu.js';
 
@@ -69,35 +69,12 @@ function makeMaterials(ctx) {
   K.tileVC = mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12, vertexColors: true }, mat.PROC.roofTile());
   K.tileVC.name = 'roofTileVC';
   K.ceiling = ceilingMat(ctx, K.ceilU = { uCellO: { value: new THREE.Vector2(0, 0) }, uCellS: { value: new THREE.Vector2(0.5, 0.5) } });
-  const gc = ctx.L.gate.center, bc = ctx.L.bellTower.center;
+  const gc = ctx.L.gate.center, bc = ctx.L.bellPavilion.center;
   K.ceilingGate = ceilingMat(ctx, { uCellO: { value: new THREE.Vector2(gc[0] - 5.2, gc[2] - 2.4) }, uCellS: { value: new THREE.Vector2(0.52, 0.48) } });
   K.ceilingBell = ceilingMat(ctx, { uCellO: { value: new THREE.Vector2(bc[0] - 1.95, bc[2] - 1.95) }, uCellS: { value: new THREE.Vector2(3.9 / 8, 3.9 / 8) } });
   // gilt panel with interlocking-circle (shippo) relief + small bosses, bump mapped
-  K.goldRelief = mat.std({ color: 0xffffff, roughness: 0.3, metalness: 1.0 }, {
-    fragHead: /* glsl */ `float g_h;`,
-    fragColor: /* glsl */ `
-      {
-        vec3 wp = vWPos; vec3 wn = normalize(vWNrm);
-        vec2 uv = vec2(abs(wn.x) > abs(wn.z) ? wp.z : wp.x, wp.y) * 5.2;
-        vec2 c1 = fract(uv) - 0.5;
-        vec2 c2 = fract(uv + 0.5) - 0.5;
-        float w = 0.09;
-        float ring1 = smoothstep(w, w * 0.25, abs(length(c1) - 0.5));
-        float ring2 = smoothstep(w, w * 0.25, abs(length(c2) - 0.5));
-        float dots = smoothstep(0.1, 0.05, length(c1)) + smoothstep(0.07, 0.03, length(c2));
-        float h = clamp(max(ring1, ring2) + dots, 0.0, 1.0);
-        float n = n_fbm3(wp * 3.0, 3);
-        g_h = h;
-        vec3 base = vec3(1.0, 0.72, 0.33);
-        vec3 col = mix(base * vec3(0.42, 0.3, 0.16), base, 0.35 + 0.65 * h);
-        col *= 0.92 + 0.1 * n;
-        diffuseColor.rgb *= col;
-      }
-    `,
-    fragRough: /* glsl */ `roughnessFactor = mix(0.5, 0.3, g_h);`,
-    fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0035);`,
-  });
-  K.capPaint = mat.std({ color: 0xffffff, roughness: 0.55, metalness: 0.55 }, mat.PROC.gold('vec3(0.80, 0.56, 0.24)'));
+  // 檐椽头: plain oiled wood or a dark iron cap in a Jiangnan building, never gilt
+  K.capPaint = mat.std({ color: 0xffffff, roughness: 0.6, metalness: 0.08 }, mat.PROC.chestnutWood('vec3(0.105, 0.062, 0.038)'));
   // hero surfaces: worn urushi lacquer, engraved gilt fittings, lacquered floor
   const H = makeHeroMats(ctx);
   K.col = H.col; K.red = H.red; K.beam = H.rafter; K.rafter = H.rafter; K.wood = H.rafter;
@@ -111,7 +88,7 @@ function makeMaterials(ctx) {
 
 // Materials re-instanced per building so finalize() can give them a local
 // environment capture (correct reflections/ambient under deep eaves).
-const LOCAL_KEYS = ['kanagu', 'red', 'col', 'beam', 'rafter', 'wood', 'redDark', 'soffit', 'gold', 'cap', 'capPaint', 'gib', 'plaster', 'lattice', 'floorX', 'floorZ', 'black', 'goldRelief', 'ceiling', 'stoneClean'];
+const LOCAL_KEYS = ['kanagu', 'red', 'col', 'beam', 'rafter', 'wood', 'redDark', 'soffit', 'gold', 'cap', 'capPaint', 'gib', 'plaster', 'lattice', 'floorX', 'floorZ', 'black', 'ceiling', 'stoneClean'];
 function localize(ctx, K, keys, sets, center, off, floorY = 0.5) {
   const out = { ...K };
   const made = new Map();
@@ -161,7 +138,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
     lb.box(K.stone, pw + 0.08, 0.1, pw + 0.08, [x, 0.27, z], [0, 0, 0], 0.025);
     if (!isCol) lb.box(K.redDark, 0.16, yF - 0.32 - 0.05, 0.16, [x, (0.32 + yF - 0.05) / 2, z], [0, 0, 0], 0.012);
   }
-  // under-floor beams (obiki) and ties (nuki)
+  // under-floor beams (地栿) and ties (穿枋)
   for (const z of [zB + 0.15, ...zs, zF - 0.15]) lb.box(K.redDark, 2 * hx - 0.1, 0.2, 0.16, [0, yF - 0.2 - 0.1 - 0.045, z], [0, 0, 0], 0.012);
   for (const x of [-hx + 0.15, ...xs, hx - 0.15]) lb.box(K.redDark, 0.12, 0.14, 2 * hz - 0.1, [x, 0.55, zc], [0, 0, 0], 0.01);
   // joists
@@ -181,7 +158,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
       x += len; k++;
     }
   }
-  // veranda edge beam (en-gamachi) around the floor
+  // veranda edge beam (檐甲) around the floor
   { const fl = lb.child(m4([0, 0, zc]));
     fl.add(sweep(loopPath(hx - 0.06, hz - 0.06, () => yF - 0.2, 0.5), rectProfile(0.13, 0.205), { closed: true, outward: true }), K.redDark);
     fl.add(sweep(loopPath(hx - 0.002, hz - 0.002, () => yF - 0.2, 0.5), rectProfile(0.012, 0.03, 0.03), { closed: true, outward: true }), K.gold); }
@@ -194,7 +171,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
       bands: [{ y: yF, h: 0.36, orn: true }, { y: 0.32, h: 0.1 }, { y: 3.02, h: 0.07 }, { y: yColTop - 0.3 - 0.11, h: 0.1 }],
     });
   }
-  // ---- head-tie beams (kashira-nuki) with kibana ends, plate (daiwa), nageshi + ranma
+  // ---- head-tie beams (kashira-穿枋) with 木鼻 ends, plate (daiwa), 腰枋 + 栏间
   const kn = (len, pos, rotY) => lb.box(K.red, len, 0.27, 0.14, pos, [0, rotY, 0], 0.015);
   for (const s of [-1, 1]) {
     kn(2 * cx + 0.16, [0, yColTop - 0.135, s * cz], 0);
@@ -202,7 +179,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
     lb.box(K.red, 2 * cx + 0.5, 0.15, 0.26, [0, yPlate - 0.075, s * cz], [0, 0, 0], 0.015);
     lb.box(K.red, 0.26, 0.15, 2 * cz + 0.5, [s * cx, yPlate - 0.075, 0], [0, 0, 0], 0.015);
   }
-  // gilt nail-cover rosettes (kugikakushi) along both faces of the head-tie beams
+  // gilt nail-cover rosettes (钉隐) along both faces of the head-tie beams
   // (the inner face of the west beam frames the top of shot 1)
   for (const s of [-1, 1]) for (const f of [-1, 1]) {
     for (let i = 0; i < xs.length - 1; i++) for (const t of [1 / 3, 2 / 3]) {
@@ -220,7 +197,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     // gold caps on beam ends
 
-    // carved kibana ends with gold scroll plates
+    // carved 木鼻 ends with gold scroll plates
     for (const [px, pz, yaw] of [[sx * cx, sz * cz, sx > 0 ? 0 : Math.PI], [sx * cx, sz * cz, sz > 0 ? -Math.PI / 2 : Math.PI / 2]]) {
       const kb = lb.child(m4([px, yColTop - 0.27, pz], [0, yaw, 0]));
       kb.add(kibanaGeo(0.4, 0.27, 0.14), K.red, m4([0.05, 0, 0]));
@@ -230,7 +207,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
     lb.box(K.cap, 0.012, 0.16, 0.27, [sx * (cx + 0.255), yPlate - 0.075, sz * cz], [0, 0, 0], 0.003);
     lb.box(K.cap, 0.27, 0.16, 0.012, [sx * cx, yPlate - 0.075, sz * (cz + 0.255)], [0, 0, 0], 0.003);
   }
-  // nageshi on both faces + ranma lattice
+  // 腰枋 on both faces + 栏间 lattice
   const yN0 = 3.02, yN1 = 3.2;
   for (const s of [-1, 1]) for (const f of [-1, 1]) {
     if (s < 0) lb.box(K.red, 2 * cx + 0.1, yN1 - yN0, 0.07, [0, (yN0 + yN1) / 2, s * cz + f * (colR + 0.02)], [0, 0, 0], 0.012);
@@ -243,7 +220,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
       if (Math.abs(x) === cx) lb.add(rosette(0.07, 6, 0.014), K.gold, m4([x + Math.sign(x) * f * (colR + 0.055), (yN0 + yN1) / 2, z], [0, f * Math.sign(x) > 0 ? Math.PI / 2 : -Math.PI / 2, 0]));
     }
   }
-  // ranma: lattice between nageshi and kashira-nuki
+  // 栏间: lattice between 腰枋 and kashira-穿枋
   const ranmaY0 = yN1, ranmaY1 = yColTop - 0.27;
   const ranma = (a, b, alongX, off) => {
     const L = b - a;
@@ -318,7 +295,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
     ex: exT, ez: ezT, y0, prof, gd: 2.15, ov: 0.6, lift, T,
     K: { tileVC: K.tileVC, tile: K.tile, gold: K.gold, red: DBG.includes("redg") ? K.lattice : K.red, soffit: K.soffit, plaster: K.plaster, lattice: K.lattice },
     ridge: { w: 0.6, h: 0.55, layers: 6, capR: 0.11, drop: 0.45 }, hip: { w: 0.32, h: 0.32, layers: 4, capR: 0.075, drop: 0.2 },
-    oni: { s: 0.85 }, gegyo: 0.62, hafuH: 0.36, capGoldMat: K.cap, gableLattice: true,
+    chiwen: { s: 0.85 }, gegyo: 0.62, hafuH: 0.36, capGoldMat: K.cap, gableLattice: true,
   });
 
   // ---- railings & Meirenakao (吴王靠 / 美人靠)
@@ -409,7 +386,7 @@ export async function build(ctx) {
   const K = makeMaterials(ctx);
   const group = new THREE.Group(); group.name = 'buildings';
   const anchors = { hangingLanterns: [], bells: [] };
-  const only = (typeof location !== 'undefined' && new URLSearchParams(location.search).get('bparts')) || 'pavilion,corridor,gate,belltower,sidehalls';
+  const only = (typeof location !== 'undefined' && new URLSearchParams(location.search).get('bparts')) || 'pavilion,corridor,gate,bellpavilion,sidehalls';
   const want = new Set(only.split(','));
   const localSets = [];
   const DBGQ = (typeof location !== 'undefined' && new URLSearchParams(location.search).get('bdbg')) || '';
@@ -432,11 +409,11 @@ export async function build(ctx) {
     try { buildGate(ctx, KG, new LB(b, base, ix), anchors, (p) => toWorld(base, p)); } catch (e) { console.error('[buildings] gate failed', e.stack || e); }
     const g = b.build({ name: 'gate' }); buildIx(ix, g); group.add(g);
   }
-  if (want.has('belltower') || want.has('sidehalls')) {
+  if (want.has('bellpavilion') || want.has('sidehalls')) {
     const b = new geom.Builder(); const ix = new Map();
-    if (want.has('belltower')) {
-      const B = ctx.L.bellTower; const base = frameFor(B.center, B.facing || [0, 0, 1]);
-      try { buildBellTower(ctx, K, new LB(b, base, ix), anchors, (p) => toWorld(base, p)); } catch (e) { console.error('[buildings] bell tower failed', e.stack || e); }
+    if (want.has('bellpavilion')) {
+      const B = ctx.L.bellPavilion; const base = frameFor(B.center, B.facing || [0, 0, 1]);
+      try { buildBellPavilion(ctx, K, new LB(b, base, ix), anchors, (p) => toWorld(base, p)); } catch (e) { console.error('[buildings] bell pavilion failed', e.stack || e); }
     }
     if (want.has('sidehalls')) {
       for (const sh of ctx.L.sideHalls) {

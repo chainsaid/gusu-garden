@@ -38,7 +38,7 @@ export function buildCover(ctx, F, stones) {
   const nearTree = (x, z, list, r) => { let d = 1e9; for (const t of list) d = Math.min(d, Math.hypot(x - t.x, z - t.z) - r); return d; };
   const inPond = (x, z, m = 0.25) => F.sdPondEff(x, z) < m;
   const onPath = (x, z, m = 0.05) => F.sdPaths(x, z) < m;
-  const free = (x, z) => F.sdLanterns(x, z) > 0.15 && F.sdPads(x, z) > 0.3 && F.sdGutter(x, z) > 0.12 && !(Math.abs(x - F.L.gate.center[0]) < 3.3 && z > F.R.maxZ);
+  const free = (x, z) => F.sdStands(x, z) > 0.15 && F.sdPads(x, z) > 0.3 && F.sdGutter(x, z) > 0.12 && !(Math.abs(x - F.L.gate.center[0]) < 3.3 && z > F.R.maxZ);
 
   // =========================================================================
   // 1. moss cushions
@@ -368,7 +368,7 @@ export function buildCover(ctx, F, stones) {
         if (F.mossAt(x, z) > -0.25 - r * 0.5) return false;
         if (F.sdPondEff(x, z) < 0.9 + r) return false;
       } else if (F.sdRect(x, z) < 6.2 + r) return false;
-      if (F.sdPaths(x, z) < 0.6 + r || F.sdLanterns(x, z) < 0.7 + r || F.sdPads(x, z) < 1.0 + r || F.sdGutter(x, z) < 0.5 + r) return false;
+      if (F.sdPaths(x, z) < 0.6 + r || F.sdStands(x, z) < 0.7 + r || F.sdPads(x, z) < 1.0 + r || F.sdGutter(x, z) < 0.5 + r) return false;
       for (const t of trees) if (Math.hypot(x - t.x, z - t.z) < 1.0 + r) return false;
       for (const o of rocks) if (Math.hypot(x - o.x, z - o.z) < (o.r + r) * 0.92) return false;
       if (nearStep(x, z, r + 0.15)) return false;
@@ -384,7 +384,7 @@ export function buildCover(ctx, F, stones) {
       rocks.push({ x, y: gy - sy * R.range(0.22, 0.36), z, r, ry: R.range(0, 6.28), rx: R.range(-0.08, 0.08), rz: R.range(-0.08, 0.08), sx: r * R.range(0.9, 1.15), sy, sz: r * R.range(0.75, 1.0), c: [v * warm * k, v * k, (v / warm) * k], t: R.int(0, 2) });
       return true;
     };
-    // karesansui islands in the gravel fields: a set triad (main stone + two attendants) and low
+    // 枯山水 islands in the gravel fields: a set triad (main stone + two attendants) and low
     // flat companions
     for (const I of F.ISLES || []) {
       for (const [ox, oz, r, tall] of [[0.1, -0.12, 0.78, 1.45], [-0.3, 0.1, 0.55, 0.85], [0.4, 0.2, 0.46, 0.7], [-0.58, -0.22, 0.36, 0.45], [0.62, -0.3, 0.28, 0.4], [-0.1, 0.45, 0.3, 0.35]]) {

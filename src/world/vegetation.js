@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// VEGETATION — hero trees (black pine niwaki, Japanese maples green/red,
+// VEGETATION — hero trees (black pine 仕立木, Japanese maples green/red,
 // cherries), framing canopies for the shots, clipped azalea / boxwood mounds,
 // ferns. Everything procedural: recursive branch skeletons meshed as tapered
 // tubes with procedural bark; foliage as instanced alpha-tested cards with
@@ -724,7 +724,7 @@ function makeSite(L) {
   const P = L.pagoda;
   rects.push({ x0: P.center[0] - P.platform.w / 2, x1: P.center[0] + P.platform.w / 2, z0: P.center[2] - P.platform.d / 2, z1: P.center[2] + P.platform.d / 2, m: 1.0, name: 'pagoda' });
   for (const s of L.sideHalls) rects.push({ x0: s.center[0] - s.w / 2, x1: s.center[0] + s.w / 2, z0: s.center[2] - s.d / 2, z1: s.center[2] + s.d / 2, m: 2.0, name: 'side' });
-  const B = L.bellTower;
+  const B = L.bellPavilion;
   rects.push({ x0: B.center[0] - B.w / 2, x1: B.center[0] + B.w / 2, z0: B.center[2] - B.d / 2, z1: B.center[2] + B.d / 2, m: 2.0, name: 'bell' });
   const V = L.pavilion;
   rects.push({ x0: V.center[0] - V.w / 2 - 3, x1: V.center[0] + V.w / 2, z0: V.center[2] - V.d / 2, z1: V.center[2] + V.d / 2, m: 1.2, name: 'pavilion' });
@@ -736,7 +736,7 @@ function makeSite(L) {
   return {
     rects, inner,
     // returns clearance (m) of a point from all no-plant features (negative = inside)
-    clearance(x, z, { pondMargin = 0, pathMargin = 0, lanternR = 1.0 } = {}) {
+    clearance(x, z, { pondMargin = 0, pathMargin = 0, standR = 1.0 } = {}) {
       let c = Infinity;
       for (const r of rects) {
         const dx = Math.max(r.x0 - r.m - x, 0, x - r.x1 - r.m), dz = Math.max(r.z0 - r.m - z, 0, z - r.z1 - r.m);
@@ -748,7 +748,7 @@ function makeSite(L) {
       const inPond = pointInPoly(x, z, L.pond.outline) && !pointInPoly(x, z, L.pond.island);
       const dp = distToPoly(x, z, L.pond.outline) - pondMargin;
       c = Math.min(c, inPond ? -1 : dp);
-      for (const l of L.stoneLanterns) c = Math.min(c, Math.hypot(x - l[0], z - l[1]) - lanternR);
+      for (const l of L.stoneStands) c = Math.min(c, Math.hypot(x - l[0], z - l[1]) - standR);
       if (x < inner.x0 || x > inner.x1 || z < inner.z0 || z > inner.z1) c = Math.min(c, -1);
       return c;
     },
@@ -773,7 +773,7 @@ export async function build(ctx) {
   const KEEP = [
     { x0: 40.9, x1: 53.1, z0: 11.9, z1: 24.1, y1: 6.0 },
     { x0: -0.2, x1: 4.0, z0: 16.0, z1: 23.0, y1: 2.7 },
-    // finale opening camera (shot 9 keys 0-1): keep the momiji crown out of the lens
+    // finale opening camera (shot 9 keys 0-1): keep the 红枫 crown out of the lens
     { x0: 35.9, x1: 39.8, z0: 20.5, z1: 25.0, y1: 7.5 },
   ];
   const inKeep = (p, m = 0.1) => {
@@ -905,7 +905,7 @@ export async function build(ctx) {
     return flexOf;
   }
 
-  // per-pad colour choice (linear RGB). Red momiji: sun-exposed sprays scarlet/crimson, shaded inner
+  // per-pad colour choice (linear RGB). Red 红枫: sun-exposed sprays scarlet/crimson, shaded inner
   // sprays lag behind (orange, amber, yellow-green). Green maples: exposed sprays yellow-green.
   const RED_PAL = [
     { w: 3.0, c: [0.42, 0.022, 0.012], ex: 1 },   // scarlet
@@ -1130,7 +1130,7 @@ export async function build(ctx) {
         pushCluster(p, s, tw.pad || null);
       }
     }
-    // sparse flowers right on the outer limbs (sakura flower along the wood, between the sprays)
+    // sparse flowers right on the outer limbs (樱花 flower along the wood, between the sprays)
     if (tiered) {
       for (const b of tree.branches) {
         if (b.level !== 2 || !b.pad) continue;
@@ -1160,7 +1160,7 @@ export async function build(ctx) {
     const greens = [[0.034, 0.062, 0.032], [0.044, 0.072, 0.03], [0.03, 0.055, 0.034], [0.052, 0.078, 0.026]];
     const treeTint = rng.range(0.9, 1.12);
     const gseed = rng.int(0, 9999);
-    // A clipped niwaki pad is a flat-topped, lobed cushion built from separate shoot brushes:
+    // A clipped 仕立木 pad is a flat-topped, lobed cushion built from separate shoot brushes:
     // clusters of upright needle tufts on the top, tufts bristling outward at the rim (spiky
     // silhouette), a sparse dark underside, and noise-driven dark gaps between the brushes.
     const pushTuft = (p, axis, sc, flex, ao, acc, col, bend) => {
@@ -1317,8 +1317,8 @@ export async function build(ctx) {
     if (t.type === 'pine' && t.h >= 11) { s.reach = 1.1; s.nBranches = 10; }
     // this pine stood on the finale's crane path: moved to the south lawn near the corridor
     if (t.type === 'pine' && t.at[0] === 40 && t.at[1] === 32) Object.assign(s, { x: 30.5, z: 39.8, leanAz: 0.6, lean: 0.3 });
-    // finale hero momiji: the south-east shore maple leans far out over the pond (classic ike-no-
-    // momiji); the macro spray of shot 9 hangs from the north edge of its crown
+    // finale hero 红枫: the south-east shore maple leans far out over the pond (classic ike-no-
+    // 红枫); the macro spray of shot 9 hangs from the north edge of its crown
     if (t.type === 'mapleRed' && t.at[0] === 36 && t.at[1] === 34) {
       Object.assign(s, { x: 39.0, z: 30.6, h: 5.6, lean: [-3.4, -2.1], spread: 0.6, crownBase: 0.34, flexK: 0.35, forceNear: true, heroMat: true, heroTree: true, gaps: 0.26, padR: 1.15, droop: 1.3 });
     }
@@ -1332,16 +1332,16 @@ export async function build(ctx) {
     gaps: 0.27, padR: 1.25, droop: 1.4, leafSize: 0.19 });
   // shot 5 (looking up at the pagoda eaves): maple branches on the right
   specs.push({ id: id++, type: 'maple', x: -31.5, z: 6.6, h: 7.6, lean: [1.0, -2.4], spread: 0.6, hero: true, frame: 'shot5', gaps: 0.24 });
-  // ... and a sun-shot momiji reaching into the top-left: yellow-green with orange tips
+  // ... and a sun-shot 红枫 reaching into the top-left: yellow-green with orange tips
   specs.push({ id: id++, type: 'maple', x: -46.2, z: -3.6, h: 10.5, lean: [1.4, 1.6], crownBase: 0.6, spread: 0.5, sx: 0.85, hero: true, frame: 'shot5L', gaps: 0.34, leafSize: 0.23, droop: 1.5, padR: 1.2, autumn: 0.45,
     gpal: [{ w: 2, c: [0.16, 0.22, 0.03], ex: 1 }, { w: 1.5, c: [0.24, 0.24, 0.035], ex: 1 }, { w: 1.5, c: [0.1, 0.18, 0.026], ex: 0.4 }, { w: 1, c: [0.3, 0.16, 0.02], ex: 0.8 }, { w: 0.8, c: [0.07, 0.14, 0.02], ex: 0 }] });
   // shot 8 (through the gate, telephoto north): black pine reaching over the path + red maple
   specs.push({ id: id++, type: 'pine', x: 1.8, z: 40.6, h: 7.2, leanAz: Math.atan2(-0.35, 1.0), lean: 0.38, hStart: 0.52, nBranches: 5, hero: true, frame: 'shot8' });
   specs.push({ id: id++, type: 'mapleRed', x: 17.8, z: 37.8, h: 4.6, lean: [-0.8, -0.5], hero: true });
-  // small niwaki pines flanking the hall stair
+  // small 仕立木 pines flanking the hall stair
   specs.push({ id: id++, type: 'pine', x: 1.6, z: -7.0, h: 3.4, lean: 0.35, leanAz: Math.PI * 0.15, padScale: 0.8, hStart: 0.22, nBranches: 5, hero: true });
   specs.push({ id: id++, type: 'pine', x: 18.4, z: -7.0, h: 3.2, lean: 0.35, leanAz: Math.PI * 0.85, padScale: 0.8, hStart: 0.22, nBranches: 5, hero: true });
-  // more niwaki pines around the pond & plaza
+  // more 仕立木 pines around the pond & plaza
   specs.push({ id: id++, type: 'pine', x: 27.5, z: 37.5, h: 4.2, padScale: 0.85, hStart: 0.25 });
   specs.push({ id: id++, type: 'pine', x: -30.5, z: 18.5, h: 5.0, padScale: 0.9 });
   specs.push({ id: id++, type: 'pine', x: 47.5, z: 29.5, h: 4.5, padScale: 0.85 });
@@ -1373,7 +1373,7 @@ export async function build(ctx) {
     const type = FR.pick(fillTypes);
     const h = type === 'pine' ? FR.range(6, 9.5) : type === 'mapleRed' ? FR.range(4.5, 6) : type === 'cherry' ? FR.range(6, 7.5) : FR.range(7, 10);
     const r = h * 0.42;
-    if (site.clearance(x, z, { pondMargin: 2.5, pathMargin: 1.5, lanternR: 2.0 }) < 1.0) continue;
+    if (site.clearance(x, z, { pondMargin: 2.5, pathMargin: 1.5, standR: 2.0 }) < 1.0) continue;
     if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < (p.r + r) * 0.75)) continue;
     placed.push({ x, z, r });
     // every third green fill maple is turning: amber-gold crowns with orange tips (aerial palette)
@@ -1400,7 +1400,7 @@ export async function build(ctx) {
     const off = typeof location !== 'undefined' && /veghero=0/.test(location.search);
     if (k0 && heroTree && !soloM && !off) {
       let anchorPd = 0;
-      // the shoot starts on the momiji limb closest to its designed entry point (upper left, behind)
+      // the shoot starts on the 红枫 limb closest to its designed entry point (upper left, behind)
       const anchorFn = (want) => {
         let best = null, bd = Infinity;
         for (const b of heroTree.branches) {
@@ -1473,7 +1473,7 @@ export async function build(ctx) {
       // (tall box: leaves keep falling past the lens while the camera lifts over the spray)
       set(9, [c.x, c.y + 1.7, c.z], [3.6, 6.6, 4.0], [0.08, 0.36, 0.05], 34, 0.085, [0.34, 0.015, 0.01], [0.5, 0.1, 0.012]);
     }
-    // shot 3: yellow-green / orange momiji leaves across the pagoda corner
+    // shot 3: yellow-green / orange 红枫 leaves across the pagoda corner
     set(3, [-42.5, 4.4, 2.0], [9, 7, 9], [0.16, 0.4, 0.1], 40, 0.09, [0.2, 0.17, 0.025], [0.42, 0.13, 0.015]);
     // shot 5: red leaves from the stair-side maple drifting past the hall eave corner
     set(5, [-8.0, 4.6, -5.5], [8, 7, 8], [0.14, 0.38, 0.1], 36, 0.085, [0.34, 0.015, 0.01], [0.48, 0.09, 0.012]);
@@ -1512,7 +1512,7 @@ export async function build(ctx) {
   const SR = ctx.rng('veg-shrubs');
   const addMound = (x, z, r, kind = 'azalea', hRatio = 0.62) => {
     if (soloM) return false;
-    if (site.clearance(x, z, { pondMargin: 0.4, pathMargin: 0.25, lanternR: 0.5 }) < r * 0.6) return false;
+    if (site.clearance(x, z, { pondMargin: 0.4, pathMargin: 0.25, standR: 0.5 }) < r * 0.6) return false;
     if (inKeep({ x, y: groundY(x, z) + 0.3, z }, r)) return false;
     if (mounds.some((m) => Math.hypot(m.x - x, m.z - z) < (m.r + r) * 0.72)) return false;
     mounds.push({ x, z, r, kind, hRatio: hRatio * SR.range(0.72, 1.08), y: groundY(x, z) });
@@ -1553,8 +1553,8 @@ export async function build(ctx) {
       if (SR.chance(0.5)) addMound(px + nx * (off + r * 1.3) + SR.range(-0.8, 0.8), pz + nz * (off + r * 1.3) + SR.range(-0.8, 0.8), r * 0.7, kind);
     }
   }
-  // near lanterns
-  for (const l of L.stoneLanterns) {
+  // beside the stone stands (石笋 / 石鼓墩 / 散置湖石)
+  for (const l of L.stoneStands) {
     const a = SR.range(0, TAU);
     addMound(l[0] + Math.cos(a) * 1.5, l[1] + Math.sin(a) * 1.5, SR.range(0.45, 0.75), SR.pick(['azalea', 'boxwood', 'azaleaPink']));
   }
@@ -1663,7 +1663,7 @@ export async function build(ctx) {
       let nx = px - 9, nz = pz - 20; const nl = Math.hypot(nx, nz); nx /= nl; nz /= nl;
       const off = FN.range(1.0, 2.6);
       const x = px + nx * off, z = pz + nz * off;
-      if (site.clearance(x, z, { pondMargin: 0.3, pathMargin: 0.2, lanternR: 0.6 }) < 0.3) continue;
+      if (site.clearance(x, z, { pondMargin: 0.3, pathMargin: 0.2, standR: 0.6 }) < 0.3) continue;
       if (mounds.some((m) => Math.hypot(m.x - x, m.z - z) < m.r + 0.3)) continue;
       if (inKeep({ x, y: 0.3, z }, 0.8)) continue;
       ferns.push([x, z, FN.range(0.45, 0.85)]);

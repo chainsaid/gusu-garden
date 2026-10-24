@@ -1,10 +1,10 @@
 // ---------------------------------------------------------------------------
-// Generic irimoya hall (columns, walls, bracket sets, eaves, roof) and the
-// south gate (romon), bell tower (shoro) and side halls built from it.
+// Generic 歇山 hall (columns, walls, bracket sets, eaves, roof) and the
+// south gate (楼门), bell tower (钟亭) and side halls built from it.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { LB, m4, beamM, chamferBox, block, lathe, colBand, ornBand, rosette, giboshi, sweep, rectProfile, roundProfile, tileParams, tileCapGeos, makeLift, extrude, hash3, armGeo, ni, kibanaGeo, scrollPlate } from './buildings-kit.js';
+import { LB, m4, beamM, chamferBox, block, lathe, colBand, ornBand, rosette, lotusFinial, sweep, rectProfile, roundProfile, tileParams, tileCapGeos, makeLift, extrude, hash3, armGeo, ni, kibanaGeo, scrollPlate } from './buildings-kit.js';
 import { eaves, bracketSet, column, irimoyaRoof, railing, loopPath, linePath, ridgeProfile } from './buildings-arch.js';
 import { kanaguBand } from './buildings-kanagu.js';
 import { gap, seg as dseg } from '../core/detail.js';
@@ -13,17 +13,17 @@ const V3 = THREE.Vector3;
 
 // ---------------------------------------------------------------------------
 // Wall infill of one bay, built in a side frame: x along the side (a..b),
-// wall plane z = c, outward +z. Y = { y0, yN (nageshi bottom), yK (kashira-nuki bottom) }
+// wall plane z = c, outward +z. Y = { y0, yN (腰枋 bottom), yK (kashira-穿枋 bottom) }
 // ---------------------------------------------------------------------------
 export function wallBay(lb, K, a, b, c, type, Y, o = {}) {
   if (type === 'open') return;
   const L = b - a, x = (a + b) / 2, t = 0.12;
   const { y0, yN, yK } = Y;
   const lo = !!o.lo;
-  // ji-nageshi (base sill), uchinori-nageshi, both proud of the wall
+  // ji-腰枋 (base sill), uchinori-腰枋, both proud of the wall
   lb.box(K.red, L, 0.18, t + 0.08, [x, y0 + 0.09, c], [0, 0, 0], 0.014);
   lb.box(K.red, L, 0.18, t + 0.08, [x, yN + 0.09, c], [0, 0, 0], 0.014);
-  // kokabe (plaster above the nageshi)
+  // kokabe (plaster above the 腰枋)
   if (yK - (yN + 0.18) > 0.05) lb.box(K.plaster, L, yK - (yN + 0.18), t, [x, (yK + yN + 0.18) / 2, c]);
   const y1 = y0 + 0.18;
   if (type === 'plaster') {
@@ -44,7 +44,7 @@ export function wallBay(lb, K, a, b, c, type, Y, o = {}) {
     lb.box(K.red, wb - wa, 0.06, t + 0.04, [(wa + wb) / 2, w0 + 0.03, c], [0, 0, 0], 0.008);
     const n = Math.floor((wb - wa - 0.16) / 0.12);
     for (let i = 1; i < n; i++) lb.add(chamferBox(0.05, w1 - w0 - 0.06, 0.05, lo ? 0 : 0.006), K.lattice, m4([wa + 0.08 + ((wb - wa - 0.16) * i) / n, (w0 + w1 + 0.06) / 2, c], [0, Math.PI / 4, 0]));
-    // dark backing (shoji closed behind the bars)
+    // dark backing (障子 closed behind the bars)
     lb.box(K.dark, wb - wa, w1 - w0, 0.02, [(wa + wb) / 2, (w0 + w1) / 2, c - 0.05]);
   } else if (type === 'door') {
     // two-leaf door (sankarado style): frame + panels + gold studs, threshold
@@ -79,7 +79,7 @@ export function wallBay(lb, K, a, b, c, type, Y, o = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Generic irimoya hall. lb in the building frame (origin at ground center).
+// Generic 歇山 hall. lb in the building frame (origin at ground center).
 // ---------------------------------------------------------------------------
 export function hallBuilding(lb, K, S) {
   const xs = S.xs, zs = S.zs;
@@ -94,7 +94,7 @@ export function hallBuilding(lb, K, S) {
   for (const [x, z] of perim) {
     column(lb, K, x, z, S.colBase ?? y0, yct, colR, { seg: lo ? 20 : 28, base: S.soseki, baseH: 0.08, bands: S.bands || [{ y: y0, h: 0.14, studs: lo ? 0 : 10 }], lo });
   }
-  // kashira-nuki + daiwa loops with kibana ends, gold caps
+  // kashira-穿枋 + daiwa loops with 木鼻 ends, gold caps
   for (const s of [-1, 1]) {
     lb.box(K.red, 2 * cx + 0.16, knH, 0.14, [0, yct - knH / 2, s * cz], [0, 0, 0], 0.014);
     lb.box(K.red, 0.14, knH, 2 * cz + 0.16, [s * cx, yct - knH / 2, 0], [0, 0, 0], 0.014);
@@ -103,7 +103,7 @@ export function hallBuilding(lb, K, S) {
   }
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
 
-    // carved kibana ends with gold scroll plates
+    // carved 木鼻 ends with gold scroll plates
     for (const [px, pz, yaw] of [[sx * cx, sz * cz, sx > 0 ? 0 : Math.PI], [sx * cx, sz * cz, sz > 0 ? -Math.PI / 2 : Math.PI / 2]]) {
       const kb = lb.child(m4([px, yct - knH, pz], [0, yaw, 0]));
       kb.add(kibanaGeo(0.4, knH, 0.14), K.red, m4([0.05, 0, 0]));
@@ -123,7 +123,7 @@ export function hallBuilding(lb, K, S) {
     for (let i = 0; i < P.length - 1; i++) {
       const type = S.walls ? S.walls(sd.name, i, P.length - 1) : 'open';
       wallBay(fr, K, P[i] + colR, P[i + 1] - colR, sd.c, type, Y, { lo });
-      // rosettes on nageshi at columns
+      // rosettes on 腰枋 at columns
       if (type !== 'open') {
         for (const xx of [P[i], P[i + 1]]) fr.add(rosette(0.075, 6, 0.014, true), K.gold, m4([xx, Y.yN + 0.09, sd.c + 0.105]));
       }
@@ -194,7 +194,7 @@ export function hallBuilding(lb, K, S) {
     ex: exT, ez: ezT, y0: ry0, prof, gd: S.gd ?? Math.min(ezT * 0.42, 2.6), ov: S.ovG ?? 0.6, lift, T,
     K: { tileVC: K.tileVC, tile: K.tile, gold: K.gold, red: K.red, soffit: K.soffit, plaster: K.plaster, lattice: K.lattice },
     ridge: S.ridge || { w: 0.62, h: 0.58, layers: 6, capR: 0.11, drop: 0.45 }, hip: S.hip || { w: 0.34, h: 0.34, layers: 4, capR: 0.08, drop: 0.22 },
-    oni: S.oni || { s: 0.9 }, gegyo: S.gegyo || 0.65, hafuH: S.hafuH || 0.38, capGoldMat: K.cap, gableLattice: S.gableLattice ?? true, lo,
+    chiwen: S.chiwen || { s: 0.9 }, gegyo: S.gegyo || 0.65, hafuH: S.hafuH || 0.38, capGoldMat: K.cap, gableLattice: S.gableLattice ?? true, lo,
   });
   return { E, roof, lift, yWall, cx, cz, exT, ezT };
 }
@@ -278,8 +278,8 @@ function gateLeaf(dl, K, s, dw, dh) {
 }
 
 // ---------------------------------------------------------------------------
-// SOUTH GATE (romon): lower open storey with massive pillars, balcony on
-// bracket sets, upper storey (hallBuilding), irimoya roof.
+// SOUTH GATE (楼门): lower open storey with massive pillars, balcony on
+// bracket sets, upper storey (hallBuilding), 歇山 roof.
 // ---------------------------------------------------------------------------
 export function buildGate(ctx, K, lb, anchors, toW) {
   const xs = [-5.2, -2.0, 2.0, 5.2], zs = [-2.4, 0, 2.4];
@@ -293,20 +293,20 @@ export function buildGate(ctx, K, lb, anchors, toW) {
   for (const s of [-1, 1]) {
     lb.box(K.stoneClean, 4.6, 0.25, 0.42, [0, 0.125, s * 4.7], [0, 0, 0], 0.02);
   }
-  // lower columns with ornate gold kazari-kanagu
+  // lower columns with ornate gold kazari-金物
   const lowCols = [];
   for (const x of xs) for (const z of zs) lowCols.push([x, z]);
   for (const [x, z] of lowCols) {
     lb.add(lathe([[0, -0.1], [R * 1.75, -0.1], [R * 1.75, 0.03], [R * 1.55, 0.08], [R * 1.25, 0.12], [0, 0.12]], 32, 'gsos'), K.stoneClean, m4([x, yP, z]));
     lb.add(new THREE.CylinderGeometry(R, R * 1.015, yLT - yP - 0.12, 36, 1), K.col, m4([x, (yLT + yP + 0.12) / 2, z]));
-    // hero kazari-kanagu (south row full detail; seam turned to the north)
+    // hero kazari-金物 (south row full detail; seam turned to the north)
     const kHero = z > 1;
     lb.add(kanaguBand(R, 'base', kHero), K.kanagu || K.gold, m4([x, yP + 0.1, z], [0, Math.PI, 0]));
     lb.add(kanaguBand(R, 'eye', kHero), K.kanagu || K.gold, m4([x, 1.86, z], [0, Math.PI, 0]));
     lb.add(colBand(R, 0.12, 36, 0), K.gold, m4([x, 4.08, z]));
     lb.add(colBand(R, 0.1, 36, 0), K.gold, m4([x, yLT - 0.42, z]));
   }
-  // beams: kashira-nuki, nageshi (both faces) with big rosettes, koshi-nuki in side bays
+  // beams: kashira-穿枋, 腰枋 (both faces) with big rosettes, 腰墙-穿枋 in side bays
   const knH = 0.32;
   for (const z of zs) lb.box(K.red, 2 * 5.2 + 0.8, knH, 0.2, [0, yLT - knH / 2, z], [0, 0, 0], 0.016);
   for (const x of xs) lb.box(K.red, 0.2, knH, 2 * 2.4 + 0.8, [x, yLT - knH / 2, 0], [0, 0, 0], 0.016);
@@ -332,7 +332,7 @@ export function buildGate(ctx, K, lb, anchors, toW) {
     const fr = lb.child(m4([0, 0, 0], [0, yaw, 0]));
     for (const [a, b] of [[-2.4, 0], [0, 2.4]]) wallBay(fr, K, a + R, b - R, 5.2, 'plaster', Yl);
   }
-  // ji-nageshi in side bays + rosettes on the lattice frames
+  // ji-腰枋 in side bays + rosettes on the lattice frames
   for (const x of xs) for (const z of [-2.4, 2.4]) {
     if (Math.abs(x) === 2.0) lb.add(rosette(0.1, 8, 0.02), K.gold, m4([x + (x > 0 ? 0.35 : -0.35), yP + 0.09, z + Math.sign(z) * 0.12], [0, z > 0 ? 0 : Math.PI, 0]));
   }
@@ -354,7 +354,7 @@ export function buildGate(ctx, K, lb, anchors, toW) {
     for (let i = 0; i <= 20; i++) lb.box(K.black, 0.06, 0.07, 4.8, [-5.2 + i * 0.52, yCL + 0.325, 0], [0, 0, 0], 0.006);
     for (let j = 0; j <= 10; j++) lb.box(K.black, 10.4, 0.07, 0.06, [0, yCL + 0.325, -2.4 + j * 0.48], [0, 0, 0], 0.006);
   }
-  // koshigumi: bracket sets supporting the balcony
+  // 腰墙gumi: bracket sets supporting the balcony
   const BSk = { tiers: 2, proj: [0.42, 0.8], armH: 0.15, armW: 0.13, blockH: 0.12, daito: [0.42, 0.22], mak: [0.21, 0.12], wall: [1.0, 1.25], inner: false, goldCaps: true, goldMak: true, goldDaito: true, lo: true, K: { wood: K.red, gold: K.cap } };
   const kH = 0.22 + 2 * 0.27;
   const cxL = 5.2, czL = 2.4;
@@ -392,7 +392,7 @@ export function buildGate(ctx, K, lb, anchors, toW) {
     },
     BS: { tiers: 3, proj: [0.45, 0.88], armH: 0.15, armW: 0.13, blockH: 0.12, daito: [0.38, 0.21], mak: [0.2, 0.12], wall: [0.95, 1.2, 1.4], inner: false, goldCaps: true, goldMak: true, goldDaito: true, K: { wood: K.red, gold: K.cap } },
     ov: 2.5, sBase: 0.3, d1: 0.95, liftL: 0.55, roofRise: 2.6, gd: 2.3, ovG: 0.65, tileP: 0.3, tileDetail: 1, lo: true,
-    ridge: { w: 0.7, h: 0.66, layers: 7, capR: 0.12, drop: 0.5 }, hip: { w: 0.38, h: 0.38, layers: 4, capR: 0.085, drop: 0.24 }, oni: { s: 1.05 }, gegyo: 0.8, hafuH: 0.44,
+    ridge: { w: 0.7, h: 0.66, layers: 7, capR: 0.12, drop: 0.5 }, hip: { w: 0.38, h: 0.38, layers: 4, capR: 0.085, drop: 0.24 }, chiwen: { s: 1.05 }, gegyo: 0.8, hafuH: 0.44,
     bands: [{ y: yBal, h: 0.16, studs: 10 }, { y: yBal + 2.5 - 0.28 - 0.12, h: 0.1 }], infill: true,
   });
   for (const h of up.E.hooks) anchors.bells.push({ pos: toW(h.local), scale: 1.2, rotY: 0 });
@@ -414,26 +414,30 @@ export function buildGate(ctx, K, lb, anchors, toW) {
 }
 
 // ---------------------------------------------------------------------------
-// BELL TOWER (shoro) with bonsho and striker
+// 钟亭 (bell pavilion) with a Chinese bronze 钟 and its striker
+// (was: 钟楼 with a Japanese bonsho — dragon-hook loop, 袈裟襷 ribs and
+//  撞座 lotus striking medallions)
 // ---------------------------------------------------------------------------
-function bonsho(lb, K, at, Rb = 0.5, Hb = 1.65) {
+function zhong(lb, K, at, Rb = 0.5, Hb = 1.65) {
+  // a Chinese temple bell: a flat crown plate, a broad shoulder that sweeps
+  // out to the widest point a third of the way up, then a gentle taper
   const prof = [
-    [0, 0.06], [Rb * 0.9, 0.06], [Rb * 0.97, 0.02], [Rb * 1.02, 0], [Rb * 1.03, 0.04], [Rb * 1.0, 0.1], [Rb * 0.97, 0.22],
-    [Rb * 0.95, Hb * 0.5], [Rb * 0.93, Hb * 0.8], [Rb * 0.88, Hb * 0.9], [Rb * 0.76, Hb * 0.96], [Rb * 0.5, Hb * 0.995], [0, Hb],
+    [0, 0.06], [Rb * 0.92, 0.06], [Rb * 0.97, 0.02], [Rb * 1.0, 0], [Rb * 1.02, 0.05], [Rb * 1.0, 0.12], [Rb * 0.97, 0.22],
+    [Rb * 0.98, Hb * 0.34], [Rb * 1.0, Hb * 0.5], [Rb * 0.94, Hb * 0.8], [Rb * 0.84, Hb * 0.9], [Rb * 0.68, Hb * 0.96], [Rb * 0.46, Hb * 0.995], [0, Hb],
   ];
   const b = lb.child(m4(at));
-  b.add(lathe(prof, 56, 'bonsho'), K.bronze);
-  // horizontal bands
-  for (const yy of [0.32, Hb * 0.6, Hb * 0.62, Hb * 0.86]) {
-    const r = Rb * (yy < Hb * 0.7 ? 0.955 : 0.925) + 0.012;
+  b.add(lathe(prof, 56, 'zhong'), K.bronze);
+  // 凸弦: horizontal bands at the shoulder, the waist and the lip
+  for (const yy of [0.3, Hb * 0.55, Hb * 0.57, Hb * 0.86]) {
+    const r = Rb * (yy < Hb * 0.7 ? 0.965 : 0.93) + 0.012;
     b.add(new THREE.TorusGeometry(r, 0.014, 6, 56).rotateX(Math.PI / 2), K.bronze, m4([0, yy, 0]));
   }
-  // vertical bands (kesadasuki)
+  // 竖线: four vertical panel ribs down the body
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
     b.add(chamferBox(0.05, Hb * 0.86 - 0.32, 0.03, 0.008), K.bronze, m4([Math.sin(a) * (Rb * 0.95 + 0.01), (Hb * 0.86 + 0.32) / 2, Math.cos(a) * (Rb * 0.95 + 0.01)], [0, a, 0]));
   }
-  // chi (nipple bosses) in 4 upper panels: 3 rows x 4
+  // boss rows in the four upper panels
   for (let i = 0; i < 4; i++) {
     const a0 = (i / 4) * Math.PI * 2 + Math.PI / 4;
     for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
@@ -443,19 +447,18 @@ function bonsho(lb, K, at, Rb = 0.5, Hb = 1.65) {
       b.add(new THREE.SphereGeometry(0.024, 8, 6), K.bronze, m4([Math.sin(a) * rr, yy, Math.cos(a) * rr]));
     }
   }
-  // striking seats (tsukiza) lotus medallions
+  // 撞座: a plain raised striking seat at the lip (no lotus medallion)
   for (const a of [Math.PI / 2, -Math.PI / 2]) {
-    b.add(rosette(0.11, 8, 0.02), K.bronze, m4([Math.sin(a) * (Rb * 0.96), 0.46, Math.cos(a) * (Rb * 0.96)], [0, a, 0]));
+    b.add(new THREE.TorusGeometry(0.1, 0.03, 8, 20).rotateX(Math.PI / 2), K.bronze, m4([Math.sin(a) * (Rb * 0.96), 0.46, Math.cos(a) * (Rb * 0.96)], [0, a, 0]));
   }
-  // ryuzu (dragon hook): double arch on top
-  const tor = new THREE.TorusGeometry(0.16, 0.05, 8, 20, Math.PI);
-  b.add(tor, K.bronze, m4([0, Hb + 0.02, 0]));
-  b.add(new THREE.SphereGeometry(0.075, 10, 8).scale(1.3, 0.9, 1), K.bronze, m4([0.16, Hb + 0.05, 0]));
-  b.add(new THREE.SphereGeometry(0.075, 10, 8).scale(1.3, 0.9, 1), K.bronze, m4([-0.16, Hb + 0.05, 0]));
-  b.add(new THREE.CylinderGeometry(0.035, 0.06, 0.16, 10), K.bronze, m4([0, Hb + 0.2, 0]));
+  // 钟钮: the loop handle on the crown — two posts and a crossbar
+  const hY = Hb + 0.02;
+  for (const s of [-1, 1]) b.add(new THREE.CylinderGeometry(0.032, 0.04, 0.2, 10), K.bronze, m4([s * 0.14, hY + 0.1, 0]));
+  b.add(new THREE.CylinderGeometry(0.038, 0.038, 0.34, 10), K.bronze, m4([0, hY + 0.2, 0], [0, 0, Math.PI / 2]));
+  b.add(new THREE.CylinderGeometry(0.05, 0.06, 0.1, 10), K.bronze, m4([0, hY + 0.03, 0]));
 }
 
-export function buildBellTower(ctx, K, lb, anchors, toW) {
+export function buildBellPavilion(ctx, K, lb, anchors, toW) {
   const yF = 1.3;
   // stone base: two courses + coping + stairs (south)
   lb.box(K.stone, 6.6, 0.7, 6.6, [0, 0.35 - 0.1, 0], [0, 0, 0], 0.04);
@@ -471,12 +474,12 @@ export function buildBellTower(ctx, K, lb, anchors, toW) {
     walls: () => 'open', soseki: true,
     BS: { tiers: 3, proj: [0.42, 0.8], armH: 0.14, armW: 0.12, blockH: 0.11, daito: [0.34, 0.19], mak: [0.18, 0.11], wall: [0.85, 1.05, 1.25], inner: true, goldCaps: true, goldMak: true, goldDaito: true, K: { wood: K.red, gold: K.cap } },
     ov: 1.9, liftL: 0.45, roofRise: 2.7, gd: 1.7, ovG: 0.5, tileP: 0.26, tileDetail: 1, lo: true,
-    ridge: { w: 0.56, h: 0.5, layers: 5, capR: 0.1, drop: 0.4 }, hip: { w: 0.3, h: 0.3, layers: 3, capR: 0.07, drop: 0.2 }, oni: { s: 0.8 }, gegyo: 0.55, hafuH: 0.34,
+    ridge: { w: 0.56, h: 0.5, layers: 5, capR: 0.1, drop: 0.4 }, hip: { w: 0.3, h: 0.3, layers: 3, capR: 0.07, drop: 0.2 }, chiwen: { s: 0.8 }, gegyo: 0.55, hafuH: 0.34,
     ceiling: true, ceilingMat: K.ceilingBell,
     bands: [{ y: yF, h: 0.15, studs: 10 }, { y: yF + 4.1 - 0.26 - 0.12, h: 0.1 }],
   });
   for (const h of H.E.hooks) anchors.bells.push({ pos: toW(h.local), scale: 1.0, rotY: 0 });
-  // tie beams (nuki) between columns at mid height + hanging beam for the bell
+  // 穿枋 between columns at mid height + hanging beam for the bell
   for (const s of [-1, 1]) {
     lb.box(K.red, 3.9 + 0.5, 0.2, 0.12, [0, yF + 2.6, s * 1.95], [0, 0, 0], 0.012);
     lb.box(K.red, 0.12, 0.2, 3.9 + 0.5, [s * 1.95, yF + 2.6, 0], [0, 0, 0], 0.012);
@@ -485,10 +488,10 @@ export function buildBellTower(ctx, K, lb, anchors, toW) {
   lb.box(K.red, 3.9, 0.26, 0.26, [0, yHang + 0.13, 0], [0, 0, 0], 0.02);
   lb.box(K.cap, 0.3, 0.3, 0.3, [0, yHang + 0.13, 0], [0, 0, 0], 0.01);
   lb.add(new THREE.TorusGeometry(0.09, 0.025, 8, 16), K.black, m4([0, yHang - 0.07, 0]));
-  // bell
+  // the 钟
   const Hb = 1.8;
-  bonsho(lb, K, [0, yHang - 0.16 - Hb - 0.24, 0], 0.56, Hb);
-  // striker (shumoku) hung on ropes, pointing at the bell along x
+  zhong(lb, K, [0, yHang - 0.16 - Hb - 0.24, 0], 0.56, Hb);
+  // striker (木槌) hung on ropes, pointing at the bell along x
   const ys = yHang - 0.16 - Hb - 0.24 + 0.5;
   const sx0 = 0.68, sl = 1.32;
   lb.add(new THREE.CylinderGeometry(0.11, 0.115, sl, 18, 1), K.woodRaw, m4([sx0 + sl / 2, ys, 0], [0, 0, Math.PI / 2]));
@@ -504,16 +507,23 @@ export function buildBellTower(ctx, K, lb, anchors, toW) {
 }
 
 // ---------------------------------------------------------------------------
-// KOHAI with a KARAHAFU: step canopy on two posts in front of a hall, roofed with
-// a bell-curved (convex crest, concave flanks) cusped gable facing forward.
+// 抱厦 (baosha) — a Chinese step canopy on two posts in front of a hall: a
+// straight-eaved lean-to roof whose front line is almost level and turns UP at
+// the two ends, with a plain ridge.
 // o = { W (roof half width), zb, zf (back / front of the roof), yE (side eave),
-//       H (crest rise), postX, postZ, yTop (post top), zWall (front wall face) }
+//       H (front rise), postX, postZ, yTop (post top), zWall (front wall face) }
+// (was: karaKohai / 向拜(已移除) with a 唐破风(已移除) — a bell-curved convex crest with
+//  concave flanks, which is a Japanese-only roof form)
 // ---------------------------------------------------------------------------
-function karaKohai(lb, K, o) {
+function baosha(lb, K, o) {
   const { W, zb, zf, yE, H, postX, postZ, yTop, zWall } = o;
-  const prof = (x) => yE + H * 0.5 * (1 + Math.cos(Math.PI * Math.min(Math.abs(x) / W, 1)));
+  // 中式檐口线：中间平直、两端起翘。u = |x|/W.
+  const prof = (x) => {
+    const u = Math.min(Math.abs(x) / W, 1);
+    return yE + H * (0.10 * (1 - u) * (1 - u) + 0.90 * Math.pow(u, 3.0));
+  };
   const cut = 0.1; // roof slab thickness
-  // posts on stone bases with gilt bands, curved tie beams (ebi-koryo) back to the wall
+  // posts on stone bases, curved tie beams (虹梁) back to the wall
   for (const s of [-1, 1]) {
     const x = s * postX;
     lb.add(lathe([[0, -0.1], [0.28, -0.1], [0.28, 0.04], [0.25, 0.09], [0.2, 0.12], [0, 0.12]], 20, 'khbase'), K.stoneClean, m4([x, 0, postZ]));
@@ -526,7 +536,7 @@ function karaKohai(lb, K, o) {
     lb.add(block(0.32, 0.17, 0.32), K.red, m4([x, yTop, postZ]));
     lb.box(K.cap, 0.27, 0.08, 0.008, [x, yTop + 0.11, postZ + 0.164], [0, 0, 0], 0.002);
   }
-  // front rainbow beam (koryo) with gilt end fittings and a raised centre
+  // 额枋 across the front, with a raised centre
   {
     const L = postX + 0.32, pts = [];
     for (let i = 0; i <= 16; i++) { const t = i / 16; const x = -L + 2 * L * t; pts.push(new V3(x, yTop + 0.17 + 0.07 * Math.sin(Math.PI * t), postZ)); }
@@ -536,7 +546,7 @@ function karaKohai(lb, K, o) {
       for (const f of [-1, 1]) lb.add(rosette(0.06, 8, 0.012), K.gold, m4([s * (postX - 0.35), yTop + 0.06, postZ + f * 0.078], [0, f > 0 ? 0 : Math.PI, 0]));
     }
   }
-  // kaerumata (frog-leg strut) on the beam centre carrying the crest beam
+  // 荷叶墩 (bearing block) on the beam centre carrying the ridge beam
   const yBeamTop = yTop + 0.24;
   const yRidgeB = prof(0) - cut - 0.2;
   {
@@ -585,7 +595,7 @@ function karaKohai(lb, K, o) {
       lb.add(chamferBox(len, 0.08, 0.07, 0), K.rafter || K.red, m);
     }
   }
-  // round-tile ribs running down both flanks, with gilt-mon end caps
+  // round-tile ribs running down both flanks, with plain end caps
   const [cd, cg] = tileCapGeos(0.062, 1);
   for (let z = zb + 0.14; z < zf - 0.06; z += gap(0.27)) {
     const pts = [];
@@ -597,14 +607,12 @@ function karaKohai(lb, K, o) {
   lb.add(sweep(linePath([0, zb], [0, zf + 0.06], () => prof(0) + 0.02, 0.3), ridgeProfile(0.3, 0.2, 2, 0.075, 0.08)), K.tile);
   // side eave fascia
   for (const s of [-1, 1]) lb.add(sweep(linePath([s * (W + 0.02), zb], [s * (W + 0.02), zf + 0.04], () => prof(W) - cut - 0.02, 0.4), rectProfile(0.05, 0.13)), K.red);
-  // karahafu bargeboard on the front: vermilion board, gilt lower edge, gilt fittings
+  // 博风板 (bargeboard) along the front: oiled wood, no gilt edging
   {
     const pts = [];
     for (let i = 0; i <= 48; i++) { const x = -W - 0.06 + ((2 * W + 0.12) * i) / 48; pts.push(new V3(x, prof(x) + 0.05, zf + 0.04)); }
     lb.add(sweep(pts, rectProfile(0.07, 0.3, -0.3)), K.red);
-    lb.add(sweep(pts, rectProfile(0.076, 0.03, -0.31)), K.gold);
-    lb.add(sweep(pts, rectProfile(0.076, 0.022, -0.005)), K.gold);
-    // gegyo-like centre fitting + crest cap + end fittings
+    // 悬鱼 at the centre, 门簪 along the line
     lb.add(rosette(0.13, 8, 0.02), K.gold, m4([0, prof(0) - 0.12, zf + 0.08]));
     lb.box(K.cap, 0.36, 0.3, 0.09, [0, prof(0) - 0.1, zf + 0.04], [0, 0, 0], 0.01);
     for (const s of [-1, 1]) {
@@ -612,7 +620,7 @@ function karaKohai(lb, K, o) {
       for (const t of [0.35, 0.62]) lb.add(rosette(0.045, 6, 0.01), K.gold, m4([s * W * t, prof(W * t) - 0.1, zf + 0.08]));
     }
   }
-  // gable board behind the bargeboard (above the koryo), with a gilt mon
+  // 山墙 behind the bargeboard (above the 额枋)
   {
     const s = new THREE.Shape();
     const xa = W - 0.3, n = 24;
@@ -635,7 +643,7 @@ export function buildSideHall(ctx, K, lb, anchors, toW, spec) {
   const zs = []; for (let i = 0; i <= nd; i++) zs.push(+(-nd * bd / 2 + i * bd).toFixed(3));
   const cx = xs[xs.length - 1], cz = zs[zs.length - 1];
   const yF = 0.62;
-  // podium (kidan) with coping and front steps
+  // 台基 (podium) with coping and front steps
   lb.box(K.stone, 2 * cx + 2.2, 0.6, 2 * cz + 2.2, [0, yF / 2 - 0.08, 0], [0, 0, 0], 0.04);
   lb.box(K.stoneClean, 2 * cx + 2.3, 0.1, 2 * cz + 2.3, [0, yF - 0.05, 0], [0, 0, 0], 0.025);
   for (let i = 0; i < 3; i++) {
@@ -643,7 +651,7 @@ export function buildSideHall(ctx, K, lb, anchors, toW, spec) {
     lb.box(K.stoneClean, bw * 1.6, y, 0.34, [0, y / 2, cz + 1.15 + (2 - i) * 0.32 + 0.17], [0, 0, 0], 0.015);
   }
   const mid = Math.floor(nb / 2);
-  // wooden veranda (engawa) on the front with a koran railing (gap at the steps)
+  // wooden veranda (檐廊) on the front with a 栏杆 railing (gap at the steps)
   {
     const vz0 = cz + 0.2, vz1 = cz + 1.05, vy = yF + 0.06;
     const n = 10;
@@ -666,13 +674,16 @@ export function buildSideHall(ctx, K, lb, anchors, toW, spec) {
     },
     BS: { tiers: 3, proj: [0.42, 0.8], armH: 0.14, armW: 0.12, blockH: 0.11, daito: [0.32, 0.19], mak: [0.18, 0.11], wall: [0.85, 1.05, 1.2], inner: false, goldCaps: true, goldMak: true, goldDaito: false, K: { wood: K.red, gold: K.cap } },
     ov: 1.9, liftL: 0.42, roofRise: spec.w >= 13 ? 3.6 : 3.2, ovG: 0.6, tileP: 0.28, tileDetail: 1,
-    oni: { s: 0.85 }, lo: true, gableLattice: true, infill: true,
+    chiwen: { s: 0.85 }, lo: true, gableLattice: true, infill: true,
   });
   for (const h of H.E.hooks) anchors.bells.push({ pos: toW(h.local), scale: 0.9, rotY: 0 });
-  // karahafu step canopy (kohai) over the front stairs
+  // 抱厦 (baosha) canopy over the front stairs
   const postX = bw * 0.8 + 0.4, Wk = postX + 0.75, yEk = 4.1, cut = 0.1;
-  const profK = (x) => yEk + 0.34 * (1 + Math.cos(Math.PI * Math.min(Math.abs(x) / Wk, 1)));
-  const kh = karaKohai(lb, K, {
+  const profK = (x) => {
+    const u = Math.min(Math.abs(x) / Wk, 1);
+    return yEk + 0.68 * (0.10 * (1 - u) * (1 - u) + 0.90 * Math.pow(u, 3.0));
+  };
+  const kh = baosha(lb, K, {
     W: Wk, zb: cz + 1.25, zf: cz + 3.05, yE: yEk, H: 0.68, postX, postZ: cz + 2.55,
     yTop: profK(postX) - cut - 0.2 - 0.17, zWall: cz + 0.1,
   });
@@ -684,7 +695,7 @@ export function buildSideHall(ctx, K, lb, anchors, toW, spec) {
   // lanterns under the front eave, one per bay (a rhythm of lanterns along the eaves)
   for (let i = 0; i < nb; i++) {
     const x = (xs[i] + xs[i + 1]) / 2;
-    if (Math.abs(x) < Wk + 0.35) continue;   // the kohai covers the middle bays
+    if (Math.abs(x) < Wk + 0.35) continue;   // the baosha covers the middle bays
     const d = 0.9, zl = cz + 1.9 - d;
     const yr = H.E.yBB(d) + H.lift(x, zl);
     lb.add(new THREE.CylinderGeometry(0.012, 0.012, 0.28, 8), K.gold, m4([x, yr - 0.15, zl]));

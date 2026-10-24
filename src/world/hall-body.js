@@ -1,10 +1,10 @@
 // ---------------------------------------------------------------------------
-// hall-body: granite podium (kidan), stairs, columns, walls & facades,
+// hall-body: stone podium (台基), stairs, columns, walls & facades,
 // veranda (en) with railings, interior floor/ceiling shell, upper storey,
 // bracket-set placement. Hall-local coordinates.
 // ---------------------------------------------------------------------------
 import { cbox, beam, lathe, extrude, sweep, bar, xf, basis, mul, v3, clamp, lerp, sstep } from './hall-lib.js';
-import { rosette, giboshi, monCrest, kaerumata, kanagu } from "./hall-orn.js";
+import { rosette, lotusFinial, lotusBlock, kanagu } from "./hall-orn.js";
 import { bracketSet, bracketBeams } from './hall-bracket.js';
 import { hinge, pullRing, columnBand } from './hall-detail.js';
 
@@ -99,7 +99,7 @@ export function buildPodium(acc, mats, R) {
   pv(-cx, cx, -cz, -8.6, 0.95, 0.62, 'x');
   pv(13.1, cx, -8.6, 8.6, 0.95, 0.62, 'z');
   pv(-cx, -13.1, -8.6, 8.6, 0.95, 0.62, 'z');
-  // drip-line cobbles under the mokoshi eaves (amaochi): rounded stones in a shallow channel
+  // drip-line cobbles under the lower eaves: rounded stones in a shallow channel
   const dripMs = acc.m(mats.graniteMoss);
   const drip = (p0, p1) => {
     const L = v3.len(v3.sub(p1, p0)); const n = Math.floor(L / 0.16);
@@ -134,7 +134,7 @@ export function buildStairs(acc, mats, R) {
       cbox(gc, xf([(a0 + a1) / 2, yTop / 2 - 0.0, zf - d / 2 + 0.02], R.range(-0.002, 0.002)), (a1 - a0) / 2 - 0.004, yTop / 2, d / 2, 0.022);
     }
   }
-  // side walls (sode-ishi) + end posts
+  // side walls (袖石) + end posts
   for (const sx of [-1, 1]) {
     const x0 = sx * S.hw, x1 = sx * (S.hw + S.sideW);
     const zTop = z0, zBot = z0 + (S.n - 1) * S.run + 0.15;
@@ -151,7 +151,7 @@ export function buildStairs(acc, mats, R) {
     cbox(gm, xf([(x0 + x1) / 2, 0.235, zBot + 0.14]), S.sideW / 2 + 0.06, 0.235, 0.27, 0.04);
     cbox(gc, xf([(x0 + x1) / 2, 0.475, zBot + 0.14]), S.sideW / 2 + 0.1, 0.03, 0.31, 0.02);
   }
-  // wooden steps up to the veranda (kizahashi)
+  // wooden steps up to the veranda (台阶)
   const F = HB.frontSteps;
   const wood = acc.m(mats.woodX);
   for (let j = 1; j <= F.n; j++) {
@@ -169,8 +169,8 @@ export function buildStairs(acc, mats, R) {
 }
 
 // --------------------------------------------------------------- railings
-// generic railing (koran) between posts along a polyline of post positions
-// (each [x, yBase, z]); giboshi on posts flagged in `gibo` set (indices).
+// generic railing (栏杆) between posts along a polyline of post positions
+// (each [x, yBase, z]); lotus post caps on posts flagged in `gibo` set (indices).
 export function railing(acc, mats, posts, opts = {}) {
   const red = acc.m(mats.red), gold = acc.m(mats.gold), goldB = acc.m(mats.goldB || mats.gold);
   const H = opts.h || 0.85, pw = opts.postW || 0.14;
@@ -180,7 +180,7 @@ export function railing(acc, mats, posts, opts = {}) {
     cbox(red, xf([p[0], (p[1] + top) / 2, p[2]]), pw / 2, (top - p[1]) / 2, pw / 2, 0.012);
     if (gibo.has(i)) {
       cbox(gold, xf([p[0], top - 0.12, p[2]]), pw / 2 + 0.012, 0.1, pw / 2 + 0.012, 0.006);
-      giboshi(goldB, xf([p[0], top, p[2]]), pw * 0.62, pw * 2.6, 18);
+      lotusFinial(goldB, xf([p[0], top, p[2]]), pw * 0.62, pw * 2.6, 12);
       cbox(gold, xf([p[0], p[1] + 0.12, p[2]]), pw / 2 + 0.01, 0.06, pw / 2 + 0.01, 0.005);
     } else {
       cbox(gold, xf([p[0], top + 0.006, p[2]]), pw / 2 + 0.006, 0.008, pw / 2 + 0.006, 0.003);
@@ -246,7 +246,7 @@ export function buildVeranda(acc, mats, R) {
       }
     }
   }
-  // edge beams (en-gamachi) and posts (en-zuka)
+  // edge beams (檐甲) and posts (檐束)
   const edge = [[-vx, vz], [vx, vz], [vx, -vz], [-vx, -vz], [-vx, vz]];
   for (let i = 0; i < 4; i++) {
     const a = edge[i], b = edge[i + 1];
@@ -292,7 +292,7 @@ export function column(acc, mats, x, z, y0, y1, r, opts = {}) {
 
 // ------------------------------------------------------- walls
 // Wall between two columns. p0,p1 = [x,z] of columns; out = outward unit [x,z].
-// type: panel | open | renji | board | door
+// type: panel | open | 竖棂窗 | board | door
 function bay(acc, mats, R, p0, p1, out, type, ctx2) {
   const red = acc.m(mats.red), redD = acc.m(mats.redDark), gold = acc.m(mats.gold), black = acc.m(mats.black), white = acc.m(mats.plaster);
   const redA = acc.m(mats.redA || mats.red);
@@ -313,15 +313,15 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
   panel(redA, -L / 2, L / 2, Y.top - 0.17, Y.top, -0.13, 0.13, 0.015); // daiwa (head plate)
   if (type !== 'open') panel(redA, -half, half, Y.sill0, Y.sill1, -0.12, 0.12, 0.015); // sill
   else panel(redA, -half, half, Y.sill0, Y.sill0 + 0.1, -0.12, 0.12, 0.01); // low threshold
-  // nageshi (proud on the exterior face, applied to the columns)
+  // 腰枋 (proud on the exterior face, applied to the columns)
   panel(redA, -L / 2 - 0.05, L / 2 + 0.05, Y.nag0, Y.nag1, r - 0.02, r + 0.09, 0.02);
   panel(redA, -L / 2 - 0.05, L / 2 + 0.05, Y.sill1 - 0.02, Y.sill1 + 0.16, r - 0.02, r + 0.07, 0.015); // kirime nageshi (low)
-  // --- upper wall: plaster between kashiranuki and daiwa (both faces)
+  // --- upper wall: plaster between kashira穿枋 and daiwa (both faces)
   panel(white, -half, half, Y.kh1, Y.top - 0.17, 0.0, 0.07, 0.006);
   panel(inP, -half, half, Y.kh1, HB.ceilY + 0.08, -0.07, 0.0, 0.006);
-  // band between nageshi and kashiranuki
+  // band between 腰枋 and kashira穿枋
   if (type === 'open') {
-    // lattice transom (ranma)
+    // lattice transom (栏间)
     panel(red, -half, half, Y.nag1, Y.nag1 + 0.08, -0.08, 0.08, 0.008);
     for (let u = -half + 0.12; u < half - 0.08; u += 0.16) panel(red, u - 0.025, u + 0.025, Y.nag1 + 0.08, Y.kn0, -0.035, 0.035, 0.006);
     for (const y of [Y.nag1 + 0.42, Y.nag1 + 0.82]) panel(red, -half, half, y - 0.02, y + 0.02, -0.03, 0.03, 0.005);
@@ -429,7 +429,7 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
       panel(red, -0.05, 0.05, Y.sill1, Y.nag0, 0.1, 0.14, 0.008);
     }
   }
-  // interior skin top band above nageshi for open bays handled; for others continuous
+  // interior skin top band above 腰枋 for open bays handled; for others continuous
   if (type === 'open') panel(inP, -half, half, Y.nag1, Y.kn0, -0.06, -0.035, 0.004);
   void ctx2; void R;
 }
@@ -444,16 +444,16 @@ export function buildWalls(acc, mats, R, frontTypes, backTypes, westTypes, eastT
     bay(acc, mats, R, [-13, Z[j]], [-13, Z[j + 1]], [-1, 0], westTypes[j]);
     bay(acc, mats, R, [13, Z[j + 1]], [13, Z[j]], [1, 0], eastTypes[j]);
   }
-  // columns with soseki
+  // columns with 础石
   for (const x of X) for (const z of Z) {
     const edge = Math.abs(x) === 13 || Math.abs(z) === 8.5;
     if (!edge) continue;
     column(acc, mats, x, z, HB.colBase + 0.14, HB.colTop, HB.colR, { foot: true, soseki: HB.colBase - 0.02 });
-    // chased gilt band under the head-tie (kashiranuki)
+    // chased gilt band under the head-tie (kashira穿枋)
     columnBand(acc.m(mats.gold), xf([x, 7.1, z]), HB.colR * 0.976, 0.2, 14);
   }
-  // rosettes on nageshi at each column front
-  // kibana (decorated beam ends) projecting at the corner columns
+  // rosettes on 腰枋 at each column front
+  // 木鼻 (decorated beam ends) projecting at the corner columns
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     for (const [dx, dz] of [[1, 0], [0, 1]]) {
       const c = [sx * 13, 7.5, sz * 8.5];
@@ -512,13 +512,13 @@ export function buildUpper(acc, mats, R) {
     const panel = (ms, u0, u1, y0, y1, w0, w1, c = 0.01) => cbox(ms, M((u0 + u1) / 2, (y0 + y1) / 2, (w0 + w1) / 2), (u1 - u0) / 2, (y1 - y0) / 2, (w1 - w0) / 2, c);
     panel(redD, -half, half, U.base, 11.3, -0.05, 0.05, 0.005);
     panel(redA, -L / 2, L / 2, 11.12, 11.34, -0.11, 0.11, 0.012); // sill
-    // renji window with white shoji backing
+    // 竖棂窗 window with white 障子 backing
     panel(white, -half, half, 11.34, 12.28, -0.06, -0.02, 0.004);
     const fw = 0.12;
     panel(red, -half, -half + fw, 11.34, 12.28, -0.06, 0.08, 0.01);
     panel(red, half - fw, half, 11.34, 12.28, -0.06, 0.08, 0.01);
     for (let u = -half + fw + 0.09; u < half - fw - 0.04; u += 0.17) cbox(red, mul(M(u, 11.81, 0.02), xf([0, 0, 0], Math.PI / 4)), 0.03, 0.47, 0.03, 0.004);
-    // nageshi + gold
+    // 腰枋 + gold
     panel(redA, -L / 2 - 0.04, L / 2 + 0.04, 12.28, 12.46, U.r - 0.03, U.r + 0.07, 0.015);
     for (const s of [-1, 1]) {
       panel(gold, s * (L / 2 - U.r - 0.13) - 0.11, s * (L / 2 - U.r - 0.13) + 0.11, 12.27, 12.47, U.r + 0.068, U.r + 0.082, 0.004);
@@ -530,7 +530,7 @@ export function buildUpper(acc, mats, R) {
     panel(redA, -L / 2, L / 2, U.top - 0.15, U.top, -0.12, 0.12, 0.012); // daiwa
     panel(white, -half, half, 12.78, U.top - 0.15, -0.05, 0.05, 0.004);
   }
-  // balcony (koshi-gumi): floor + small brackets + railing
+  // balcony (腰墙-gumi): floor + small brackets + railing
   const bo = 1.0; const by = 11.36;
   const bx = xi + bo, bz = zi + bo;
   const wx = acc.m(mats.woodX), wz = acc.m(mats.woodZ);
@@ -612,7 +612,7 @@ export function placeBrackets(acc, mats, xs, zs, top, type, opts = {}) {
   void P;
 }
 
-// kentoku plaster walls behind bracket sets (wall plane), from column top to y1
+// 栱眼壁 plaster walls behind bracket sets (wall plane), from column top to y1
 export function kentoku(acc, mats, xw, zw, y0, y1, colR) {
   const white = acc.m(mats.plaster), inP = acc.m(mats.intPlaster);
   for (const sz of [-1, 1]) cbox(white, xf([0, (y0 + y1) / 2, sz * zw]), xw, (y1 - y0) / 2, 0.06, 0.004);

@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// props-hang.js — hanging bronze lantern (tsuri-dōrō) and wind bell (fūtaku).
+// props-hang.js — hanging bronze lantern (吊灯笼) and wind bell (风铎).
 // Local frame: hook point at the origin, everything hangs toward -Y, front +Z.
 // Metal tag = [pattern, metalType(0 bronze,1 gold,2 bell bronze,3 black), swingLevel, pivotY]
 // Panel tag = [kind (1 main, 2 frieze), 0, swingLevel, 0]
@@ -147,7 +147,7 @@ export function buildHangingLantern() {
 }
 
 // ---------------------------------------------------------------------------
-// Wind bell (fūtaku): rounded-square bronze bell, clapper, gilt wind sail.
+// Wind bell (风铎): rounded-square bronze bell, clapper, gilt wind sail.
 // ---------------------------------------------------------------------------
 function sailShape(W, Lh) {
   const s = new THREE.Shape();

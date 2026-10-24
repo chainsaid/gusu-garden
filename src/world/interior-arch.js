@@ -1,7 +1,6 @@
 // ---------------------------------------------------------------------------
 // Interior architecture: lacquered columns with gilt bands, tie beams,
-// bracket sets, coffered ceiling (go-tenjo) with gilt cross fittings,
-// sanctum back screen.
+// bracket sets, 卷棚轩 + 彻上明造 ceiling, sanctum back screen.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { latheGeo, rbox } from './interior-geo.js';
@@ -36,7 +35,7 @@ export function buildColumns(B, M, S, cols) {
     const h = top - Y0;
     // shaft with slight entasis
     B.add(latheGeo([[0, 0], [r * 0.985, 0], [r, h * 0.3], [r * 0.99, h * 0.7], [r * 0.95, h], [0, h]], 40), c.black ? M.black : M.redColumn, mat4([c.x, Y0, c.z]));
-    // base: bronze/gold nemaki sheath with carved band + plinth
+    // base: bronze/gold 根卷 sheath with carved band + plinth
     B.add(latheGeo([[0, 0], [r + 0.07, 0], [r + 0.07, 0.05], [r + 0.04, 0.07], [0, 0.07]], 40), M.black, mat4([c.x, Y0, c.z]));
     B.add(bandGeo(r + 0.012, 0.3, 2), M.panel, mat4([c.x, Y0 + 0.07 + 0.15, c.z]));
     B.add(new THREE.TorusGeometry(r + 0.014, 0.012, 6, 40).rotateX(Math.PI / 2), M.goldBright, mat4([c.x, Y0 + 0.07, c.z]));
@@ -67,7 +66,7 @@ export function buildBeams(B, M, S, xs, zs) {
         B.add(rbox(x1 - x0, beamH, beamW, 0.03), M.red, mat4([(x0 + x1) / 2, yb - 0.85, z]));
         B.add(rbox(x1 - x0, 0.28, beamW * 0.9, 0.025), M.red, mat4([(x0 + x1) / 2, yb - 0.1, z]));
       } else {
-        // koryo: slightly arched, deep, with gilt end fittings
+        // 虹梁: slightly arched, deep, with gilt end fittings
         const L = x1 - x0;
         let g = rbox(L, 0.36, beamW, 0.04, 2); if (g.index) g = g.toNonIndexed();
         const p = g.attributes.position;
@@ -131,42 +130,67 @@ export function buildBeams(B, M, S, xs, zs) {
   }
 }
 
-// coffered ceiling over rect [x0,x1]x[z0,z1] at height yc (panel plane), cell size
+// 室内天花：前后卷棚轩 + 中部彻上明造.
+// A Jiangnan hall has no coffered grid ceiling: the two end thirds carry a
+// 卷棚轩 (an arched canopy of 轩椽) and the middle third is left open so the
+// 椽望 rafters and boarding show.
+// (was: a uniform 格天井 grid with gilt cross fittings)
 export function buildCeiling(ctx, B, M, S, { x0, x1, z0, z1, yc, cell = 0.9 }) {
   const { THREE: T } = ctx;
-  // painted panel plane (faces down)
-  const pg = new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(Math.PI / 2);
-  B.add(pg, M.ceilingPaint, mat4([(x0 + x1) / 2, yc, (z0 + z1) / 2]));
-  M.ceilingPaint.userData.patch.uniforms.uCell.value.set(cell, cell, 0);
-  M.ceilingPaint.userData.patch.uniforms.uOrigin.value.set(x0, z0);
-  // grid beams (gobuchi), black lacquer with gold edges
-  const bw = 0.075, bh = 0.11;
-  const nx = Math.round((x1 - x0) / cell), nz = Math.round((z1 - z0) / cell);
-  for (let i = 0; i <= nx; i++) {
-    const x = x0 + i * cell;
-    B.add(rbox(bw, bh, z1 - z0, 0.012), M.black, mat4([x, yc - bh / 2, (z0 + z1) / 2]));
+  void cell;
+  const depth = z1 - z0, cx = (x0 + x1) / 2;
+  const rise = Math.min(0.95, depth * 0.22);   // how far the 轩 dips at the wall
+  const zm0 = z0 + depth * 0.3, zm1 = z1 - depth * 0.3;
+  const span = depth * 0.3;
+  const nX = Math.max(8, Math.round((x1 - x0) / 0.14));
+  const nU = Math.max(6, Math.round(span / 0.12));
+  // steep at the wall, flat where the arch meets the open middle
+  const archY = (t) => yc - rise * (1 - t) * (1 - t);
+  // a quad surface, built by hand so the arch can be lofted along x
+  const quad = (pa, pb, pc, pd, mat, flip = false) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([...pa, ...pb, ...pc, ...pd]), 3));
+    g.setIndex(flip ? [0, 1, 2, 0, 2, 3] : [0, 2, 1, 0, 3, 2]);
+    g.computeVertexNormals();
+    B.add(g, mat, null);
+  };
+  // ---- 前后卷棚轩: the arched canopy of 轩椽 over each end third ----
+  for (const [za, dir] of [[z0, 1], [zm1, -1]]) {
+    for (let i = 0; i < nU; i++) {
+      const t0 = i / nU, t1 = (i + 1) / nU;
+      const y0 = archY(t0), y1 = archY(t1);
+      const zA = za + dir * span * t0, zB = za + dir * span * t1;
+      for (let k = 0; k < nX; k++) {
+        const xa = x0 + ((x1 - x0) * k) / nX, xb = x0 + ((x1 - x0) * (k + 1)) / nX;
+        quad([xa, y0, zA], [xb, y0, zA], [xb, y1, zB], [xa, y1, zB], M.panel, dir > 0);
+      }
+      // 轩椽: the arched rafter line that reads as the rib of the vault. One rib
+      // per arch row, sitting under the last quad's centre.
+      const xRib = x0 + ((x1 - x0) * (nX - 0.5)) / nX;
+      const pts = [];
+      for (let q = 0; q <= 6; q++) {
+        const t = t0 + (t1 - t0) * (q / 6);
+        pts.push(V3(xRib, archY(t) - 0.02, za + dir * span * t));
+      }
+      const rg = new THREE.BufferGeometry();
+      rg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts.flatMap((p) => [p.x, p.y, p.z])), 3));
+      B.add(rg, M.red, null);
+    }
   }
-  for (let j = 0; j <= nz; j++) {
-    const z = z0 + j * cell;
-    B.add(rbox(x1 - x0, bh * 0.98, bw, 0.012), M.black, mat4([(x0 + x1) / 2, yc - bh / 2 - 0.001, z]));
+  // ---- 中部彻上明造: 望板 boarding + 露明椽 ----
+  const zc = (zm0 + zm1) / 2;
+  B.add(new THREE.PlaneGeometry(x1 - x0, zm1 - zm0).rotateX(Math.PI / 2), M.panel, mat4([cx, yc, zc]));
+  const nR = Math.max(6, Math.round((x1 - x0) / 0.18));
+  for (let i = 1; i < nR; i++) {
+    const x = x0 + ((x1 - x0) * i) / nR;
+    B.add(new THREE.CylinderGeometry(0.055, 0.055, zm1 - zm0, 8, 1).rotateX(Math.PI / 2), M.red, mat4([x, yc - 0.055, zc]));
   }
-  // gilt cross fittings at the intersections (instanced)
-  const fit = new THREE.Group();
-  const shape = new THREE.Shape();
-  const a = 0.075, b = 0.03;
-  shape.moveTo(-a, -b); shape.lineTo(-b, -b); shape.lineTo(-b, -a); shape.lineTo(b, -a); shape.lineTo(b, -b); shape.lineTo(a, -b);
-  shape.lineTo(a, b); shape.lineTo(b, b); shape.lineTo(b, a); shape.lineTo(-b, a); shape.lineTo(-b, b); shape.lineTo(-a, b); shape.closePath();
-  const fg = new THREE.ExtrudeGeometry(shape, { depth: 0.012, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1 });
-  fg.rotateX(Math.PI / 2);
-  const mats = [];
-  for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++) mats.push(mat4([x0 + i * cell, yc - bh - 0.002, z0 + j * cell]));
-  const im = ctx.geom.instanced(fg, M.goldBright, mats, { castShadow: false, receiveShadow: true });
-  im.name = 'ceiling-fittings';
+  // 檐枋 framing the opening between the two 轩
+  for (const z of [zm0, zm1]) B.add(rbox(x1 - x0, 0.24, 0.16, 0.02), M.red, mat4([cx, yc - 0.12, z]));
   // cove / perimeter moulding
   for (const [px, pz, w, d] of [[(x0 + x1) / 2, z0 + 0.12, x1 - x0, 0.24], [(x0 + x1) / 2, z1 - 0.12, x1 - x0, 0.24], [x0 + 0.12, (z0 + z1) / 2, 0.24, z1 - z0], [x1 - 0.12, (z0 + z1) / 2, 0.24, z1 - z0]]) {
     B.add(rbox(w, 0.22, d, 0.03), M.red, mat4([px, yc - 0.11, pz]));
   }
-  return im;
 }
 
 // back screen behind the sanctum: lacquered frame with gilt-ornament panels
@@ -184,8 +208,9 @@ export function buildBackScreen(B, M, S, { x0, x1, z, y0, y1 }) {
   for (let j = 0; j <= ny; j++) B.add(rbox(w, 0.1, 0.05, 0.01), M.goldAntique, mat4([(x0 + x1) / 2, y0 + 0.08 + j * (ph + 0.16), z + 0.081]));
 }
 
-// side screens of the inner sanctum: lacquered frame, kick panel, black
-// lattice (koshi) over glowing shoji paper, carved transom (ranma)
+// 隔扇 / 长窗 of the inner hall: lacquered frame, 裙板 kick panel, a 步步锦
+// stepping lattice over a faintly translucent 明瓦 backing, 上夹堂板 transom.
+// (was: side screens with a self-lit 障子 paper screen and a square 腰墙 grid)
 export function buildSideScreen(B, M, S, { x, z0, z1, y0, y1, facing = 1 }) {
   const len = z1 - z0, zc = (z0 + z1) / 2;
   const rot = [0, facing > 0 ? Math.PI / 2 : -Math.PI / 2, 0];
@@ -202,13 +227,25 @@ export function buildSideScreen(B, M, S, { x, z0, z1, y0, y1, facing = 1 }) {
     const uc = -len / 2 + (i + 0.5) * bw, pw = bw - 0.16;
     // kick panel with carved diaper
     B.add(panelGeo(pw, 0.82, 0.03, 2), M.panel, mat4(P(uc, y0 + 0.5, 0.0), rot));
-    // shoji paper (glowing) + black lattice in front
+    // 明瓦 backing: it only faintly transmits daylight, it does not glow
     const lh = (y1 - 1.05) - (y0 + 0.95) - 0.1;
     const lc = (y1 - 1.05 + y0 + 0.95) / 2;
-    B.add(new THREE.PlaneGeometry(pw, lh), M.shoji, mat4(P(uc, lc, -0.02), [0, facing > 0 ? Math.PI / 2 : -Math.PI / 2, 0]));
-    for (let k = 1; k < Math.round(pw / 0.11); k++) B.add(new THREE.BoxGeometry(0.035, lh, 0.04), M.black, mat4(P(uc - pw / 2 + k * (pw / Math.round(pw / 0.11)), lc, 0.01), rot));
-    for (let k = 1; k < Math.round(lh / 0.42); k++) B.add(new THREE.BoxGeometry(pw, 0.03, 0.035), M.black, mat4(P(uc, lc - lh / 2 + k * (lh / Math.round(lh / 0.42)), 0.015), rot));
-    // carved transom
+    B.add(new THREE.PlaneGeometry(pw, lh), M.mingwa || M.shoji, mat4(P(uc, lc, -0.02), [0, facing > 0 ? Math.PI / 2 : -Math.PI / 2, 0]));
+    // 步步锦 (bubu-jin) stepping lattice: horizontal rails at every row line,
+    // and vertical stiles whose short members step half a cell across in every
+    // other row, so the grid reads as nested rectangles rather than a square mesh
+    const nR = 5, nC = Math.max(3, Math.round(pw / 0.17));
+    const rh = lh / nR, cw = pw / nC;
+    for (let r = 0; r <= nR; r++) B.add(new THREE.BoxGeometry(pw, 0.03, 0.034), M.black, mat4(P(uc, y0 + 0.95 + r * rh, 0.012), rot));
+    for (let r = 0; r < nR; r++) {
+      const v = y0 + 0.95 + (r + 0.5) * rh, off = (r % 2) * cw * 0.5;
+      for (let c = 0; c < nC; c++) {
+        const u = uc - pw / 2 + (c + 0.5) * cw + off;
+        if (u > uc + pw / 2 - 0.03) continue;
+        B.add(new THREE.BoxGeometry(r % 2 ? cw * 0.5 : cw, rh * 0.92, 0.03), M.black, mat4(P(u, v, 0.012), rot));
+      }
+    }
+    // 上夹堂板 (carved transom above the lattice)
     B.add(panelGeo(pw, 0.85, 0.04, 0), M.panel, mat4(P(uc, y1 - 0.55, 0.0), rot));
   }
 }

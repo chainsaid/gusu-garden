@@ -2,7 +2,7 @@
 // export default { <shotIndex>: { keys: [...], ease, shadow, post, near, noShadow, ... } }
 // Fields given here REPLACE the base definition in src/shots.js for that shot.
 //
-// Shot 9 (finale): opens 0.62 m from a backlit momiji spray hanging over the pond's south-east
+// Shot 9 (finale): opens 0.62 m from a backlit 红枫 spray hanging over the pond's south-east
 // shore, looking west into the low sun (the sun itself peeks out behind one blade; gate, bridge and
 // water melt into bokeh behind the glowing leaves). For ~1.8 s the camera breathes sideways around
 // the spray (parallax through the layered blades, the sun flickering behind a lobe), then lifts

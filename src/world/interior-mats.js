@@ -93,7 +93,7 @@ export function makeInteriorMaterials(ctx) {
   // ---- sculpture gold leaf (vertex colour: r = baked AO, g = skin, b = hair)
   M.statueGold = std({ color: 0xffffff, roughness: 0.3, metalness: 1.0, vertexColors: true }, {
     fragHead: /* glsl */ `uniform float uGrad; float g_sheen; float g_h; float g_skin; float g_hair; float g_ao; float g_line; float g_wear; float g_dust;
-      // shippo-tsunagi (interlocking rings) + dot rosettes: kirikane cut-gold pattern, pattern units
+      // shippo-tsunagi (interlocking rings) + dot rosettes: 截金 cut-gold pattern, pattern units
       float sgShippo(vec2 p){
         vec2 c = floor(p); vec2 f = p - c;
         float d = 1e3;
@@ -136,7 +136,7 @@ export function makeInteriorMaterials(ctx) {
         col *= 1.0 - 0.06 * seam;
         // robe leaf slightly deeper/redder than the polished skin
         col *= mix(vec3(0.9, 0.8, 0.66), vec3(1.04, 1.02, 1.0), g_skin);
-        // kirikane on the robe: bright cut-gold rings on the deeper robe gold (triplanar)
+        // 截金 on the robe: bright cut-gold rings on the deeper robe gold (triplanar)
         float robe = (1.0 - g_skin) * (1.0 - g_hair);
         vec3 twk = pow(tw, vec3(4.0)); twk /= (twk.x + twk.y + twk.z);
         float kp = 16.0; // rings per metre
@@ -253,55 +253,6 @@ export function makeInteriorMaterials(ctx) {
   });
   envList.push(M.woodFloor);
 
-  // tatami (uv = mat-local metres, along the long axis = u). colour.r encodes nothing.
-  M.tatami = std({ color: 0xffffff, roughness: 0.78, metalness: 0 }, {
-    fragHead: /* glsl */ `float g_h; float g_tg; float g_wear; varying vec2 vUvT;`,
-    vertexHead: /* glsl */ `varying vec2 vUvT;`,
-    vertexWorld: /* glsl */ `vUvT = uv;`,
-    fragColor: /* glsl */ `
-      {
-        vec2 uv = vUvT;               // metres: u along 1.82, v across 0.91 (centred); u carries +2.0*k (mat index)
-        float hl = 0.91, hw = 0.455;
-        float mk = floor((uv.x + 1.0) / 2.0);
-        float mh = n_hash12(vec2(mk, 7.7)), mh2 = n_hash12(vec2(mk, 3.1));
-        float border = smoothstep(hw - 0.032, hw - 0.029, abs(uv.y));
-        // weave: rush strands run ACROSS the mat (along v), packed along u
-        float aa = clamp(fwidth(uv.x) / 0.004, 0.0, 1.0);
-        float strand = sin(uv.x * 6.2831 / 0.004) * (1.0 - aa);
-        // per-strand colour variation (each ~4 mm strand slightly different)
-        float sid = floor(uv.x / 0.004);
-        float sv = n_hash12(vec2(sid, 1.3)) - 0.5;
-        float bundle = n_vnoise(vec2(uv.x * 60.0, 0.5)) - 0.5;
-        float warp = smoothstep(0.8, 1.0, sin(uv.y * 6.2831 / 0.028)) * (1.0 - clamp(fwidth(uv.y) / 0.014, 0.0, 1.0));
-        float n = n_fbm(uv * vec2(1.5, 4.0) + vUvT.yx * 0.1, 3);
-        // per-mat age: newer mats greener, old ones golden-brown; low-frequency sun fading
-        vec3 aged = mix(vec3(0.36, 0.285, 0.13), vec3(0.44, 0.34, 0.15), mh);
-        vec3 fresh = vec3(0.36, 0.33, 0.17);
-        vec3 straw = mix(aged, fresh, smoothstep(0.7, 0.95, mh2) * 0.7);
-        float mott = n_fbm(vWPos.xz * 0.9 + 3.0, 3);
-        straw *= 0.82 + 0.3 * n + 0.18 * (mott - 0.5);
-        straw *= 0.95 + 0.07 * strand + 0.12 * sv * (1.0 - aa * 0.7) + 0.16 * bundle;
-        straw *= 1.0 - 0.14 * warp;
-        // wear: darker, flattened and glossier along the walking line and the kneeling spot
-        float walk = exp(-pow((vWPos.x - ${CX.toFixed(3)}) / 0.7, 2.0)) * (0.6 + 0.4 * n_fbm(vWPos.xz * 3.0, 2));
-        float wear = clamp(walk * 0.8 + 0.15 * smoothstep(0.55, 0.85, mott), 0.0, 1.0);
-        straw = mix(straw, straw * vec3(0.78, 0.72, 0.62), wear);
-        // heri: dark brocade with small gilt flower lozenges
-        float hp = sin(uv.x * 6.2831 / 0.02) * sin(abs(uv.y) * 6.2831 / 0.01);
-        vec2 hq = vec2(fract(uv.x / 0.055) - 0.5, (abs(uv.y) - (hw - 0.0155)) / 0.055);
-        float lz = smoothstep(0.2, 0.14, abs(hq.x) + abs(hq.y) * 1.6);
-        vec3 heri = mix(vec3(0.016, 0.012, 0.01) * (1.0 + 0.4 * hp), vec3(0.6, 0.4, 0.14), lz * 0.85);
-        g_tg = border * lz;
-        diffuseColor.rgb = mix(straw, heri, border);
-        g_h = (strand * 0.5 + 0.5) * (1.0 - border) - warp * 0.6 + border * (0.6 + 0.3 * lz);
-        g_wear = wear * (1.0 - border);
-      }
-    `,
-    fragRough: `roughnessFactor = mix(0.5, 0.82, smoothstep(0.0, 1.0, g_h)) - g_wear * 0.18 - g_tg * 0.3;`,
-    fragMetal: `metalnessFactor = g_tg * 0.9;`,
-    fragNormal: `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0008);`,
-  });
-  envList.push(M.tatami);
 
   // ---- carved gold ornament on black lacquer (altar panels, banners...)
   //      uv = panel-local metres (centred), color.rg = half size (m), color.b = pattern id / 10
@@ -330,7 +281,7 @@ export function makeInteriorMaterials(ctx) {
         float hw = wid * sin(3.14159 * pow(t, 0.7));
         return smoothstep(hw, hw * 0.6, abs(q.y)) * step(0.0, q.x) * step(q.x, len);
       }
-      // floral medallions (cc: -1..1 roughly). kind 1: double peony, 2: hosoge (heart lobes)
+      // floral medallions (cc: -1..1 roughly). kind 1: double peony, 2: 宝相花 (heart lobes)
       float medallion(vec2 cc, float kind){
         float rr = length(cc); float pa = atan(cc.y, cc.x);
         float m = 0.0;
@@ -367,7 +318,7 @@ export function makeInteriorMaterials(ctx) {
         float beads = smoothstep(0.5, 0.3, length(vec2(fract(pa * 28.0 / 6.2831853) - 0.5, br / 0.035)));
         return clamp(max(m, beads), 0.0, 1.0);
       }
-      // karakusa: wavy vine with alternating curling tendrils + leaves, central medallion
+      // 卷草: wavy vine with alternating curling tendrils + leaves, central medallion
       float karakusa(vec2 uv, vec2 hs, float med){
         float P = clamp(hs.y * 1.5, 0.12, 0.36);
         float rowH = P * 1.05;
@@ -448,7 +399,7 @@ export function makeInteriorMaterials(ctx) {
         float fine = n_fbm(uv * 60.0, 2);
         g_m = mix(smoothstep(0.35, 0.65, m), 0.3, p_aa);
         vec3 gold = vec3(1.0, 0.70, 0.31) * (0.9 + 0.12 * fine);
-        // nanako punch dots on the gilt ground
+        // 鱼子地 punch dots on the gilt ground
         vec2 nq = fract(uv / 0.012) - 0.5;
         float nan = smoothstep(0.32, 0.2, length(nq)) * (1.0 - clamp((fwidth(uv.x) + fwidth(uv.y)) / 0.008, 0.0, 1.0));
         vec3 blk = mix(vec3(0.014, 0.012, 0.011), vec3(0.95, 0.62, 0.24) * (0.85 + 0.25 * fine) * (1.0 - 0.12 * nan), g_gg);
@@ -578,12 +529,17 @@ export function makeInteriorMaterials(ctx) {
   ctx.mat.patch(M.flame, flick);
   ctx.mat.patch(M.flameCore, flick);
   M.paper = ctx.mat.glow([1.0, 0.6, 0.27], 5.5);
-  M.shoji = ctx.mat.glow([1.0, 0.74, 0.48], 1.35, { side: THREE.DoubleSide });
+  // 明瓦 / 绢背: a lattice backing that only faintly transmits light. It is NOT
+  // self-lit like a 障子 paper screen — a Jiangnan window shows daylight, it
+  // does not glow on its own.
+  M.mingwa = ctx.mat.std({ color: 0xffffff, roughness: 0.85, metalness: 0, transparent: true, opacity: 0.62, side: THREE.DoubleSide }, {});
+  M.mingwa.name = 'i_mingwa';
+  M.shoji = M.mingwa;   // kept as an alias so old call sites compile
   envList.push(M.whiteWax);
 
   for (const k of Object.keys(M)) if (M[k] && M[k].isMaterial) M[k].name = 'i_' + k;
   // relative strength of the local interior env per material (x envBoost)
-  M.black.userData.envK = 0.45; M.panel.userData.envK = 0.7; M.woodFloor.userData.envK = 0.75; M.tatami.userData.envK = 0.55;
+  M.black.userData.envK = 0.45; M.panel.userData.envK = 0.7; M.woodFloor.userData.envK = 0.75;
   M.redColumn.userData.envK = 0.8; M.red.userData.envK = 0.8; M.brocade.userData.envK = 0.7;
   M.envList = envList;
   return M;

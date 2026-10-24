@@ -33,7 +33,7 @@ async function makeSite(ctx) {
   const islandN = inwardNormals(island.pts);
 
   // The terrain module carves the basin (raw outline, bridge-head peninsula,
-  // land bumps at shore lanterns). Use its field so shore stones, depth map and
+  // land bumps at shore stone stands). Use its field so shore stones, depth map and
   // lotus all agree with the real bank. Standalone previews import it read-only.
   let F = ctx.modules && ctx.modules.terrain && ctx.modules.terrain.field;
   const terrainLoaded = !!F;

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
-// Altar furniture and offerings: shumidan, front table, priest platform,
-// cushion, floor lanterns, candlesticks, incense burner, lotus vases (joka),
+// Altar furniture and offerings: 须弥坛, front table, priest platform,
+// cushion, floor lanterns, candlesticks, incense burner, lotus vases (浄花),
 // flower arrangements, fruit stands.
 // All builders take (ctx, B, M, ...) and add merged geometry into Builder B,
 // or return extra objects (instanced meshes, lights) to the caller.
@@ -175,7 +175,7 @@ export function addTassel(B, M, x, y, z, len = 0.4, silk = M.silkRed) {
 }
 
 // ============================================================================
-// PRIEST PLATFORM (raiban) + kneeling cushion
+// PRIEST PLATFORM (礼盘) + kneeling cushion
 export function buildRaiban(B, M, { x, y, z }) {
   const box = (m, bw, bh, bd, px, py, pz, bev = 0.006) => B.add(rbox(bw, bh, bd, bev, 2), m, mat4([x + px, y + py, z + pz]));
   box(M.black, 1.7, 0.16, 1.7, 0, 0.08, 0, 0.012);
@@ -210,7 +210,7 @@ export function buildFloorLantern(B, M, { x, y, z, s = 1, ry = 0 }) {
   // stem with knobs
   add(latheGeo([[0.0, 0.17], [0.17, 0.17], [0.14, 0.22], [0.18, 0.3], [0.12, 0.38], [0.085, 0.5], [0.135, 0.6], [0.085, 0.7], [0.08, 0.84], [0.16, 0.9], [0.0, 0.92]], 24), M.black, 0, 0, 0);
   for (const [rr, yy] of [[0.18, 0.3], [0.135, 0.6], [0.155, 0.885]]) add(ringGeo(rr, 0.014, yy, 32, 6), M.goldBright, 0, 0, 0);
-  // middle platform (chudai)
+  // middle platform (中台)
   add(hx(hex([[0, 0.92], [0.26, 0.92], [0.28, 0.95], [0.28, 0.99], [0.24, 1.0], [0, 1.0]])), M.black, 0, 0, 0);
   add(hx(hex([[0.285, 0.955], [0.29, 0.96], [0.29, 0.985], [0.285, 0.99]])), M.goldBright, 0, 0, 0);
   // fire box: glowing paper prism + black frame + gold corner fittings
@@ -237,7 +237,7 @@ export function buildFloorLantern(B, M, { x, y, z, s = 1, ry = 0 }) {
     const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
     add(new THREE.TorusGeometry(0.03, 0.01, 6, 12, Math.PI * 1.5), M.goldBright, Math.sin(a) * 0.38, fy + fbH + 0.1, Math.cos(a) * 0.38, [0, a + Math.PI / 2, 0]);
   }
-  // finial (hoju)
+  // finial (宝珠)
   add(latheGeo([[0, 0], [0.05, 0], [0.06, 0.03], [0.035, 0.06], [0.05, 0.1], [0.045, 0.14], [0.02, 0.18], [0, 0.2]], 16), M.goldBright, 0, fy + fbH + 0.26, 0);
   return { light: [x, y + (fy + fbH * 0.5) * s, z] };
 }
@@ -295,7 +295,7 @@ export function buildIncenseBurner(B, M, { x, y, z, s = 1 }, emb) {
 }
 
 // ============================================================================
-// GOLD LOTUS VASE (joka): vase + stems + blossoms/buds/leaves, all gilt
+// GOLD LOTUS VASE (浄花): vase + stems + blossoms/buds/leaves, all gilt
 export function buildJoka(B, M, { x, y, z, s = 1, seed = 1 }, rnd) {
   const add = (g, m, mtx) => B.add(g, m, mtx);
   const T = (px, py, pz) => [x + px * s, y + py * s, z + pz * s];

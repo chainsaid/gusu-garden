@@ -49,7 +49,7 @@ const STONE_VWORLD = /* glsl */ `
 
 const RELIEF_GLSL = /* glsl */ `
 float pr_sdBox(vec2 p, vec2 b){ vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
-// koza-ma (cusped arch panel) signed distance, p centred, hs = half size
+// 格子狭间 (cusped arch panel) signed distance, p centred, hs = half size
 float pr_kozama(vec2 p, vec2 hs){
   float W = hs.x, H = hs.y;
   float ax = abs(p.x) / W;
@@ -69,7 +69,7 @@ float pr_relief(vec2 uv, vec2 sz, float pat){
   if (pat < 0.5) return 0.0;
   vec2 p = (uv - 0.5) * sz;
   if (pat < 1.5) {
-    // koza-ma recess
+    // 格子狭间 recess
     vec2 hs = sz * 0.5 - vec2(max(0.022, sz.x * 0.11), max(0.018, sz.y * 0.16));
     if (hs.x <= 0.01 || hs.y <= 0.01) return 0.0;
     float d = pr_kozama(p, hs);
@@ -100,7 +100,7 @@ float pr_relief(vec2 uv, vec2 sz, float pat){
     return h;
   }
   if (pat < 3.5) {
-    // horizontal band of beads (renju) for friezes
+    // horizontal band of beads (联珠) for friezes
     float per = 0.045;
     float x = mod(p.x, per) - per * 0.5;
     float bead = smoothstep(0.0, -0.003, length(vec2(x, p.y)) - min(sz.y * 0.28, 0.012));
@@ -108,7 +108,7 @@ float pr_relief(vec2 uv, vec2 sz, float pat){
     return 0.004 * bead - 0.003 * lines;
   }
   if (pat < 4.5) {
-    // karakusa frieze: a sunk field with a raised undulating vine, curling
+    // 卷草 frieze: a sunk field with a raised undulating vine, curling
     // tendrils in every half wave, small leaves and berry bosses
     vec2 hs = sz * 0.5 - vec2(max(0.016, sz.x * 0.05), max(0.013, sz.y * 0.13));
     if (hs.x <= 0.01 || hs.y <= 0.01) return 0.0;
@@ -656,7 +656,7 @@ const PANEL_FCOLOR = /* glsl */ `
   vec2 off = vt.xy / vt.z;
   float g1;
   float m1 = pn_mask(p - off * 0.0035, hs, style, kind, aa, g1);
-  // ---- interior: a candle flame on the lantern axis behind thin washi paper.
+  // ---- interior: a candle flame on the lantern axis behind thin 和纸 paper.
   // vTag.y = panel centre above the flame, vTag.w = panel -> axis depth (local m)
   float D = max(vTag.w, 0.05);
   float t = uTime;

@@ -85,11 +85,12 @@ export function buildGround(ctx, F) {
   tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.generateMipmaps = false;
   tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.needsUpdate = true;
 
-  const NL = 16;
-  const lant = [];
-  for (let i = 0; i < NL; i++) {
-    const l = F.lanterns[i];
-    lant.push(l ? new THREE.Vector3(l.x, l.z, l.r) : new THREE.Vector3(1e4, 1e4, 0));
+  // 江南石景小品 (stone spurs / drum stools / lake rocks) — the ground stays flat around their bases
+  const NS = 16;
+  const standPts = [];
+  for (let i = 0; i < NS; i++) {
+    const s = F.stands[i];
+    standPts.push(s ? new THREE.Vector3(s.x, s.z, s.r) : new THREE.Vector3(1e4, 1e4, 0));
   }
   // hero trees -> leaf / petal / needle litter on gravel and moss (x, z, crown radius, kind)
   const NT = 20;
@@ -104,12 +105,12 @@ export function buildGround(ctx, F) {
     tMask: { value: tex },
     uMaskX: { value: new THREE.Vector4(DOM.minX, DOM.minZ, 1 / CELL, 1 / CELL) },
     uMaskN: { value: new THREE.Vector2(NX, NZ) },
-    uLant: { value: lant },
+    uStands: { value: standPts },
     uPag: { value: new THREE.Vector3(F.pagP.cx, F.pagP.cz, F.pagP.h) },
     uRect: { value: new THREE.Vector4(F.R.minX, F.R.minZ, F.R.maxX, F.R.maxZ) },
   };
 
-  const mat = ctx.mat.std({ color: 0xffffff, roughness: 0.9, metalness: 0 }, groundHooks(uniforms, NL, NT));
+  const mat = ctx.mat.std({ color: 0xffffff, roughness: 0.9, metalness: 0 }, groundHooks(uniforms, NS, NT));
   mat.name = 'terrainGround';
   const mesh = new THREE.Mesh(geo, mat);
   mesh.name = 'courtyardGround';
@@ -170,7 +171,7 @@ function groundHooks(uniforms, NL, NT) {
       `;
   return {
     uniforms,
-    defines: { NLANT: NL, NTREE: NT },
+    defines: { NSTAND: NL, NTREE: NT },
     vertexHead: /* glsl */ `attribute float aFd; varying float vFd;`,
     vertexWorld: /* glsl */ `vFd = aFd;`,
     fragHead: /* glsl */ `
@@ -179,7 +180,7 @@ function groundHooks(uniforms, NL, NT) {
       uniform sampler2D tMask;
       uniform vec4 uMaskX;
       uniform vec2 uMaskN;
-      uniform vec3 uLant[NLANT];
+      uniform vec3 uStands[NSTAND];
       uniform vec3 uPag;
       uniform vec4 uRect;
       float g_landShade; float g_landAmb; float g_h; float g_wM; float g_wS; float g_wG; float g_rough; float g_dirMul; vec3 g_nW; float g_sheen; float g_ao;
@@ -299,7 +300,7 @@ function groundHooks(uniforms, NL, NT) {
         float P = 0.12, A = 0.025;
         float u; vec2 ud;
         float dl = 1e3; vec2 dlv = vec2(0.0, 1.0);
-        for (int i = 0; i < NLANT; i++) { vec2 d = p - uLant[i].xy; float l = length(d) - uLant[i].z; if (l < dl) { dl = l; dlv = d; } }
+        for (int i = 0; i < NSTAND; i++) { vec2 d = p - uStands[i].xy; float l = length(d) - uStands[i].z; if (l < dl) { dl = l; dlv = d; } }
         vec2 pq = p - uPag.xy;
         vec2 pqq = abs(pq) - vec2(uPag.z + 0.9);
         float sdPag = length(max(pqq, 0.0)) + min(max(pqq.x, pqq.y), 0.0);
@@ -532,7 +533,7 @@ function groundHooks(uniforms, NL, NT) {
           // outer rim of the apron: hand over to the land's meadow / forest floor and its canopy shade
           vec2 qd = max(max(uRect.xy - p, p - uRect.zw), 0.0);
           oc *= 1.3;
-          { float hs = 0.0; tg_sando(p, fw, oc, hs); g_h += g_wS * hs; }
+          { float hs = 0.0; tg_yongdao(p, fw, oc, hs); g_h += g_wS * hs; }
           float toLand = smoothstep(7.0, 9.8, length(qd));
           if (toLand > 0.001) {
             float hM, hF;

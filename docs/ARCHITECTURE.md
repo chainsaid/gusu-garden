@@ -1,6 +1,6 @@
 # Architecture
 
-This document explains how Golden Temple turns about 31,000 lines of JavaScript into a film: how the world is built, how one frame is rendered, why the result does not flicker, and how shots, materials and world modules fit together. The [README](../README.md) covers installation and the command-line tools.
+This document explains how Gusu Garden turns about 31,000 lines of JavaScript into a film: how the world is built, how one frame is rendered, why the result does not flicker, and how shots, materials and world modules fit together. The [README](../README.md) covers installation and the command-line tools.
 
 - [Conventions](#conventions)
 - [Startup](#startup)
@@ -17,7 +17,7 @@ This document explains how Golden Temple turns about 31,000 lines of JavaScript 
 ## Conventions
 
 - Units are metres. +X is east, +Y is up and +Z is south, so north is −Z. The courtyard ground is at y = 0.
-- `src/layout.js` (`L`) is the site plan and the single source of truth for positions and sizes: the hall at (10, 0, −22), the pagoda at (−32, 0, −8), the pond outline, the bridge, the gate at (10, 0, 46), and so on. Modules read their placement from it instead of hard-coding coordinates, so that neighbouring modules agree.
+- `src/layout.js` (`L`) is the site plan and the single source of truth for positions and sizes: the hall at (10, 0, −22), the borrowed Beisi Pagoda at (−105, 0, −48), the pond outline, the bridge, the gate at (10, 0, 46), and so on. Modules read their placement from it instead of hard-coding coordinates, so that neighbouring modules agree.
 - `src/core/env.js` fixes the time of day. The sun stands 6.8° above the horizon in the west-south-west, its light at the ground is a warm colour of about 3300 K, and shared uniforms (`uTime`, wind, sun direction and colour, `uShot`) live in the object `G`, which every patched shader references.
 - Nothing calls `Math.random`. Every module draws from `rng('<name>')` in `src/core/rng.js`, a seeded mulberry32 generator, so each load builds an identical world. The interior's SDF meshing runs in a pool of web workers, and each grid point and vertex is computed by the same pure function, so it is deterministic too.
 
@@ -74,7 +74,7 @@ The volumetric ray-march and the god-ray pass are off in the film (`vol` and `go
 
 ## Why the sub-frame sampling is temporally stable
 
-A common approach is to seed the sampling with the frame number. In a film that is visible: a static roof tile receives a different set of samples every frame, so its edges crawl, shadow penumbrae shimmer and ambient occlusion buzzes. Golden Temple uses a different rule:
+A common approach is to seed the sampling with the frame number. In a film that is visible: a static roof tile receives a different set of samples every frame, so its edges crawl, shadow penumbrae shimmer and ambient occlusion buzzes. Gusu Garden uses a different rule:
 
 **Every sampling pattern depends only on the sub-frame index `k`, never on the frame number.**
 
@@ -99,7 +99,7 @@ These choices were checked by measuring rendered footage, not only single frames
 - **Sun (`src/core/lighting.js`).** One directional light. Each shot declares a shadow region `{ center, radius }`, and `fitSunShadow()` fits the orthographic shadow frustum around it for every sub-frame. With an 8192² map and a 22 m radius, a shadow-map texel is about 5 mm across. A shot can also exclude whole modules from casting shadows (`noShadow`); the sanctum shot, for instance, excludes the trees, terrain and outer buildings.
 - **Image-based light.** The environment is a PMREM of a 256² cube capture: first of the sky, then (at final quality) of the built scene. Modules can capture local environments in `finalize`. The hall captures its interior twice, so the second capture already contains one bounce of the first.
 - **Aerial perspective (`src/core/fog.js`).** Exponential height fog with a 22 m scale height, a thin long-distance air term, and a Henyey–Greenstein glow toward the sun (g = 0.78). It is computed per fragment inside every material by replacing three.js's fog shader chunks, so the planar water reflection gets the same haze as the direct view.
-- **Ambient volumes.** Up to 48 boxes `{ min, max, tint, soft }` in which sky light is mostly blocked: the hall interior, under the pagoda's eaves, and so on. Inside a box, the image-based diffuse and specular light and the fog in-scatter are multiplied by the tint, with edges softened by a signed-distance falloff. They are compiled into GLSL as constants, which is why `setAmbientVolumes()` must run before the first render.
+- **Ambient volumes.** Up to 48 boxes `{ min, max, tint, soft }` in which sky light is mostly blocked: the hall interior, under the eaves, and so on. Inside a box, the image-based diffuse and specular light and the fog in-scatter are multiplied by the tint, with edges softened by a signed-distance falloff. They are compiled into GLSL as constants, which is why `setAmbientVolumes()` must run before the first render.
 
 ## Materials: the patch system
 
@@ -146,13 +146,13 @@ A world module is a file in `src/world/` that exports `build(ctx)`. Helper files
 |---|---|
 | `terrain` | Courtyard ground (raked gravel, moss), stone paving, the pond bed, wooded hills and mountain ridges, an instanced backdrop forest, ground cover |
 | `pond` | Water with planar reflections, stone edging, an island, lotus colonies, water lilies, koi, floating leaves and petals |
-| `hall` | The main hall's exterior: two-tier roof, karahafu porch, granite podium, columns, bracket sets, gold fittings |
-| `interior` | The inner sanctum: the golden Amida on a lotus throne with its mandorla, attendant figures, altar and offerings, canopies, banners, coffered ceiling, light shafts, dust and incense smoke |
+| `hall` | The main hall's exterior: two-tier 歇山 roof with 嫩戗发戗 upturned corners, bluestone podium, plain wooden columns, bracket sets, dark iron fittings |
+| `interior` | The scholar's hall: a landscape scroll, black-lacquer couplets, a rosewood table, a guqin, armchairs, a luohan bed and a curio shelf, long-windows with 步步锦 lattices, a ceiling of 卷棚轩 canopies over an open middle, light shafts, dust and incense smoke |
 | `pagoda` | The five-storey pagoda, generated per side and rotated about its axis |
-| `bridge` | The arched vermilion bridge: deck planks, arch boards, railings with giboshi, granite piers |
+| `bridge` | The arched stone bridge: deck planks, arch boards, railings with lotus-bud post caps, granite piers |
 | `buildings` | The viewing pavilion, the enclosing corridor, the south gate, the bell tower and two side halls |
-| `props` | Stone lanterns, hanging bronze lanterns, wind bells, the incense burner, the water basin, stepping stones |
-| `vegetation` | Black pines, maples, cherries, clipped shrubs and ferns: recursive branch skeletons meshed as tubes, foliage as instanced cards with canvas-drawn atlases |
+| `props` | Taihu rockery peaks, stone spurs, drum stools, scattered lake rocks, hanging lanterns, wind chimes, the incense burner, stepping stones |
+| `vegetation` | Natural-form pines, maples, bamboo, banana palms, weeping willows, wisteria and ground cover: recursive branch skeletons meshed as tubes, foliage as instanced cards with canvas-drawn atlases |
 
 ### The module contract
 
@@ -199,7 +199,7 @@ Modules can read the shot list too. The pond places its hero lotus and its beade
 
 ```js
 {
-  name: 'Wind bell - ...',
+  name: 'Fa Qiang Eaves — 飞檐发戗：...',
   ease: 'reveal',                 // 'inout' (default), 'reveal' or 'linear'
   keys: [                         // two or more camera keys
     { pos: [x, y, z], look: [x, y, z], focal: 40, focus: 2.15, fstop: 4 },
@@ -221,7 +221,7 @@ Modules can read the shot list too. The pond places its hero lotus and its beade
 - Focal length and f-stop are interpolated per key, and the focus distance in log space, so a lens can rack focus and zoom during the move.
 - `smooth` averages the raw camera over ±2.5σ with 13 Gaussian taps, extrapolating by point reflection beyond the ends of the shot so that velocity stays continuous. This removes acceleration snaps from hand-placed keys.
 
-Each module may own the cameras of its hero shots. `src/shotkeys/<module>.js` exports `{ <shotIndex>: { ...fields } }` (zero-based indices), and the fields replace those of the base definition (`Object.assign`). Nine of the ten shots are owned this way (numbered 1–10 here, as in the film): shots 2 and 9 by `pond`, 3 by `bridge`, 4 by `pagoda`, 5 and 8 by `buildings`, 6 by `hall`, 7 by `interior` and 10 by `vegetation`. Shot 1 is defined only in `shots.js`. The `interior` and `vegetation` shots are written as continuous functions (an arc-length path with a speed profile and separate look, focus and focal-length curves), sampled every 0.25 s into 29 keys with linear easing.
+Each module may own the cameras of its hero shots. `src/shotkeys/<module>.js` exports `{ <shotIndex>: { ...fields } }` (zero-based indices), and the fields replace those of the base definition (`Object.assign`). Nine of the ten shots are owned this way (numbered 1–10 here, as in the film): shots 1 and 8 by `pond`, 2 by `bridge`, 3 by `rockery` (the Taihu peak shot, whose override file is `src/shotkeys/pagoda.js`), 4 and 7 by `buildings`, 5 by `hall`, 6 by `interior` and 10 by `vegetation`. Shot 9 is defined only in `shots.js`. The `interior` and `vegetation` shots are written as continuous functions (an arc-length path with a speed profile and separate look, focus and focal-length curves), sampled every 0.25 s into 29 keys with linear easing.
 
 In render mode, frame `f` is at film time `T = f / fps`, in shot `floor(T / 7)` at local time `T − 7 · shot`.
 
@@ -231,11 +231,11 @@ In render mode, frame `f` is at film time `T = f / fps`, in shot `floor(T / 7)` 
 2. Create `src/world/<name>.js`:
 
    ```js
-   // src/world/shrine.js
+   // src/world/shuixie.js
    export async function build(ctx) {
      const { M, geom, L } = ctx;
      const R = ctx.rng('shrine');                       // seeded, never Math.random
-     const [x, y, z] = L.shrine.center;
+     const [x, y, z] = L.shuixie.center;
      const b = new geom.Builder();                       // merges geometry per material
      b.box(M.granite, 3.2, 0.4, 3.2, [x, y + 0.2, z], [0, 0, 0], 0.04);
      for (let i = 0; i < 4; i++) {
@@ -255,7 +255,7 @@ In render mode, frame `f` is at film time `T = f / fps`, in shot `floor(T / 7)` 
 4. Look at it on its own with a fallback ground, then in context:
 
    ```bash
-   node tools/snap.mjs "modules=shrine&cam=24,2,-20&look=30,1.5,-30&w=1280&h=720" out/shrine.png
+   node tools/snap.mjs "modules=shuixie&cam=24,2,-20&look=30,1.5,-30&w=1280&h=720" out/shuixie.png
    node tools/snap.mjs "w=1280&h=720" --view "cam=24,2,-20&look=30,1.5,-30" out/shrine-full.png
    ```
 
@@ -276,7 +276,7 @@ node tools/sheet.mjs --shots 4 --t 0,1,2,3,4,5,6,6.9 --tag s5   # shot 5 (index 
 node tools/render.mjs --from 1680 --to 2100 --spp 2 --w 960 --h 540 --out out/s5-draft.mp4   # its frames as a draft
 ```
 
-Once a final segment is rendered, `tools/splice.mjs --base out/temple.mp4 --seg out/seg.mp4 --from A --to B --out out/new.mp4` puts it into the finished film.
+Once a final segment is rendered, `tools/splice.mjs --base out/gusu-garden.mp4 --seg out/seg.mp4 --from A --to B --out out/new.mp4` puts it into the finished film.
 
 ## Offline rendering and quality checks
 

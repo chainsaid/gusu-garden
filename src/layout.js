@@ -6,47 +6,56 @@
 // shadows fall toward the east-north-east.
 //
 //              N (-Z)
-//   z=-48  ┌──────────── north corridor ─────────────┐
+//   z=-48  ┌──────────── 北廊 (north corridor) ─────────────┐
 //          │        ┌─────────────────┐               │
-//          │  ▲     │   MAIN HALL     │      bell     │
-//          │ pagoda │  (faces south)  │      tower    │
-//   z=-9   │(-32,-8)└──────┬┬┬────────┘               │
-//          │   plaza  (stone lanterns, gravel)  east  │
-//   z=6    │  ~~~~~~~~~~~~ pond ~~~~~~~~~~~~ pavilion │
-//          │  ~~~~ lotus ~~~ bridge ~~~ lotus ~(46,18)│
+//          │        │   主厅 (faces south)  │  钟亭    │
+//          │        │  重檐歇山          │(44,-30)   │
+//   z=-9   │        └──────┬┬┬────────┘               │
+//          │   石板庭院 (stone stands, gravel)  east   │
+//   z=6    │  ~~~~~~~~~~~~ 荷池 (pond) ~~~~~~~~~~~ 水榭  │
+//          │  ~~~~ 莲花 ~~~ 石桥 ~~~ 莲花 ~~~~(47,18)    │
 //   z=34   │  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~        │
 //          │        garden                            │
-//   z=46   └────────────── gate (10,46) ──────────────┘
+//   z=46   └──────────── 砖雕门楼 (10,46) ─────────────┘
 //      x=-52                 x=10                   x=66
 // ---------------------------------------------------------------------------
 
 export const L = {
   groundY: 0,
 
-  // Main hall (hondō): two-tier irimoya roof, karahafu porch over the stairs.
+  // 主厅 (main hall): 重檐歇山 — a two-tier hip-and-gable roof with 嫩戗发戗
+  // upturned corners, a stone podium, plain wooden columns and a stair to the south.
   hall: {
     center: [10, 0, -22],
     facing: [0, 0, 1],            // faces south
-    platform: { w: 36, d: 27, h: 1.6 }, // granite podium (kidan); top at y = 1.6
+    platform: { w: 36, d: 27, h: 1.6 }, // 青石台基 (stone podium); top at y = 1.6
     columns: { w: 26, d: 17, bays: [7, 5], height: 6.4 }, // outer column grid on the podium
     stairs: { width: 10, frontZ: -8.5 }, // main stair descends south to z ~ -8.5 + run
-    mokoshiEaveY: 8.4,            // lower skirt roof eave height
-    mainEaveY: 13.8,              // upper roof eave height
-    ridgeY: 21.5,                 // main ridge top
+    lowerEaveY: 8.4,              // 下檐 (lower roof) eave height
+    mainEaveY: 13.8,              // 上檐 (upper roof) eave height
+    ridgeY: 21.5,                 // 正脊 (main ridge) top
     eaveOverhang: 3.6,
   },
 
-  // Five-storey pagoda (gojū-no-tō)
+  // 借景·北寺塔 (Beisi Pagoda / 报恩寺塔) — borrowed scenery. The tower stands
+  // OUTSIDE the garden, ~118 m to the WNW of the hall, on the far side of the wall:
+  // it is seen over the tree tops and mirrored in the pond (shot 8).
+  // Measured dimensions of the real tower (苏州报恩寺塔):
+  //   通高 76 m including the iron 塔刹 (~15.2 m, about 1/5 of the total)
+  //   九级八面, 砖身木檐; 基台对边 31.5 m 高 1.25 m
+  //   副阶周匝, 平面直径 30 m (对角距) -> 对边距 ~27 m, 占地 878 m2
+  //   砖身每面分三间, 当心间辟门; 各层施平座、腰檐, 平座上设擎檐柱
   pagoda: {
-    center: [-32, 0, -8],
-    platform: { w: 13, d: 13, h: 1.2 },
-    baseWidth: 7.6,               // column grid width of the 1st storey
+    center: [-105, 0, -48],
+    platform: { w: 31.5, d: 31.5, h: 1.25 },  // 基台: 对边 31.5 m, 高 1.25 m
+    baseWidth: 18,               // 塔身(砖核)第 1 层对边距 18 m -> 内切半径 9 m
+    sides: 8,                    // 八角
     storyHeight: 3.9,
-    shrink: 0.92,                 // each storey's width multiplier
-    eaveOverhang: 3.0,
-    stories: 5,
-    spireHeight: 10.5,            // sōrin (9 gold rings + suien + hōju)
-    totalHeight: 37,
+    shrink: 0.94,                // 平缓收分: 顶层对边距 ~11 m
+    eaveOverhang: 3.6,           // 第 1 层檐 -> 檐口对边距 ~25.8 m / 对角距 ~29 m
+    stories: 9,                  // 九级
+    spireHeight: 15.2,           // 铁制塔刹 (第八九层立木刹柱 φ0.85 支承)
+    totalHeight: 76,
   },
 
   // Pond: water surface and outline (clockwise polygon in x,z). Shore is stone.
@@ -60,50 +69,51 @@ export const L = {
     island: [[-6, 18], [-1, 16.5], [3, 19], [1, 23], [-5, 23]], // small rocky island with a pine
   },
 
-  // Arched vermilion bridge (taiko-bashi) on the hall axis, crossing the pond south->north
+  // 青石平拱桥 (stone arch bridge) on the hall axis, crossing the pond south->north
   bridge: {
     south: [10, 0, 27],
     north: [10, 0, 5],
     width: 3.6,
     rise: 2.6,          // deck crown above ground level
-    posts: 9,           // railing posts per side (gold giboshi finials)
+    posts: 9,           // railing posts per side (莲瓣望柱头 post caps)
   },
 
-  // Stone-paved processional path (gate -> bridge -> plaza -> hall stairs)
+  // 石铺甬道 (stone approach: gate -> bridge -> plaza -> hall stairs)
   paths: [
     { from: [10, 46], to: [10, 27], width: 4.0 },
     { from: [10, 5], to: [10, -8.5], width: 5.0 },
-    { from: [10, -2], to: [-24, -6], width: 3.0 },   // branch to the pagoda
+    { from: [10, -2], to: [-24, -6], width: 3.0 },   // branch to the borrowed tower
     { from: [10, -2], to: [44, 10], width: 2.6 },    // branch to the pavilion
   ],
 
-  // Gravel plaza between hall and pond
+  // 石板庭院 (paved courtyard) between hall and pond
   plaza: { minX: -22, maxX: 44, minZ: -9, maxZ: 6 },
 
-  // Viewing pavilion on the east shore, open on the west side, veranda over water
+  // 水榭 (water pavilion) on the east shore, open on the west side, veranda over water
   pavilion: {
     center: [47, 0, 18],
-    facing: [-1, 0, 0],   // opens toward the pond / pagoda / sunset
+    facing: [-1, 0, 0],   // opens toward the pond / borrowed tower / sunset
     w: 10, d: 8, floorY: 1.1, eaveY: 4.6,
   },
 
-  // Enclosing roofed corridor (kairō) and the south gate (chūmon)
+  // 环池游廊 (enclosing roofed corridor) and the 门楼 (gatehouse) to the south
   corridor: {
     rect: { minX: -52, maxX: 66, minZ: -48, maxZ: 46 },
     width: 4.6, height: 3.4, bay: 3.6,
   },
   gate: { center: [10, 0, 46], facing: [0, 0, 1], w: 12, d: 7, height: 11 },
-  bellTower: { center: [44, 0, -30], w: 6, d: 6 },
+  bellPavilion: { center: [44, 0, -30], w: 6, d: 6 },   // 钟亭
   sideHalls: [
-    { center: [-40, 0, -36], w: 14, d: 9, facing: [1, 0, 0] },  // west sub-hall
-    { center: [52, 0, -6], w: 12, d: 8, facing: [-1, 0, 0] },   // east sub-hall
+    { center: [-40, 0, -36], w: 14, d: 9, facing: [1, 0, 0] },  // 西厢厅
+    { center: [52, 0, -6], w: 12, d: 8, facing: [-1, 0, 0] },   // 东厢厅
   ],
 
-  // Stone lanterns (kasuga-dōrō) — [x, z, height]
-  stoneLanterns: [
+  // 江南石景小品 — 石笋 / 石鼓墩 / 散置湖石. [x, z, height]
+  // (was: stone lanterns (春日灯笼) — a Suzhou garden has none)
+  stoneStands: [
     [6, -4, 2.6], [14, -4, 2.6], [6, 2, 2.6], [14, 2, 2.6],       // flanking the plaza axis
     [5.5, 30, 2.4], [14.5, 30, 2.4],                               // south bridge head
-    [-25, -1, 2.3], [-25, -15, 2.3], [-39, -1, 2.3],               // around the pagoda
+    [-25, -1, 2.3], [-25, -15, 2.3], [-39, -1, 2.3],               // around the borrowed tower
     [39, 9, 2.0], [41, 27, 2.1], [-20, 30, 2.0], [28, 4.5, 1.9],   // pond shore
     [-12, 4.2, 1.9], [24, 35.5, 2.0], [-4, 35, 1.8],
   ],

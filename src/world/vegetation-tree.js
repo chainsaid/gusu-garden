@@ -237,7 +237,7 @@ export function trunkDisp({ seed = 0, bump = 0.08, flare = 0.6, roots = 5, flare
 }
 
 // ===========================================================================
-// Species: Japanese maple (momiji) — broad layered dome, sinuous leaders
+// Species: Japanese maple (红枫) — broad layered dome, sinuous leaders
 // ===========================================================================
 // opts: { h, base:Vector3, lean:Vector3 (horiz offset of crown centre), spread, detail(0..1), red:boolean }
 export function genMaple(rng, o) {
@@ -414,7 +414,7 @@ function growMapleSub(rng, parent, ctx, branches, twigs, level, tStart = 0.15) {
 }
 
 // ===========================================================================
-// Species: cherry (sakura) — short thick trunk, vase of scaffold limbs,
+// Species: cherry (樱花) — short thick trunk, vase of scaffold limbs,
 // spreading umbrella crown with drooping tips
 // ===========================================================================
 export function genCherry(rng, o) {
@@ -794,7 +794,7 @@ export function padNormal(P, p) {
 }
 
 // ===========================================================================
-// Species: Japanese black pine (kuromatsu), niwaki style.
+// Species: Japanese black pine (黑松), 仕立木 style.
 // Twisting leaning trunk, near-horizontal zig-zag limbs ending in flat domed
 // "cloud" pads; crown pad at the apex.
 // ===========================================================================
@@ -833,7 +833,7 @@ export function genPine(rng, o) {
   // framing control: pads whose projection would land inside a camera's protected region are dropped
   const blocked = (c, r) => screenBlocked(o.avoid, c, r, 0.6) || boxBlocked(o.keepOut, c, r, r * 0.35);
   const addPad = (c, rp, yaw, attach, pd, squash = 0.2) => {
-    // clipped niwaki pad = a flat-topped, lobed cushion of upright needle tufts carried by a fan of
+    // clipped 仕立木 pad = a flat-topped, lobed cushion of upright needle tufts carried by a fan of
     // zig-zag branchlets (see buildPine). A few lower / higher sub-cushions break the outline.
     const lobes = () => [rng.range(0.08, 0.17), rng.range(0.05, 0.11), rng.range(0.03, 0.07), rng.range(0, TAU), rng.range(0, TAU), rng.range(0, TAU)];
     const main = { c, rx: rp, ry: rp * squash, rz: rp * rng.range(0.72, 0.95), yaw, attach, pd, lobes: lobes() };

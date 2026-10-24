@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
-// buildings-kanagu.js — hero kazari-kanagu (ornamental gilt-bronze pillar
+// buildings-金物.js — hero kazari-金物 (ornamental gilt-bronze pillar
 // sleeves) for the south gate: beaded rolls, engraved border strips, two tiers
-// of lobed spear lappets (kenbishi) with domed rivets, and a chased karakusa
-// (arabesque vine + spiral tendrils + leaves) field on a punched nanako ground.
+// of lobed spear lappets (剑菱) with domed rivets, and a chased 卷草
+// (arabesque vine + spiral tendrils + leaves) field on a punched 鱼子地 ground.
 // Geometry carries uv in METRES: u = arc length on the field radius, v = height
 // from the band centre + PART * partId, so the shader knows which piece it
 // shades and has a metric frame for analytic relief normals + sun self-shadow.
@@ -155,7 +155,7 @@ export function kanaguBand(r, type = 'eye', hero = true) {
 }
 
 // ---------------------------------------------------------------------------
-// Material: gilt bronze, polished relief, matte nanako ground, tarnish and
+// Material: gilt bronze, polished relief, matte 鱼子地 ground, tarnish and
 // verdigris in the recesses, gilding rubbed through to bronze on the high spots.
 // Relief normals are analytic (finite differences of the height field in metres)
 // and fade out with the pixel footprint; the sun self-shadows the chased relief
@@ -166,7 +166,7 @@ export function kanaguBand(r, type = 'eye', hero = true) {
 // Karakusa relief, baked once into a mip-mapped RG16F tile (r = height in mm,
 // g = relief mask): the shader then needs only a few filtered fetches, mips
 // give free anti-aliasing and the program compiles fast.
-// Tile = 1 cell wide x 2 rows (odd rows mirrored), nanako punch grid included.
+// Tile = 1 cell wide x 2 rows (odd rows mirrored), 鱼子地 punch grid included.
 // ---------------------------------------------------------------------------
 const kProf = (d, w) => { const x = Math.min(Math.max(d / w, 0), 1); return 1 - x * x; };
 function kSpiral(px, py, b, t0, t1) {
@@ -217,7 +217,7 @@ function kMotif(x, y) {
   const yv = 0.5 + 0.16 * Math.sin(TAU * x);
   const sl = 0.16 * TAU * Math.cos(TAU * x);
   let h = kProf(Math.abs(y - yv) / Math.sqrt(1 + sl * sl), 0.036) * 0.9;
-  // big scroll wrapping a blossom (hosoge karakusa)
+  // big scroll wrapping a blossom (宝相花 卷草)
   if (y > 0.55 && x > 0.2 && x < 0.62) {
     const [sd, sf] = kSpiral(x - 0.42, y - 0.78, 0.0148, 1.7 * Math.PI, 3 * Math.PI);
     h = Math.max(h, kProf(sd, 0.022 + 0.012 * sf) * (0.85 + 0.15 * sf));
@@ -249,7 +249,7 @@ export function karakusaTexture(Pu, Pv, W = 768, Hh = 1536) {
       if (row % 2) { x = 0.37 - x; x -= Math.floor(x); }
       let x2 = x + 0.5; x2 -= Math.floor(x2);
       const rel = Math.min(1.1, Math.max(kMotif(x, y), kMotif(x2, 1 - y)));
-      // nanako: punched rings with raised rims on the ground
+      // 鱼子地: punched rings with raised rims on the ground
       const qy = ((j + 0.5) / Hh) * nR;
       const qx = ((i + 0.5) / W) * nX + 0.5 * (Math.floor(qy) % 2);
       const gx = qx - Math.floor(qx) - 0.5, gy = qy - Math.floor(qy) - 0.5, rr = Math.hypot(gx, gy * 0.87);
@@ -306,7 +306,7 @@ export function kanaguHooks(r) {
         float pit = 1.0 - smoothstep(0.18, 0.3, r);
         return (ring * 0.6 - pit) * (1.0 - smoothstep(0.25, 0.6, fw / P));
       }
-      // field relief height (m) + relief mask from the baked karakusa tile
+      // field relief height (m) + relief mask from the baked 卷草 tile
       float kk_fieldH(vec2 m, out float rel){
         vec2 t = texture(uKTex, m * vec2(${f(1 / Pu)}, ${f(0.5 / Pv)})).rg;
         rel = t.y;
@@ -383,9 +383,10 @@ export function kanaguHooks(r) {
       g_kpol = kk_field ? smoothstep(0.2, 0.85, rel) : (kk_part > 3.5 ? 1.0 : (kk_part < 1.5 ? 0.35 + 0.65 * rel : (kk_part < 2.5 ? 0.8 * rel : 0.3)));
       g_kwear = smoothstep(0.8, 0.98, rel * (0.7 + 0.45 * (nS * 0.5 + 0.5))) * smoothstep(0.35, 0.75, nB * 0.5 + 0.5);
       if (kk_part > 4.5 && kk_part < 5.5) g_kwear = smoothstep(0.75, 1.0, kk_uv.y * 100.0) * smoothstep(0.3, 0.8, nS * 0.5 + 0.5) * 0.6;
-      vec3 gilt = vec3(1.0, 0.69, 0.29) * (0.92 + 0.10 * nB + 0.05 * nS * aaS);
-      vec3 col = mix(gilt * vec3(0.70, 0.57, 0.40), gilt * 1.05, g_kpol);
-      col = mix(col, vec3(0.50, 0.26, 0.10), g_kwear * 0.7);
+      // 铁质压条 / 包角: dark forged iron with a brown-red oxide bloom, not gilt
+      vec3 gilt = vec3(0.135, 0.125, 0.115) * (0.92 + 0.10 * nB + 0.05 * nS * aaS);
+      vec3 col = mix(gilt * vec3(0.72, 0.66, 0.62), gilt * 1.18, g_kpol);
+      col = mix(col, vec3(0.20, 0.11, 0.055), g_kwear * 0.7);
       float tar = cav * (0.45 + 0.4 * smoothstep(-0.3, 0.6, nB));
       col = mix(col, vec3(0.16, 0.095, 0.04), tar * (kk_field ? 0.5 : 0.35));
       col *= mix(1.0, g_kao, 0.7);

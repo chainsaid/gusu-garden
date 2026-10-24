@@ -155,7 +155,7 @@ export function masuCoveGeo(s, h, { footFrac = 0.44, footScale = 0.72, c = 0.012
   return loft(secs, { refs });
 }
 
-// Bracket arm (hijiki): length along X (unit 1 -> scale), height h, width w.
+// Bracket arm (肘木): length along X (unit 1 -> scale), height h, width w.
 // Lower ends curve inward (kurikata). Origin: x-centre, bottom, z-centre.
 export function armGeo(h = 0.24, w = 0.14, len = 1.0) {
   const L2 = len / 2, e = h * 0.46, r = h * 0.62, bev = 0.008;
@@ -187,7 +187,7 @@ export function armEyeGeo(r = 0.034) {
   return mergeClean(parts);
 }
 
-// Gold end cap (kibana kanagu): plate in XY facing +Z, back at z=0, unit 1x1 (scale x,y).
+// Gold end cap (木鼻 金物): plate in XY facing +Z, back at z=0, unit 1x1 (scale x,y).
 export function capGeo() {
   const parts = [];
   const plate = chamferBox(1, 1, 0.03, 0.01).clone(); plate.translate(0, 0, 0.003);
@@ -219,7 +219,7 @@ export function cleanGeo(g) {
 export function mergeClean(list) { return mergeGeometries(list.map(cleanGeo)); }
 
 // ---------------------------------------------------------------------------
-// Roof tiles (hongawara). All tiles: axis along +Z (toward the eave), up +Y.
+// Roof tiles (青瓦). All tiles: axis along +Z (toward the eave), up +Y.
 // ---------------------------------------------------------------------------
 export const TILE = { L: 0.34, r0: 0.094, r1: 0.083, th: 0.017 };
 
@@ -285,7 +285,7 @@ export function discGeo(R = 0.104, detail = 1) {
       tip.translate(0, 0.047, 0.016); tip.rotateZ(a + Math.PI / 8);
       parts.push(tip);
     }
-    // bead ring (renju) inside the rim
+    // bead ring (联珠) inside the rim
     for (let k = 0; k < 16; k++) {
       const a = (k / 16) * Math.PI * 2;
       const bd = new THREE.OctahedronGeometry(0.0062, 0); bd.scale(1, 1, 0.8);
@@ -298,7 +298,7 @@ export function discGeo(R = 0.104, detail = 1) {
   return mergeClean(parts);
 }
 
-// Front lip of the flat eave tile (karakusa nokihiragawara): faces +Z
+// Front lip of the flat eave tile (卷草 nokihiragawara): faces +Z
 export function lipGeo() {
   const parts = [];
   const b = chamferBox(0.27, 0.065, 0.04, 0.008).clone(); b.translate(0, -0.03, -0.01);
@@ -403,16 +403,17 @@ export function lathe(profile, seg = 20) {
   return new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(Math.max(r, 0.0001), y)), seg);
 }
 
-// gold onion finial (giboshi), height ~0.36, origin at base
-export function giboshiGeo() {
+// 莲瓣望柱头 (lotus-bud railing post cap), height ~0.36, origin at base.
+// (was: 拟宝珠(已替换为莲瓣望柱头), the Japanese onion finial)
+export function lotusFinialGeo() {
   return lathe([
-    [0.0001, 0], [0.068, 0], [0.07, 0.012], [0.062, 0.02], [0.062, 0.05], [0.074, 0.056], [0.074, 0.07], [0.058, 0.076],
-    [0.062, 0.095], [0.086, 0.125], [0.097, 0.155], [0.094, 0.185], [0.078, 0.215], [0.052, 0.245], [0.03, 0.27],
-    [0.018, 0.295], [0.022, 0.31], [0.012, 0.335], [0.0001, 0.355],
-  ], 20);
+    [0.0001, 0], [0.068, 0], [0.070, 0.012], [0.062, 0.020], [0.062, 0.048], [0.066, 0.060],
+    [0.074, 0.086], [0.086, 0.128], [0.097, 0.166], [0.094, 0.198], [0.078, 0.232], [0.060, 0.266],
+    [0.044, 0.296], [0.028, 0.324], [0.014, 0.346], [0.0001, 0.360],
+  ], 12);
 }
 
-// small bell (fuurin-like) for chains / rings, origin at hook (top), hangs -Y
+// small bell (风铎-like) for chains / rings, origin at hook (top), hangs -Y
 export function smallBellGeo(s = 1) {
   const g = lathe([
     [0.0001, 0], [0.008, 0], [0.008, -0.012], [0.024, -0.018], [0.03, -0.04], [0.034, -0.07], [0.042, -0.09],
@@ -422,7 +423,7 @@ export function smallBellGeo(s = 1) {
   return g;
 }
 
-// gilt rosette nail cover (kugikakushi) facing +Z, back at z=0, ~0.16 dia
+// gilt rosette nail cover (钉隐) facing +Z, back at z=0, ~0.16 dia
 export function rosetteGeo() {
   const parts = [];
   const petals = 8;
@@ -448,23 +449,25 @@ export function studGeo() {
   return mergeClean([g, base]);
 }
 
-// Onigawara (ridge-end ogre tile) plaque, faces +Z, base at y=0, ~0.5 wide x 0.6 tall
-export function onigawaraGeo() {
+// 螭吻 (chiwen) ridge-end plaque: the dragon head that bites the ridge.
+// Faces +Z, base at y=0, ~0.5 wide x 0.66 tall. Jaw flare, mouth line,
+// cheekbones, brow, two horns curling over a crown, no ogre face.
+export function chiwenGeo() {
   const s = new THREE.Shape();
-  s.moveTo(-0.22, 0);
-  s.lineTo(0.22, 0);
-  s.lineTo(0.23, 0.16);
-  s.quadraticCurveTo(0.31, 0.24, 0.25, 0.33);
-  s.quadraticCurveTo(0.3, 0.44, 0.2, 0.48);
-  s.quadraticCurveTo(0.2, 0.6, 0.1, 0.6);
-  s.quadraticCurveTo(0.05, 0.56, 0.03, 0.62);
-  s.lineTo(0, 0.66);
-  s.lineTo(-0.03, 0.62);
-  s.quadraticCurveTo(-0.05, 0.56, -0.1, 0.6);
-  s.quadraticCurveTo(-0.2, 0.6, -0.2, 0.48);
-  s.quadraticCurveTo(-0.3, 0.44, -0.25, 0.33);
-  s.quadraticCurveTo(-0.31, 0.24, -0.23, 0.16);
-  s.lineTo(-0.22, 0);
+  s.moveTo(-0.20, 0);
+  s.lineTo(0.20, 0);
+  s.lineTo(0.26, 0.09);
+  s.quadraticCurveTo(0.21, 0.13, 0.22, 0.17);            // mouth line
+  s.quadraticCurveTo(0.31, 0.23, 0.28, 0.34);            // cheekbone
+  s.quadraticCurveTo(0.30, 0.44, 0.25, 0.50);            // brow
+  s.quadraticCurveTo(0.19, 0.60, 0.12, 0.66);            // horn
+  s.quadraticCurveTo(0.07, 0.63, 0, 0.56);               // crown between the horns
+  s.quadraticCurveTo(-0.07, 0.63, -0.12, 0.66);
+  s.quadraticCurveTo(-0.19, 0.60, -0.25, 0.50);
+  s.quadraticCurveTo(-0.30, 0.44, -0.28, 0.34);
+  s.quadraticCurveTo(-0.31, 0.23, -0.22, 0.17);
+  s.quadraticCurveTo(-0.21, 0.13, -0.26, 0.09);
+  s.lineTo(-0.20, 0);
   const parts = [];
   // chunky plaque (thick, deeply bevelled so it reads as a fired-clay block, not a cut-out)
   const g = new THREE.ExtrudeGeometry(s, { depth: 0.13, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.022, bevelSegments: 2, curveSegments: 6 });
@@ -474,42 +477,18 @@ export function onigawaraGeo() {
   const back = chamferBox(0.36, 0.34, 0.42, 0.03).clone(); back.translate(0, 0.17, -0.3); parts.push(back);
   // stepped plinth (where the ridge cap meets the plaque)
   const pl = chamferBox(0.5, 0.07, 0.26, 0.015).clone(); pl.translate(0, 0.035, -0.06); parts.push(pl);
-  // relief: ring, boss, side scrolls, brow
-  const ring = new THREE.TorusGeometry(0.1, 0.026, 6, 24); ring.translate(0, 0.28, 0.07); parts.push(ring);
-  const boss = new THREE.SphereGeometry(0.058, 12, 6); boss.scale(1, 1, 0.7); boss.translate(0, 0.28, 0.07); parts.push(boss);
+  // eyes under a brow ridge, either side of a raised snout
   for (const sx of [-1, 1]) {
-    const sc = new THREE.TorusGeometry(0.05, 0.019, 5, 14, Math.PI * 1.5); sc.rotateZ(sx > 0 ? 0 : Math.PI); sc.translate(sx * 0.16, 0.42, 0.06); parts.push(sc);
-    const lb = new THREE.SphereGeometry(0.04, 8, 5); lb.scale(1, 0.8, 0.7); lb.translate(sx * 0.17, 0.13, 0.065); parts.push(lb);
-    // flame horns (tsuno) curling up and out from the crown
-    for (let q = 0; q < 4; q++) {
-      const t = q / 3;
-      const r = 0.045 * (1 - 0.62 * t);
-      const b = new THREE.SphereGeometry(r, 7, 5);
-      b.translate(sx * (0.14 + 0.1 * t + 0.03 * t * t), 0.55 + 0.12 * t, -0.02 - 0.03 * t);
-      parts.push(b);
-    }
+    const e = new THREE.SphereGeometry(0.052, 10, 6); e.scale(1, 1, 0.7); e.translate(sx * 0.115, 0.40, 0.06); parts.push(e);
+    const br = new THREE.TorusGeometry(0.06, 0.017, 5, 12, Math.PI); br.rotateZ(sx > 0 ? Math.PI : 0); br.translate(sx * 0.115, 0.455, 0.05); parts.push(br);
   }
-  const brow = new THREE.TorusGeometry(0.15, 0.024, 5, 18, Math.PI); brow.translate(0, 0.33, 0.055); parts.push(brow);
   // raised inner border following the outline (second relief layer)
   const inner = new THREE.ExtrudeGeometry(s, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.008, bevelSegments: 1, curveSegments: 5 });
   inner.scale(0.84, 0.86, 1); inner.translate(0, 0.035, 0.035); parts.push(inner);
-  // bead ring (renju) around the central boss
-  for (let q = 0; q < 14; q++) {
-    const a = (q / 14) * Math.PI * 2;
-    const b = new THREE.SphereGeometry(0.016, 6, 4); b.scale(1, 1, 0.75); b.translate(Math.cos(a) * 0.15, 0.28 + Math.sin(a) * 0.15, 0.085); parts.push(b);
-  }
-  // inner petal ring + boss rim
-  const ring2 = new THREE.TorusGeometry(0.065, 0.012, 5, 20); ring2.translate(0, 0.28, 0.105); parts.push(ring2);
-  // side fins (hire): stacked scallops down both flanks
-  for (const sx of [-1, 1]) for (let q = 0; q < 3; q++) {
-    const f = new THREE.SphereGeometry(0.045 - q * 0.008, 7, 5); f.scale(0.55, 1, 0.8); f.translate(sx * (0.255 - q * 0.012), 0.2 + q * 0.1, 0.0); parts.push(f);
-  }
-  // fangs / beard at the base
-  for (const sx of [-1, 0, 1]) { const g = new THREE.ConeGeometry(0.022, 0.07, 6); g.rotateZ(Math.PI); g.translate(sx * 0.06, 0.1, 0.075); parts.push(g); }
   return mergeClean(parts);
 }
 
-// Sorin water-flame (suien) openwork panel in XY plane, centred on x=0, base y=0.
+// 相轮塔刹 water-flame (水烟) openwork panel in XY plane, centred on x=0, base y=0.
 export function suienGeo(H = 1.75, W = 0.62) {
   const s = new THREE.Shape();
   const P = [];

@@ -3,7 +3,7 @@
 // ffmpeg (libx264, high quality). Resumable per segment.
 //
 // usage: node tools/render.mjs [--w 1920] [--h 1080] [--fps 60] [--spp 8]
-//                              [--from 0] [--to N] [--out out/temple.mp4] [--crf 14] [--preset slow]
+//                              [--from 0] [--to N] [--out out/gusu-garden.mp4] [--crf 14] [--preset slow]
 //
 // Needs the dev server (npm run dev) and ffmpeg on PATH.
 // Browser: $CHROME, else a detected Chrome / Edge / Chromium (see tools/lib/chrome.mjs).
@@ -17,7 +17,7 @@ import { findChrome, gpuArgs, assertDevServer } from './lib/chrome.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VITE_PORT = process.env.VITE_PORT || 5173;
-const opt = { w: 1920, h: 1080, fps: 60, spp: 8, from: 0, to: 0, out: 'out/temple.mp4', crf: 14, preset: 'slow', port: 5190, extra: '' };
+const opt = { w: 1920, h: 1080, fps: 60, spp: 8, from: 0, to: 0, out: 'out/gusu-garden.mp4', crf: 14, preset: 'slow', port: 5190, extra: '' };
 const a = process.argv.slice(2);
 for (let i = 0; i < a.length; i++) {
   const k = a[i].replace(/^--/, '');

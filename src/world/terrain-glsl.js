@@ -97,8 +97,8 @@ void tg_leafDrift(vec2 p, float fw, float dens, inout vec3 c){
   float cov = mix(dens * 0.42, shape, fade);
   c = mix(c, mix(lavg, lc, fade), cov);
 }
-// raked gravel shoulders along the sando south of the gate
-void tg_sando(vec2 p, float fw, inout vec3 c, inout float hOut){
+// raked gravel shoulders along the 参道 south of the gate
+void tg_yongdao(vec2 p, float fw, inout vec3 c, inout float hOut){
   float sx = abs(p.x - 10.0);
   float sh = smoothstep(3.05, 2.85, sx + 0.05 * n_snoise(p * 1.3)) * step(46.0, p.y) * smoothstep(92.8, 92.0, p.y);
   if (sh > 0.001) {
@@ -135,7 +135,7 @@ vec3 tg_meadow(vec2 p, float y, float fw, out float hOut){
   tg_leafDrift(p, fw, lv * 0.7, c);
   hOut = scrub * 0.06 + g2 * 0.015 + tus * 0.02 * tF;
   c *= 1.3;
-  tg_sando(p, fw, c, hOut);
+  tg_yongdao(p, fw, c, hOut);
   return c;
 }
 vec3 tg_forestFloor(vec2 p, float y, float fw, out float hOut){
