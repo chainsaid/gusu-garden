@@ -52,7 +52,7 @@ export const L = {
     sides: 8,                    // 八角
     storyHeight: 3.9,
     shrink: 0.94,                // 平缓收分: 顶层对边距 ~11 m
-    eaveOverhang: 3.6,           // 第 1 层檐 -> 檐口对边距 ~25.8 m / 对角距 ~29 m
+    eaveOverhang: 2.15,          // 第 1 层檐 -> 檐口对边距 ~22.3 m (外挑副阶柱外约 0.9 m)
     stories: 9,                  // 九级
     spireHeight: 15.2,           // 铁制塔刹 (第八九层立木刹柱 φ0.85 支承)
     totalHeight: 76,

@@ -47,9 +47,10 @@ export function makeStoreys(L) {
     s.p1 = s.a + 0.46 * k; s.p2 = s.a + 0.92 * k; s.p3 = s.a + 1.38 * k;
     s.gh = 0.22 * s.kv; // gangyo (eave purlin) height
     s.yG = s.T + 1.64 * s.kv; // gangyo top at mid-side
-    s.O = (P.eaveOverhang + 0.3) * Math.pow(k, 0.5);
-    s.flare = 0.42 * k;
-    s.lift = (s.top ? 0.92 : 0.75) * k;
+    // 底层副阶深出檐 3.4m, 二至九层腰檐出檐 2.10m(外挑擎檐柱外约 0.9m)
+    s.O = (i === 0 ? 3.4 : 2.10) * Math.pow(k, 0.5);
+    s.flare = 0.36 * k;
+    s.lift = (s.top ? 0.88 : 0.70) * k;
     s.liftExp = 3.4;
     s.Xc = (s.a + s.O + s.flare) * TAN;   // lateral half-extent of the eave at the corner
     s.Rt = s.top ? 0.42 : (P.baseWidth * Math.pow(P.shrink, i + 1)) / 2 + 0.12;
@@ -79,8 +80,9 @@ export function roofY(s, x, p) {
   const kick = A > 0.62 ? Math.pow((A - 0.62) / 0.38, 2.8) * 0.24 : 0;
   return s.Ye + (s.Yt - s.Ye) * Q + (s.lift * Math.pow(A, s.liftExp) + kick) * l * l;
 }
-// fixed point x = f(x) (corner on the diagonal)
-const fixX = (f, x0) => { let x = x0; for (let i = 0; i < 40; i++) x = f(x); return x; };
+const TAN_DEF = Math.tan(Math.PI / 8);
+// fixed point x = f(x) * TAN (corner on the diagonal for NS-gon)
+const fixX = (f, x0, tan = TAN_DEF) => { let x = x0; for (let i = 0; i < 40; i++) x = f(x) * tan; return x; };
 
 export async function build(ctx) {
   const { M, geom, L, mat } = ctx;
@@ -514,16 +516,6 @@ export async function build(ctx) {
         addG(j, PP.sweep(pts, PP.rectProfile(0.17 * k, s.gh + 2 * jy, 0.014)), MT.wood);
         for (const sx of [-1, 1]) capAt(j, V3(sx * X, gB(sx * X) + s.gh * 0.55, p3), V3(sx, 0, 0), 0.17 * k, s.gh * 0.7);
       }
-      // ceiling boards between the steps (noki-tenjo), facing down
-      {
-        const y1 = T + 1.3 * kv + 0.004;
-        const quad = (pA, pB, yA, yB) => PP.gridSurface((u, v) => {
-          const p = pA + (pB - pA) * v; const X = p;
-          return V3(-X + 2 * X * u, yA + (yB - yA) * v, p);
-        }, 1, 1, V3(0, -1, 0));
-        addG(j, quad(a - 0.06, p2, y1, y1), MT.soffit);
-        addG(j, quad(p2, p3, y1, gB(0) + 0.002), MT.soffit);
-      }
     }
   }
 
@@ -542,7 +534,6 @@ export async function build(ctx) {
       const A = V3(x, top(x, pA) - RH / 2, pA), Bv = V3(x, top(x, pB) - RH / 2, pB);
       const d = V3().subVectors(Bv, A); const len = d.length(); d.normalize();
       I.add('rafter', m4(j, x, (A.y + Bv.y) / 2, (A.z + Bv.z) / 2, -Math.atan2(d.y, d.z), 0, 0, 1, 1, len));
-      capAt(j, Bv, d, RW, RH);
     };
     const Xo = fixX((x) => pr(x) - 0.07, s.Xc);
     const Xi = fixX((x) => pj(x), s.Xc);
@@ -553,31 +544,31 @@ export async function build(ctx) {
       for (let r = -N; r <= N; r++) {
         const x = r * sp, X = Math.abs(x);
         const pjx = pj(x), prx = pr(x);
-        const a0 = Math.max(p3 - 0.15 * k, X + 0.16 * k), a1 = pjx + 0.045;
+        const a0 = Math.max(p3 - 0.15 * k, X / TAN + 0.08 * k), a1 = pjx + 0.045;
         if (a1 - a0 > 0.14) rafter(j, x, a0, a1, jTop);
-        const h0 = Math.max(pjx - 0.5, X + 0.16 * k), h1 = prx;
+        const h0 = Math.max(pjx - 0.5, X / TAN + 0.08 * k), h1 = prx;
         if (h1 - h0 > 0.14) rafter(j, x, h0, h1, hTop);
       }
-      // soffit boards (facing down)
+      // 望板 (roof sheathing directly on top of the rafters, under the tiles)
       addG(j, PP.gridSurface((u, v) => {
-        const x = -Xo + 2 * Xo * u, X = Math.abs(x);
-        const lo = Math.min(Math.max(pj(x) - 0.01, X), pr(x) - 0.07);
-        const hi = pr(x) - 0.07;
-        const p = lo + (hi - lo) * v;
-        return V3(x, hTop(x, p) - 0.001, p);
-      }, dseg(64), 4, V3(0, -1, 0)), MT.soffit);
-      addG(j, PP.gridSurface((u, v) => {
-        const x = -Xi + 2 * Xi * u, X = Math.abs(x);
-        const hi = pj(x);
-        const lo = Math.min(Math.max(p3 - 0.12 * k, X), hi);
-        const p = lo + (hi - lo) * v;
-        return V3(x, jTop(x, p) - 0.001, p);
-      }, dseg(64), 3, V3(0, -1, 0)), MT.soffit);
-      // step band where the flying rafters start (facing out)
-      addG(j, PP.gridSurface((u, v) => {
-        const x = -Xi + 2 * Xi * u; const p = pj(x);
-        return V3(x, jTop(x, p) - 0.002 + v * (JD + 0.004), p);
-      }, dseg(64), 1, V3(0, 0, 1)), MT.soffit);
+        const w = -1 + 2 * u;
+        const pStart = s.top ? 0.35 : Math.max(s.a, s.Rt - 0.08);
+        const pTipDiag = s.a + s.O + s.flare * Math.pow(Math.abs(w), 3) - 0.05;
+        const p = pStart + (pTipDiag - pStart) * v;
+        const x = w * p * TAN;
+        return V3(x, roofY(s, x, p) - 0.048, p);
+      }, dseg(36), 6, V3(0, -1, 0)), MT.wood);
+      // 外廊木天花 (veranda walkway ceiling between inner wall and outer colonnade lintel)
+      {
+        const rCol = s.a + (s.i === 0 ? s.O * 0.5 : 1.15 * k);
+        const yEave = roofY(s, 0, rCol) - TH - JD - 0.04;
+        addG(j, PP.gridSurface((u, v) => {
+          const w = -1 + 2 * u;
+          const p = s.a - 0.04 + (rCol + 0.04 - (s.a - 0.04)) * v;
+          const x = w * p * TAN;
+          return V3(x, s.T + (yEave - s.T) * v, p);
+        }, 12, 4, V3(0, -1, 0)), MT.soffit);
+      }
       // fascia, mitred on the diagonals
       {
         const secs = [];
@@ -615,7 +606,7 @@ export async function build(ctx) {
       }
       // hip rafters (ji-老角梁 + hien-老角梁) at the -x corner
       {
-        const dJ = Xi, dR = fixX(pr, s.Xc);
+        const dJ = Xi / TAN, dR = fixX(pr, s.Xc) / TAN;
         const mkSumi = (d0, d1, top, w, h, n = 10) => {
           const pts = [];
           for (let q = 0; q <= n; q++) {
@@ -698,7 +689,7 @@ export async function build(ctx) {
       const row = (x, key) => {
         const X = Math.abs(x);
         const pt = pTip(s, x);
-        const pEnd = s.top ? Math.max(0.6, X + 0.16) : Math.max(s.Rt - 0.05, X + 0.16);
+        const pEnd = Math.max(s.top ? 0.6 : s.Rt - 0.05, X / TAN + 0.08);
         if (pt - pEnd < 0.05) return;
         let f = pt, first = true;
         while (f > pEnd) {
@@ -714,8 +705,8 @@ export async function build(ctx) {
       for (let r = -n; r <= n; r++) row(r * tp, 'tileR');
       for (let r = -n - 1; r <= n; r++) { const x = (r + 0.5) * tp; if (Math.abs(x) < s.Xc - 0.12) row(x, 'tileF'); }
 
-      // hip ridge (kudarimune) at the -x corner
-      const dTip = s.Xc - 0.1;
+      // hip ridge (垂脊 / 翼角戗脊) along the octagonal corner diagonal
+      const dTip = s.Xc / TAN - 0.1;
       const dTop = s.top ? 0.25 : s.Rt - 0.15;
       const NR = 22;
       const pts = [];
@@ -798,7 +789,8 @@ export async function build(ctx) {
   // =====================================================================
   function balcony(s, below) {
     const { a, h, F, k } = s;
-    const bw = 0.8 * k, pb = a + bw;
+    const bw = 1.35 * k, pb = a + bw;
+    const rCol = a + 1.15 * k; // 擎檐柱 (eave-propping pillars) center radius
     const eb = 0.19 * k; // edge beam height
     // the balcony floor is an NS-gonal slab, not a box
     B.add(PP.lathe([[0, -0.05], [pb * SEC - 0.01, -0.05], [pb * SEC - 0.01, 0.05], [0, 0.05]], NS), MT.soffit, m4(null, 0, F, 0));
@@ -832,10 +824,29 @@ export async function build(ctx) {
         }
         addG(j, PP.loft(secs), MT.red);
       }
+
+      // =================================================================
+      // 擎檐柱 (Eave-propping pillars) on the balcony, supporting the waist eave above
+      // =================================================================
+      const yEave = roofY(s, 0, rCol) - TH - JD - 0.04;
+      const colH = yEave - F;
+      const rc = 0.15 * k;
+      const colX = [-rCol * TAN, -(rCol * TAN) / 3, (rCol * TAN) / 3];
+      for (const x of colX) {
+        // stone base plinth (柱础)
+        B.add(new THREE.CylinderGeometry(rc + 0.035, rc + 0.055, 0.12 * k, 16, 1), MT.granite, m4(j, x, F + 0.06 * k, rCol));
+        // pillar shaft
+        B.add(new THREE.CylinderGeometry(rc * 0.94, rc, colH - 0.12 * k, 16, 1), MT.red, m4(j, x, F + (colH + 0.12 * k) / 2, rCol));
+        // capital block (栌斗)
+        I.add('daito', m4(j, x, yEave - 0.08 * k, rCol, 0, 0, 0, 0.62 * k, 0.62 * k, 0.62 * k));
+      }
+      // continuous outer lintel beam (檐枋 / 额枋) connecting the pillar heads
+      box(j, MT.red, 2 * (rCol * TAN) + 0.12, 0.18 * k, 0.18 * k, 0, yEave - 0.09 * k, rCol, 0, 0.012);
+
       // railing (栏杆)
       const pr = pb - 0.07;
       const yH = F + 0.74 * k, yM = F + 0.44 * k, yB = F + 0.05 * k;
-      const mainX = [-pr * TAN, -h, 0, h];
+      const mainX = [-pr * TAN, -(pr * TAN) / 3, (pr * TAN) / 3];
       for (const x of mainX) {
         box(j, MT.red, 0.12 * k, 0.86 * k, 0.12 * k, x, F + 0.43 * k, pr, 0, 0.014);
         I.add('lotusCap', m4(j, x, F + 0.86 * k, pr, 0, 0, 0, 0.85 * k, 0.85 * k, 0.85 * k));
