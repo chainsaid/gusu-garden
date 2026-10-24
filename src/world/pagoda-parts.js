@@ -488,44 +488,4 @@ export function chiwenGeo() {
   return mergeClean(parts);
 }
 
-// 相轮塔刹 water-flame (水烟) openwork panel in XY plane, centred on x=0, base y=0.
-export function suienGeo(H = 1.75, W = 0.62) {
-  const s = new THREE.Shape();
-  const P = [];
-  // right half outline (u, v): flame tongues (tips) with curled notches, mirrored for the left
-  const half = [
-    [0.07, 0], [0.2, 0.04], [0.34, 0.12], [0.56, 0.24], [0.36, 0.28], [0.44, 0.36], [0.6, 0.52], [0.38, 0.52],
-    [0.44, 0.62], [0.54, 0.82], [0.32, 0.78], [0.36, 0.9], [0.44, 1.08], [0.24, 1.04], [0.26, 1.18], [0.3, 1.34],
-    [0.13, 1.3], [0.12, 1.44], [0.06, 1.58], [0, 1.68],
-  ];
-  const sx = W / 0.6, sy = H / 1.68;
-  for (const [u, v] of half) P.push([u * sx, v * sy]);
-  const left = P.slice(0, -1).reverse().map(([u, v]) => [-u, v]);
-  const all = P.concat(left);
-  s.moveTo(all[0][0], all[0][1]);
-  for (let i = 1; i < all.length; i++) {
-    const [u0, v0] = all[i - 1], [u1, v1] = all[i];
-    // slight outward bow on each edge -> curling tongues
-    s.quadraticCurveTo((u0 + u1) / 2 + (v1 - v0) * 0.12 * Math.sign(u0 + u1 || 1), (v0 + v1) / 2 - Math.abs(u1 - u0) * 0.12, u1, v1);
-  }
-  // openwork holes (teardrops / jewels)
-  const hole = (cx, cy, rx, ry) => {
-    const h = new THREE.Path();
-    h.absellipse(cx, cy, rx, ry, 0, Math.PI * 2, true, 0);
-    s.holes.push(h);
-  };
-  hole(0, 0.42 * sy, 0.07 * sx, 0.1 * sy);
-  hole(0, 0.95 * sy, 0.05 * sx, 0.08 * sy);
-  for (const sgn of [-1, 1]) {
-    hole(sgn * 0.24 * sx, 0.24 * sy, 0.07 * sx, 0.045 * sy);
-    hole(sgn * 0.3 * sx, 0.6 * sy, 0.08 * sx, 0.06 * sy);
-    hole(sgn * 0.17 * sx, 0.72 * sy, 0.04 * sx, 0.05 * sy);
-    hole(sgn * 0.24 * sx, 0.96 * sy, 0.06 * sx, 0.05 * sy);
-    hole(sgn * 0.14 * sx, 1.2 * sy, 0.045 * sx, 0.05 * sy);
-  }
-  const g = new THREE.ExtrudeGeometry(s, { depth: 0.022, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 1, curveSegments: 4 });
-  g.translate(0, 0, -0.011);
-  return g;
-}
-
 export { V3, mergeGeometries, ConvexGeometry };
