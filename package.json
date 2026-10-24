@@ -30,7 +30,10 @@
   },
   "scripts": {
     "dev": "vite --port 5173 --strictPort",
+    "dev:web": "vite web --port 3000",
     "build": "vite build",
+    "build:web": "vite build web --outDir dist-web",
+    "export:assets": "node tools/export-web-assets.mjs",
     "snap": "node tools/snap.mjs",
     "sheet": "node tools/sheet.mjs",
     "render": "node tools/render.mjs",

@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>姑苏园林 Gusu Garden — 3D 沉浸式数字展厅</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎋</text></svg>">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #121517; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; }
+    #canvas-container { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* 水墨开场加载屏 */
+    #loading-screen {
+      position: absolute; inset: 0; z-index: 100;
+      background: radial-gradient(circle at center, #232a2e 0%, #111416 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #e5ecee; transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
+    }
+    #loading-screen.fade-out { opacity: 0; visibility: hidden; pointer-events: none; }
+    .loader-title { font-size: 32px; letter-spacing: 8px; font-weight: 300; margin-bottom: 8px; color: #f2f7f8; }
+    .loader-sub { font-size: 13px; letter-spacing: 4px; color: #8a9ba0; margin-bottom: 40px; }
+    .progress-box { width: 240px; height: 3px; background: rgba(255, 255, 255, 0.12); border-radius: 2px; overflow: hidden; position: relative; margin-bottom: 12px; }
+    .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #719b88, #a8d5be); transition: width 0.2s ease-out; }
+    .progress-text { font-size: 12px; color: #9bb1b7; letter-spacing: 1px; }
+
+    /* 顶部导航与品名标牌 */
+    .top-header {
+      position: absolute; top: 20px; left: 24px; z-index: 10;
+      color: #e2ecee; pointer-events: none;
+    }
+    .garden-logo { font-size: 20px; letter-spacing: 4px; font-weight: 400; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .garden-tagline { font-size: 11px; letter-spacing: 2px; color: #9eb1b6; margin-top: 3px; }
+
+    /* 右上角操作区 (音效、漫步切换、性能看板) */
+    .top-actions {
+      position: absolute; top: 20px; right: 24px; z-index: 10;
+      display: flex; gap: 10px; align-items: center;
+    }
+
+    .action-btn {
+      background: rgba(18, 22, 24, 0.65); backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 20px;
+      color: #b0c2c6; font-size: 12px; letter-spacing: 1px;
+      padding: 6px 14px; cursor: pointer; outline: none;
+      display: flex; align-items: center; gap: 6px;
+      transition: all 0.25s ease;
+    }
+    .action-btn:hover { background: rgba(255, 255, 255, 0.12); color: #ffffff; }
+    .action-btn.active { background: #3b5a4d; color: #ffffff; border-color: #5fd193; box-shadow: 0 0 12px rgba(95, 209, 147, 0.3); }
+
+    /* 性能监控挂件 */
+    .perf-badge {
+      background: rgba(18, 22, 24, 0.65); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px;
+      padding: 6px 14px; font-size: 11px; color: #a4b6ba; letter-spacing: 1px;
+      display: flex; gap: 12px; align-items: center;
+    }
+    .perf-item span { color: #5fd193; font-weight: bold; }
+
+    /* 底部移步换景导览底栏 */
+    .tour-bar {
+      position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+      z-index: 10; display: flex; gap: 8px; background: rgba(18, 22, 24, 0.72);
+      backdrop-filter: blur(16px); padding: 6px 8px; border-radius: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      max-width: 90vw; overflow-x: auto;
+    }
+    .tour-btn {
+      background: transparent; border: none; outline: none;
+      color: #b0c2c6; font-size: 13px; letter-spacing: 1.5px;
+      padding: 8px 16px; border-radius: 20px; cursor: pointer;
+      white-space: nowrap; transition: all 0.25s ease;
+    }
+    .tour-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.08); }
+    .tour-btn.active { color: #ffffff; background: #3b5a4d; font-weight: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+
+    /* 操作指引浮层 */
+    .controls-hint {
+      position: absolute; bottom: 84px; left: 50%; transform: translateX(-50%);
+      z-index: 8; color: #8ea2a7; font-size: 11px; letter-spacing: 1px;
+      pointer-events: none; opacity: 0.85; text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      white-space: nowrap;
+    }
+
+    /* 3D POI 标牌层 */
+    .hotspots-overlay {
+      position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden;
+    }
+    .hotspot-pin {
+      position: absolute; top: 0; left: 0; transform: translate3d(-50%, -50%, 0);
+      cursor: pointer; pointer-events: auto; display: flex; align-items: center; gap: 8px;
+      transition: opacity 0.3s ease;
+    }
+    .pin-ring {
+      width: 22px; height: 22px; border: 2px solid #5fd193; border-radius: 50%;
+      position: absolute; top: 50%; left: 0; transform: translateY(-50%);
+      animation: pulse-ring 2.2s infinite cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .pin-dot {
+      width: 8px; height: 8px; background: #5fd193; border-radius: 50%;
+      margin-left: 7px; box-shadow: 0 0 8px #5fd193;
+    }
+    .pin-label {
+      background: rgba(18, 22, 24, 0.78); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.16); color: #eaf1f2;
+      font-size: 11px; letter-spacing: 1.5px; padding: 4px 10px; border-radius: 12px;
+      white-space: nowrap; transition: all 0.2s ease;
+    }
+    .hotspot-pin:hover .pin-label {
+      background: #3b5a4d; border-color: #5fd193; transform: scale(1.05);
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: translateY(-50%) scale(0.6); opacity: 0.9; }
+      100% { transform: translateY(-50%) scale(2.0); opacity: 0; }
+    }
+
+    /* POI 弹窗详情卡片 */
+    .poi-modal-backdrop {
+      position: absolute; inset: 0; z-index: 50;
+      background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.3s ease, visibility 0.3s;
+    }
+    .poi-modal-backdrop.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .poi-card {
+      background: rgba(22, 28, 30, 0.92); backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 16px;
+      width: 90%; max-width: 440px; padding: 24px; color: #e2ecee;
+      position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      transform: translateY(0); transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+    .poi-modal-backdrop.hidden .poi-card { transform: translateY(20px); }
+    .poi-close {
+      position: absolute; top: 16px; right: 18px; background: transparent;
+      border: none; color: #8a9ba0; font-size: 24px; cursor: pointer; outline: none;
+      line-height: 1; transition: color 0.2s ease;
+    }
+    .poi-close:hover { color: #ffffff; }
+    .poi-badge {
+      display: inline-block; font-size: 11px; letter-spacing: 2px;
+      background: #2f4a3f; color: #7de8b0; padding: 3px 10px; border-radius: 10px;
+      margin-bottom: 10px; font-weight: 500;
+    }
+    .poi-title { font-size: 20px; letter-spacing: 2px; font-weight: 400; margin-bottom: 12px; color: #f4f8f9; }
+    .poi-divider { width: 100%; height: 1px; background: rgba(255, 255, 255, 0.08); margin-bottom: 14px; }
+    .poi-desc { font-size: 13px; line-height: 1.7; color: #a4b8be; letter-spacing: 0.8px; margin-bottom: 20px; }
+    .poi-footer { display: flex; justify-content: flex-end; }
+    .poi-focus-btn {
+      background: linear-gradient(135deg, #375b4c, #2a473b); border: 1px solid #5fd193;
+      color: #ffffff; font-size: 12px; letter-spacing: 1.5px; padding: 8px 18px;
+      border-radius: 20px; cursor: pointer; outline: none; transition: all 0.2s ease;
+    }
+    .poi-focus-btn:hover { background: #44725f; box-shadow: 0 4px 15px rgba(95, 209, 147, 0.3); }
+
+    @media (max-width: 600px) {
+      .top-header { top: 14px; left: 16px; }
+      .garden-logo { font-size: 17px; }
+      .top-actions { top: 14px; right: 16px; }
+      .perf-badge { display: none; }
+      .tour-bar { bottom: 18px; }
+      .controls-hint { bottom: 72px; font-size: 10px; }
+      .settings-drawer-panel { max-width: 100%; }
+    }
+
+    /* 景致与特效配置抽屉 */
+    .settings-drawer-backdrop {
+      position: absolute; inset: 0; z-index: 60;
+      background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(4px);
+      display: flex; justify-content: flex-end;
+      transition: opacity 0.3s ease, visibility 0.3s;
+    }
+    .settings-drawer-backdrop.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    .settings-drawer-panel {
+      width: 100%; max-width: 380px; height: 100%;
+      background: rgba(20, 25, 28, 0.94); backdrop-filter: blur(24px);
+      border-left: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: -10px 0 40px rgba(0,0,0,0.5);
+      display: flex; flex-direction: column; color: #e5edf0;
+      transform: translateX(0); transition: transform 0.35s cubic-bezier(0.18, 0.89, 0.32, 1);
+    }
+    .settings-drawer-backdrop.hidden .settings-drawer-panel { transform: translateX(100%); }
+    .drawer-header {
+      padding: 20px 24px 8px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .drawer-title { font-size: 18px; letter-spacing: 2px; font-weight: 500; color: #f4f8f9; }
+    .drawer-close {
+      background: transparent; border: none; color: #8fa2a8; font-size: 26px; cursor: pointer; outline: none;
+      line-height: 1; transition: color 0.2s;
+    }
+    .drawer-close:hover { color: #ffffff; }
+    .drawer-sub { padding: 0 24px 16px; font-size: 11px; color: #81959b; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
+    .drawer-section { display: flex; flex-direction: column; gap: 10px; }
+    .section-title { font-size: 11px; letter-spacing: 1.5px; color: #5fd193; font-weight: 500; text-transform: uppercase; }
+
+    /* 预设网格 */
+    .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .preset-btn {
+      background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px; padding: 10px 12px; text-align: left; cursor: pointer;
+      display: flex; flex-direction: column; gap: 3px; transition: all 0.2s ease;
+    }
+    .preset-btn:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.16); }
+    .preset-btn.active { background: #2f4a3f; border-color: #5fd193; }
+    .preset-btn .p-name { font-size: 13px; font-weight: 500; color: #ffffff; letter-spacing: 1px; }
+    .preset-btn .p-desc { font-size: 10px; color: #8ea3a8; }
+
+    /* 天气选择器 */
+    .weather-selector { display: flex; gap: 6px; }
+    .weather-btn {
+      flex: 1; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px; padding: 8px 0; font-size: 11px; color: #b0c2c6; cursor: pointer;
+      outline: none; transition: all 0.2s ease; text-align: center;
+    }
+    .weather-btn:hover { background: rgba(255, 255, 255, 0.1); color: #ffffff; }
+    .weather-btn.active { background: #3b5a4d; border-color: #5fd193; color: #ffffff; font-weight: 500; }
+
+    /* 开关行 */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px;
+    }
+    .toggle-info { display: flex; flex-direction: column; gap: 2px; }
+    .t-label { font-size: 12px; color: #d8e5e8; letter-spacing: 0.8px; }
+    .t-sub { font-size: 10px; color: #7f9398; }
+
+    /* Switch */
+    .switch { position: relative; display: inline-block; width: 38px; height: 22px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0; background-color: rgba(255, 255, 255, 0.16);
+      transition: .3s; border-radius: 22px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px;
+      background-color: white; transition: .3s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: #5fd193; }
+    input:checked + .slider:before { transform: translateX(16px); }
+  </style>
+</head>
+<body>
+  <!-- 3D 渲染画布容器 -->
+  <div id="canvas-container">
+    <canvas id="webgl-canvas"></canvas>
+  </div>
+
+  <!-- 水墨开屏加载器 -->
+  <div id="loading-screen">
+    <div class="loader-title">姑苏园林</div>
+    <div class="loader-sub">粉墙黛瓦 · 雨落青池 · 移步换景</div>
+    <div class="progress-box">
+      <div id="progress-bar" class="progress-bar"></div>
+    </div>
+    <div id="progress-text" class="progress-text">正在装载江南山水景致... 0%</div>
+  </div>
+
+  <!-- 顶部标牌 -->
+  <div class="top-header">
+    <div class="garden-logo">姑苏园林</div>
+    <div class="garden-tagline">苏州古典文人园林 · 3D 数字交互展厅</div>
+  </div>
+
+  <!-- 右上角快捷操作与性能看板 -->
+  <div class="top-actions">
+    <!-- 景致与特效可控配置抽屉 -->
+    <button class="action-btn" id="config-btn">
+      <span>🎛️</span> <span>景致配置</span>
+    </button>
+    <!-- 沉浸模式切换 (导览 / 自由漫步) -->
+    <button class="action-btn" id="mode-btn">
+      <span id="mode-icon">🚶</span> <span id="mode-label">园林漫步</span>
+    </button>
+    <!-- 背景音效切换 (程序化水声微风琴韵) -->
+    <button class="action-btn" id="audio-btn">
+      <span id="audio-icon">🔇</span> <span id="audio-label">琴韵微风</span>
+    </button>
+    <!-- 性能实时指标 -->
+    <div class="perf-badge">
+      <div class="perf-item">FPS: <span id="fps-val">60</span></div>
+      <div class="perf-item">Draws: <span id="draws-val">--</span></div>
+      <div class="perf-item">Tris: <span id="tris-val">--</span></div>
+    </div>
+  </div>
+
+  <!-- 底部移步换景导览底栏 -->
+  <div class="tour-bar" id="tour-bar">
+    <button class="tour-btn active" data-point="0">水榭晨曦</button>
+    <button class="tour-btn" data-point="1">小飞虹拱桥</button>
+    <button class="tour-btn" data-point="2">隔池借景北寺塔</button>
+    <button class="tour-btn" data-point="3">飞檐起翘</button>
+    <button class="tour-btn" data-point="4">全景俯瞰</button>
+  </div>
+
+  <!-- 操作提示 -->
+  <div class="controls-hint" id="controls-hint">鼠标左键拖拽旋转视角 · 滚轮缩放 · 右键平移</div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

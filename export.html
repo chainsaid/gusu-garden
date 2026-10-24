@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Gusu Garden - Web Asset Exporter</title>
+  <style>
+    body { font-family: sans-serif; background: #1a1a1a; color: #eee; padding: 20px; }
+    #log { white-space: pre-wrap; background: #111; padding: 15px; border-radius: 6px; border: 1px solid #333; max-height: 400px; overflow-y: auto; }
+    button { padding: 10px 20px; font-size: 16px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    button:disabled { background: #555; }
+  </style>
+</head>
+<body>
+  <h1>姑苏园林核心几何资产导出器 (GLB Exporter)</h1>
+  <p>从纯代码世界中提取【水榭主厅、北寺塔、青石拱桥、太湖石石景、荷池驳岸、庭院围墙】并打包为标准 glTF/GLB 格式。</p>
+  <div id="status">正在准备环境...</div>
+  <div style="margin: 15px 0;">
+    <button id="btnExport" disabled>手动下载 gusu-garden.glb</button>
+  </div>
+  <div id="log"></div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+    import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+    import { materials, patch, std, phys, glow, PROC, depthMaterialFor } from './src/core/materials.js';
+    import { L } from './src/layout.js';
+    import { setDetailTier } from './src/core/detail.js';
+    import { ENV, G, sunDir } from './src/core/env.js';
+    import * as geom from './src/core/geom.js';
+    import { rng } from './src/core/rng.js';
+
+    const logEl = document.getElementById('log');
+    const statusEl = document.getElementById('status');
+    const btnExport = document.getElementById('btnExport');
+    const log = (msg) => {
+      console.log(msg);
+      logEl.textContent += msg + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+    };
+
+    // 配置适中精度导出 (detail 0.35 保持发戗、铁刹与望柱精致，同时剔除死面)
+    setDetailTier('realtime', 0.35);
+
+    const scene = new THREE.Scene();
+    scene.userData = {};
+    const ctx = {
+      THREE, scene, L, G, ENV, sunDir, geom, rng, quality: 'realtime',
+      M: materials(),
+      mat: { patch, std, phys, glow, PROC, depthMaterialFor },
+      onUpdate: () => {},
+      captureEnv: () => {},
+      modules: {},
+    };
+
+    // 标准化江南 PBR 材质映射表 (确保导出的 glb 拥有干净合法的白墙黛瓦与栗壳木质感)
+    const MAT_MAP = {
+      woodChestnut: new THREE.MeshStandardMaterial({ name: 'woodChestnut', color: 0x4a2416, roughness: 0.60, metalness: 0.04 }),
+      tileCyan: new THREE.MeshStandardMaterial({ name: 'tileCyan', color: 0x2e353b, roughness: 0.82, metalness: 0.05 }),
+      plasterWhite: new THREE.MeshStandardMaterial({ name: 'plasterWhite', color: 0xf2ede4, roughness: 0.92, metalness: 0.01 }),
+      stoneCyan: new THREE.MeshStandardMaterial({ name: 'stoneCyan', color: 0x768084, roughness: 0.78, metalness: 0.04 }),
+      taihuRock: new THREE.MeshStandardMaterial({ name: 'taihuRock', color: 0x62666a, roughness: 0.90, metalness: 0.02 }),
+      castIron: new THREE.MeshStandardMaterial({ name: 'castIron', color: 0x202224, roughness: 0.65, metalness: 0.45 }),
+      pearlGold: new THREE.MeshStandardMaterial({ name: 'pearlGold', color: 0xdca646, roughness: 0.32, metalness: 0.88 }),
+      defaultMat: new THREE.MeshStandardMaterial({ name: 'defaultGrey', color: 0x888888, roughness: 0.7, metalness: 0.1 }),
+    };
+
+    function resolveStdMat(srcMat) {
+      if (!srcMat) return MAT_MAP.defaultMat;
+      const n = (srcMat.name || '').toLowerCase();
+      if (/tile|瓦/i.test(n)) return MAT_MAP.tileCyan;
+      if (/plaster|white|墙|壁/i.test(n)) return MAT_MAP.plasterWhite;
+      if (/wood|chestnut|timber|col|beam|rafter|red|柱|梁/i.test(n)) return MAT_MAP.woodChestnut;
+      if (/rock|taihu|湖石|峰/i.test(n)) return MAT_MAP.taihuRock;
+      if (/iron|铁|刹/i.test(n)) return MAT_MAP.castIron;
+      if (/gold|pearl|金|珠/i.test(n)) return MAT_MAP.pearlGold;
+      if (/stone|granite|rock|podium|stair|台基|阶/i.test(n)) return MAT_MAP.stoneCyan;
+      return MAT_MAP.stoneCyan;
+    }
+
+    function prepareCleanMeshes(group, name) {
+      log(`[${name}] 正在预处理：烘焙展平 InstancedMesh 并规范化材质...`);
+      // 1. 展平 InstancedMesh -> 独立 Mesh
+      const toReplace = [];
+      group.traverse((c) => {
+        if (c.isInstancedMesh) toReplace.push(c);
+      });
+      if (toReplace.length > 0) {
+        log(`[${name}] 发现 ${toReplace.length} 个实例合批网格，正在烘焙转换为独立标准网格...`);
+        for (const im of toReplace) {
+          const parent = im.parent;
+          if (!parent) continue;
+          const count = im.count;
+          const baseGeo = im.geometry;
+          const matrix = new THREE.Matrix4();
+          const geos = [];
+          for (let i = 0; i < count; i++) {
+            im.getMatrixAt(i, matrix);
+            const cloned = baseGeo.clone();
+            cloned.applyMatrix4(matrix);
+            geos.push(cloned);
+          }
+          if (geos.length > 0) {
+            const mergedGeo = mergeGeometries(geos, false);
+            const newMesh = new THREE.Mesh(mergedGeo, im.material);
+            newMesh.name = im.name;
+            parent.remove(im);
+            parent.add(newMesh);
+          }
+        }
+      }
+
+      // 2. 规范化材质与阴影设置
+      let totalTris = 0, totalMeshes = 0;
+      group.traverse((c) => {
+        if (c.isMesh && c.geometry) {
+          totalMeshes++;
+          const g = c.geometry;
+          const tris = g.index ? g.index.count / 3 : g.attributes.position.count / 3;
+          totalTris += tris;
+          c.material = resolveStdMat(c.material);
+          c.castShadow = true;
+          c.receiveShadow = true;
+        }
+      });
+      log(`[${name}] 预处理完成: 网格数=${totalMeshes}, 总三角形面数=${Math.round(totalTris).toLocaleString()} 面`);
+      return group;
+    }
+
+    async function exportGroup(group, targetName) {
+      log(`--- 开始处理资产 [${targetName}] ---`);
+      const cleanGroup = prepareCleanMeshes(group, targetName);
+      
+      const exporter = new GLTFExporter();
+      const glbBuffer = await exporter.parseAsync(cleanGroup, { binary: true });
+      const sizeMB = (glbBuffer.byteLength / 1024 / 1024).toFixed(2);
+      log(`[${targetName}] GLB 导出完成: ${sizeMB} MB`);
+
+      try {
+        log(`正在上传 [${targetName}] 至本地中转服务...`);
+        const resp = await fetch(`http://localhost:5192/upload?name=${targetName}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/octet-stream' },
+          body: glbBuffer
+        });
+        if (resp.ok) {
+          log(`✓ [${targetName}] 自动化上传成功！`);
+        }
+      } catch (e) {
+        log(`上传失败: ${e.message}`);
+      }
+    }
+
+    async function runExport() {
+      try {
+        log('1. 正在构建核心建筑群 (hall, bridge, props, buildings)...');
+        const coreModules = ['hall', 'bridge', 'props', 'buildings'];
+        const coreGroup = new THREE.Group();
+        coreGroup.name = 'gusu_garden_core';
+        for (const name of coreModules) {
+          log(`  -> 构建模块 [${name}]...`);
+          const mod = await import(`./src/world/${name}.js`);
+          const res = await mod.build(ctx);
+          const obj = res.isObject3D ? res : res.object;
+          if (obj) { obj.name = name; coreGroup.add(obj); }
+        }
+        await exportGroup(coreGroup, 'core');
+
+        log('2. 正在构建借景北寺塔 (pagoda)...');
+        const pagodaMod = await import('./src/world/pagoda.js');
+        const pRes = await pagodaMod.build(ctx);
+        const pObj = pRes.isObject3D ? pRes : pRes.object;
+        const pagodaGroup = new THREE.Group();
+        pagodaGroup.name = 'beisi_pagoda';
+        const merged = pObj.getObjectByName('pagoda_merged') || pObj;
+        pagodaGroup.add(merged);
+        await exportGroup(pagodaGroup, 'pagoda');
+
+        statusEl.textContent = '✓ 全部核心资产导出完毕！';
+        log('=============================================');
+        log('✓ 全部资产自动化处理完成！');
+        window.__ALL_DONE = true;
+      } catch (e) {
+        log('执行异常: ' + (e.stack || e));
+        statusEl.textContent = '执行失败';
+      }
+    }
+
+    runExport();
+  </script>
+</body>
+</html>
