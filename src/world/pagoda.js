@@ -48,12 +48,12 @@ export function makeStoreys(L) {
     s.gh = 0.22 * s.kv; // gangyo (eave purlin) height
     s.yG = s.T + 1.64 * s.kv; // gangyo top at mid-side
     s.O = (P.eaveOverhang + 0.3) * Math.pow(k, 0.5);
-    s.flare = 0.6 * k;
-    s.lift = (s.top ? 1.45 : 1.35) * k;
-    s.liftExp = 1.7;
+    s.flare = 0.42 * k;
+    s.lift = (s.top ? 0.92 : 0.75) * k;
+    s.liftExp = 3.4;
     s.Xc = (s.a + s.O + s.flare) * TAN;   // lateral half-extent of the eave at the corner
     s.Rt = s.top ? 0.42 : (P.baseWidth * Math.pow(P.shrink, i + 1)) / 2 + 0.12;
-    s.qa = s.top ? 0.28 : 0.42;
+    s.qa = s.top ? 0.28 : 0.38;
     const run = s.a + s.O - s.Rt;
     const rise = (s.top ? 0.6 : 0.44) * run;
     const t3 = (s.a + s.O - s.p3) / run;
@@ -76,7 +76,7 @@ export function roofY(s, x, p) {
   const tc = Math.max(t, -0.4);
   const Q = s.qa * tc + (1 - s.qa) * tc * tc;
   const l = 1 - Math.min(Math.max(t, 0), 1);
-  const kick = A > 0.4 ? Math.pow((A - 0.4) / 0.6, 2.8) * 0.35 : 0;
+  const kick = A > 0.62 ? Math.pow((A - 0.62) / 0.38, 2.8) * 0.24 : 0;
   return s.Ye + (s.Yt - s.Ye) * Q + (s.lift * Math.pow(A, s.liftExp) + kick) * l * l;
 }
 // fixed point x = f(x) (corner on the diagonal)
@@ -119,8 +119,8 @@ export async function build(ctx) {
     rim: qv('pgrim', [0.0, -0.15, -0.3]), // direct diffuse change of sunlit grazing wood (keeps the sunlit undersides from blowing out)
     gold: qv('pggold', [2.2, 1.6, 0.7]), // indirect specular boost of gilt metal
     tile: qv('pgtile', [1.4, 1.3, 1.2]), // indirect specular boost of the tiles (sky glints on tile rows)
-    wall: qv('pgwall', [0.55, 0.42, 0.25]), // plaster fill
-    wallSun: qv('pgwsun', [-0.3, -0.33, -0.38]), // plaster direct (grazing sun on the south walls -> no white blow-out)
+    wall: qv('pgwall', [0.85, 0.68, 0.40]), // plaster fill
+    wallSun: qv('pgwsun', [-0.08, -0.09, -0.12]), // soft direct grazing attenuation (preserves warm ochre glow)
   };
   // Sun glare cap: in the backlit views the south faces sit in the mirror direction between the
   // low sun and the camera, so glossy lacquer/gilt end faces flare to pure white. They should read
@@ -157,8 +157,8 @@ export async function build(ctx) {
     tile: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(P.roofTile(), 'tile')),
     tileRound: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(tileProc('round'), 'tile')),
     tileFlat: mat.std({ color: 0xffffff, roughness: 0.45, metalness: 0.1 }, rig(tileProc('flat'), 'tile')),
-    // 赭黄砖身 plaster (the brick body is lime-washed ochre)
-    plaster: mat.std({ color: 0xc49a57, roughness: 0.93, metalness: 0 }, rig(P.plaster(), 'wall')),
+    // 赭黄砖身 plaster (the brick body is lime-washed warm ochre)
+    plaster: mat.std({ color: 0xd6a858, roughness: 0.92, metalness: 0 }, rig(P.plaster(), 'wall')),
     // 窗格木框: dark red-brown wood
     green: mat.std({ color: 0xffffff, roughness: 0.6, metalness: 0 }, rig(P.chestnutWood('vec3(0.16, 0.07, 0.04)'), 'wood')),
     dark: M.woodDark,
@@ -211,7 +211,7 @@ export async function build(ctx) {
       for (const sx of [-1, 1]) eyeAt(j, V3(x + sx * (w / 2 - 0.002), y0 + h * 0.56, pB - 0.13 * sc), V3(sx, 0, 0), sc);
     }
   };
-  const toWorld = (j, v) => v.clone().applyMatrix4(R[j]).add(new THREE.Vector3(C[0], CY, C[2]));
+  const toWorld = (j, v) => (j === null || j === undefined ? v.clone() : v.clone().applyMatrix4(R[j])).add(new THREE.Vector3(C[0], CY, C[2]));
 
   // ---------------------------------------------------------------- instanced parts
   I.def('daito', PP.masuCoveGeo(0.58, 0.34, { c: 0.016 }), MT.wood, { jitter: 0.07, tint: [0.1, -0.05, -0.1] });
@@ -592,7 +592,7 @@ export async function build(ctx) {
           ]);
         }
         addG(j, PP.loft(secs), MT.red);
-        // gilt edge strip along the top of the fascia (catches the low sun)
+        // lacquered wood edge strip along the top of the fascia
         const secsG = [];
         for (let q = 0; q <= NF; q++) {
           const u = -1 + (2 * q) / NF;
@@ -601,7 +601,7 @@ export async function build(ctx) {
           const ya = roofY(s, xa, pa) - 0.05, yb = roofY(s, xb2, pb2) - 0.05;
           secsG.push([V3(xa, ya - 0.035, pa), V3(xa, ya + 0.004, pa), V3(xb2, yb + 0.004, pb2), V3(xb2, yb - 0.035, pb2)]);
         }
-        addG(j, PP.loft(secsG), MT.gold);
+        addG(j, PP.loft(secsG), MT.red);
         // tile bed underside between fascia and disc row
         const secs2 = [];
         for (let q = 0; q <= NF; q++) {
@@ -839,12 +839,9 @@ export async function build(ctx) {
       for (const x of mainX) {
         box(j, MT.red, 0.12 * k, 0.86 * k, 0.12 * k, x, F + 0.43 * k, pr, 0, 0.014);
         I.add('lotusCap', m4(j, x, F + 0.86 * k, pr, 0, 0, 0, 0.85 * k, 0.85 * k, 0.85 * k));
-        box(j, MT.gold, 0.135 * k, 0.035 * k, 0.135 * k, x, F + 0.86 * k - 0.018, pr, 0, 0.005);
-        box(j, MT.gold, 0.135 * k, 0.03 * k, 0.135 * k, x, yH - 0.065 * k, pr, 0, 0.005);
       }
       const RX = pr * TAN + 0.13;
       B.add(new THREE.CylinderGeometry(0.044 * k, 0.044 * k, 2 * RX, 12, 1), MT.red, m4(j, 0, yH + jy, pr, 0, 0, Math.PI / 2));
-      for (const sx of [-1, 1]) B.add(new THREE.CylinderGeometry(0.049 * k, 0.049 * k, 0.08, 12, 1), MT.gold, m4(j, sx * (RX - 0.035), yH + jy, pr, 0, 0, Math.PI / 2));
       box(j, MT.red, 2 * (pr * TAN + 0.08), 0.075 * k + jy, 0.065 * k, 0, yM, pr, 0, 0.01);
       box(j, MT.red, 2 * (pr * TAN + 0.06), 0.09 * k + jy, 0.085 * k, 0, yB, pr, 0, 0.01);
       // short struts
@@ -879,6 +876,8 @@ export async function build(ctx) {
     B.add(PP.lathe([[0, -0.05], [(rC - 0.1) * SEC - 0.01, -0.05], [(rC - 0.1) * SEC - 0.01, 0.05], [0, 0.05]], NS), MT.red, m4(null, 0, yLow, 0));
     B.add(PP.lathe([[0, -0.025], [(rC - 0.05) * SEC - 0.01, -0.025], [(rC - 0.05) * SEC - 0.01, 0.025], [0, 0.025]], NS), MT.red, m4(null, 0, yRail, 0));
     for (let j = 0; j < NS; j++) {
+      // continuous lintel beam (额枋) connecting the colonnade columns
+      box(j, MT.red, 2 * (rC * TAN) + 0.12, 0.20 * k, 0.20 * k, 0, yTop - 0.10 * k, rC, 0, 0.015);
       // face-centre column + corner column (the corner is shared with face j+1)
       for (const [xx, pp] of [[0, rC], [rC * sc, rC / SEC]]) {
         B.add(new THREE.CylinderGeometry(rc * 0.9, rc, colH, 18, 1), MT.red, m4(j, xx, yBase + colH / 2, pp));
@@ -958,9 +957,44 @@ export async function build(ctx) {
     const yCan = mastTop;
     B.add(PP.lathe([[0.0001, -0.20], [0.20, -0.20], [0.23, -0.05], [0.19, 0.08], [0.0001, 0.10]], 20), G, m4(null, 0, yCan - 0.10, 0));
     B.add(PP.lathe([[0.0001, 0], [1.00, 0], [1.06, 0.06], [0.97, 0.12], [0.50, 0.18], [0.25, 0.21], [0.0001, 0.22]], 40), G2, m4(null, 0, yCan, 0));
-    for (let q = 0; q < 8; q++) {
-      const ang = (q / 8) * Math.PI * 2;
-      B.add(new THREE.TorusGeometry(0.035, 0.010, 4, 8), G, m4(null, Math.cos(ang) * 0.95, yCan + 0.125, Math.sin(ang) * 0.95));
+    // ---- 8 根斜拉铁索 (浪风索 / guy-wire tie chains) 从宝盖边缘斜拉至第 9 层屋面 8 处翼角角梁
+    const topS = S[S.length - 1];
+    const rCornerRoof = (topS.a + topS.O + topS.flare) * SEC;
+    const yCornerRoof = roofY(topS, topS.Xc, topS.a + topS.O + topS.flare);
+    const yChainTop = yCan + 0.05;
+    const rChainTop = 0.96;
+    for (let q = 0; q < NS; q++) {
+      const ang = (q * TAU) / NS - Math.PI / NS;
+      const cA = Math.cos(ang), sA = Math.sin(ang);
+      // Top eyelet on the 宝盖 rim aligned with the 8 diagonal hip ridges
+      B.add(new THREE.TorusGeometry(0.04, 0.012, 6, 12), G, m4(null, -sA * rChainTop, yChainTop, cA * rChainTop, Math.PI / 2, ang, 0));
+
+      const pTop = V3(-sA * rChainTop, yChainTop, cA * rChainTop);
+      const pBot = V3(-sA * (rCornerRoof - 0.45), yCornerRoof + 0.35, cA * (rCornerRoof - 0.45));
+
+      // Segmented catenary iron chain
+      const nSeg = 16;
+      let prevPt = pTop.clone();
+      for (let sIdx = 1; sIdx <= nSeg; sIdx++) {
+        const t = sIdx / nSeg;
+        const curPt = new THREE.Vector3().lerpVectors(pTop, pBot, t);
+        curPt.y -= Math.sin(t * Math.PI) * 0.15; // gentle catenary sag
+        const segVec = new THREE.Vector3().subVectors(curPt, prevPt);
+        const segLen = segVec.length();
+        const midPt = new THREE.Vector3().addVectors(prevPt, curPt).multiplyScalar(0.5);
+        const dir = segVec.clone().normalize();
+        const pitch = -Math.asin(Math.max(-1, Math.min(1, dir.y)));
+        const yaw = Math.atan2(dir.x, dir.z);
+        B.add(new THREE.CylinderGeometry(0.024, 0.024, segLen, 6, 1), MT.iron, m4(null, midPt.x, midPt.y, midPt.z, pitch, yaw, 0));
+        prevPt.copy(curPt);
+      }
+
+      // Bottom anchor ring on the 9th storey hip ridge
+      B.add(new THREE.TorusGeometry(0.05, 0.014, 6, 12), MT.iron, m4(null, pBot.x, pBot.y, pBot.z, 0, ang, 0));
+
+      // Wind chime (风铎) hung near the lower stay
+      const wp = toWorld(null, V3(pBot.x, pBot.y - 0.22, pBot.z));
+      anchors.bells.push({ pos: [wp.x, wp.y, wp.z], scale: 1.5, rotY: -ang });
     }
     // ---- 宝顶: the flaming pearl that finishes the finial
     const yFl = yCan + hCan;
