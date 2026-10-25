@@ -3,6 +3,7 @@
 // 宽厚拱垂的翠绿蕉叶、中肋清晰、叶缘微曲，依附于白粉墙角与漏窗之前。
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
+import { L } from '../../../shared/layout.js';
 
 const TAU = Math.PI * 2;
 
@@ -84,15 +85,15 @@ export function createJiangnanBananas(scene) {
     metalness: 0.02,
   });
 
-  // 2. 芭蕉丛分布点 (白粉墙边、漏窗旁、水榭东侧与庭院回廊拐角)
-  const clumps = [
-    { x: -9.5, z: -4.5, count: 6, scale: 1.15 },
-    { x: -9.5, z: -1.5, count: 5, scale: 0.95 },
-    { x: 19.5, z: -4.5, count: 6, scale: 1.1 },
-    { x: 19.5, z: 2.5, count: 5, scale: 1.0 },
-    { x: 15.0, z: 18.0, count: 4, scale: 1.05 },
-    { x: -5.0, z: 18.0, count: 5, scale: 0.9 },
-    { x: 23.5, z: 7.5, count: 4, scale: 1.2 },
+  // 2. 芭蕉丛分布点 (从 Node 版权威源 shared/layout.js 的 L.bananas 同步)
+  const clumps = L.bananas || [
+    { x: 18.0, z: -45.5, count: 4, scale: 1.1 },
+    { x: -16.0, z: -45.5, count: 3, scale: 0.95 },
+    { x: 44.0, z: 24.5, count: 5, scale: 1.2 },
+    { x: 52.0, z: 12.0, count: 4, scale: 1.0 },
+    { x: 26.0, z: -10.5, count: 3, scale: 1.05 },
+    { x: -6.0, z: -10.5, count: 3, scale: 1.0 },
+    { x: -3.5, z: 19.5, count: 3, scale: 0.9 }, // 湖心石矶小岛
   ];
 
   const leafGeo = makeBananaLeafGeo(2.3, 0.55, 0.42);

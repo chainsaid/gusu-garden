@@ -1,25 +1,26 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { L } from '../../../shared/layout.js';
 
-// 5 组文人造园经典航点预设
+// 5 组文人造园经典航点预设 (以 Node 版 L 布局基准派生)
 export const VIEWPOINTS = [
   {
     name: '水榭晨曦',
     desc: '主殿正面全景与双层歇山飞檐',
-    pos: new THREE.Vector3(10.0, 4.0, 14.0),
-    target: new THREE.Vector3(10.0, 5.0, -18.0),
+    pos: new THREE.Vector3(L.hall.center[0], 4.0, 14.0),
+    target: new THREE.Vector3(L.hall.center[0], 5.0, L.hall.center[2] + 4.0),
   },
   {
     name: '小飞虹拱桥',
     desc: '青石单孔拱桥横卧碧波',
     pos: new THREE.Vector3(22.0, 3.2, 12.0),
-    target: new THREE.Vector3(8.0, 1.8, 18.0),
+    target: new THREE.Vector3(8.0, 1.8, (L.bridge.south[2] + L.bridge.north[2]) * 0.5 + 2.0),
   },
   {
     name: '隔池借景北寺塔',
     desc: '隔水远眺北宋万斤建炎铁刹',
     pos: new THREE.Vector3(26.0, 3.2, 24.0),
-    target: new THREE.Vector3(-105.0, 38.0, -48.0),
+    target: new THREE.Vector3(L.pagoda.center[0], L.pagoda.totalHeight * 0.5, L.pagoda.center[2]),
   },
   {
     name: '飞檐起翘',
@@ -45,10 +46,10 @@ export class CameraRig {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.06;
     
-    // 漫游角度与距离限制 (避免穿入地底或脱离视距)
+    // 漫游角度与距离限制 (支持北寺塔等百米级借景远眺)
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
-    this.controls.minDistance = 2.0;
-    this.controls.maxDistance = 140.0;
+    this.controls.minDistance = 1.0;
+    this.controls.maxDistance = 1200.0;
 
     // 交互模式: 'orbit' (导览旋转) | 'walk' (沉浸漫步)
     this.mode = 'orbit';
@@ -212,7 +213,7 @@ export class CameraRig {
     }
 
     if (this.mode === 'orbit') {
-      this.controls.update();
+      if (this.controls.enabled) this.controls.update();
     } else if (this.mode === 'walk') {
       // 1. 根据当前 yaw/pitch 更新相机旋转
       const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw);

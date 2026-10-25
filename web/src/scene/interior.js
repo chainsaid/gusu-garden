@@ -3,6 +3,7 @@
 // 包含：中堂水墨山水长轴 + 金字黑漆对联 + 红木翘头条案 + 八仙桌与官帽椅 + 琴台七弦琴 + 罗汉床博古架
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
+import { L } from '../../../shared/layout.js';
 
 // 1. 程序化宣纸水墨远山立轴贴图
 function createZhongtangTexture() {
@@ -95,18 +96,11 @@ function createCoupletTexture(text) {
 
 export function createJiangnanInterior(scene) {
   const interiorRoot = new THREE.Group();
-  interiorRoot.name = 'jiangnan_scholar_interior';
+  interiorRoot.name = 'jiangnan_scholar_interior_lighting';
 
-  // 主厅中心坐标与地面高程
-  const cx = 10.0, cz = -18.0;
+  // 主厅中心坐标与地面高程 (从 Node 版权威源 shared/layout.js 的 L.hall.center 同步)
+  const [cx, , cz] = L.hall.center;
   const yFloor = 2.12;
-
-  // 1. 红木木作通用材质
-  const woodMat = new THREE.MeshStandardMaterial({
-    color: 0x3d2015,
-    roughness: 0.55,
-    metalness: 0.04,
-  });
 
   const blackMat = new THREE.MeshStandardMaterial({
     color: 0x1a1a1c,
@@ -114,87 +108,59 @@ export function createJiangnanInterior(scene) {
     metalness: 0.08,
   });
 
-  // 2. 中堂水墨大轴
-  const scrollTex = createZhongtangTexture();
-  const scrollMat = new THREE.MeshStandardMaterial({ map: scrollTex, roughness: 0.85 });
-  const scrollMesh = new THREE.Mesh(new THREE.BoxGeometry(2.1, 3.2, 0.02), scrollMat);
-  scrollMesh.position.set(cx, yFloor + 3.1, cz - 7.75);
-  scrollMesh.castShadow = true;
-  interiorRoot.add(scrollMesh);
+  // 1. 室内暖色中堂宫灯与烛火照明系统 (温润明堂，柔和漫射文人雅集暖光，杜绝地面镜面光斑白曝)
+  const warmAltarLight = new THREE.PointLight(0xffbe78, 4.5, 12, 1.8);
+  warmAltarLight.position.set(cx, yFloor + 1.8, cz - 4.5);
+  interiorRoot.add(warmAltarLight);
 
-  // 轴头
-  const rollerGeo = new THREE.CylinderGeometry(0.04, 0.04, 2.3, 12).rotateZ(Math.PI / 2);
-  const rollerTop = new THREE.Mesh(rollerGeo, blackMat);
-  rollerTop.position.set(cx, yFloor + 4.7, cz - 7.73);
-  const rollerBot = new THREE.Mesh(rollerGeo, blackMat);
-  rollerBot.position.set(cx, yFloor + 1.5, cz - 7.73);
-  interiorRoot.add(rollerTop, rollerBot);
+  const floorLightL = new THREE.PointLight(0xff9e4d, 1.8, 5, 2.0);
+  floorLightL.position.set(cx - 2.85, yFloor + 0.85, cz - 4.5);
+  interiorRoot.add(floorLightL);
 
-  // 3. 黑漆对联「清风明月本无价，近水远山皆有情」
-  const coupletGeo = new THREE.BoxGeometry(0.38, 2.6, 0.02);
-  const rightCouplet = new THREE.Mesh(coupletGeo, new THREE.MeshStandardMaterial({ map: createCoupletTexture('清风明月本无价'), roughness: 0.45 }));
-  rightCouplet.position.set(cx + 1.6, yFloor + 3.0, cz - 7.75);
-  const leftCouplet = new THREE.Mesh(coupletGeo, new THREE.MeshStandardMaterial({ map: createCoupletTexture('近水远山皆有情'), roughness: 0.45 }));
-  leftCouplet.position.set(cx - 1.6, yFloor + 3.0, cz - 7.75);
-  interiorRoot.add(rightCouplet, leftCouplet);
+  const floorLightR = new THREE.PointLight(0xff9e4d, 1.8, 5, 2.0);
+  floorLightR.position.set(cx + 2.85, yFloor + 0.85, cz - 4.5);
+  interiorRoot.add(floorLightR);
 
-  // 4. 红木翘头条案 (Long Altar Table)
-  const altarTable = new THREE.Group();
-  const topBoard = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.1, 0.65), woodMat);
-  topBoard.position.y = 0.95;
-  const legGeo = new THREE.BoxGeometry(0.12, 0.95, 0.55);
-  const legL = new THREE.Mesh(legGeo, woodMat);
-  legL.position.set(-1.85, 0.475, 0);
-  const legR = new THREE.Mesh(legGeo, woodMat);
-  legR.position.set(1.85, 0.475, 0);
-  altarTable.add(topBoard, legL, legR);
-  altarTable.position.set(cx, yFloor, cz - 6.8);
-  interiorRoot.add(altarTable);
+  const porchLight = new THREE.PointLight(0xffcb88, 6.0, 10, 1.8);
+  porchLight.position.set(cx, yFloor + 2.6, cz + 2.0);
+  interiorRoot.add(porchLight);
 
-  // 5. 八仙方桌与四出头太师椅 (Square Table & Armchairs)
-  const squareTable = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.88, 1.15), woodMat);
-  squareTable.position.set(cx, yFloor + 0.44, cz - 4.5);
-  interiorRoot.add(squareTable);
+  // 9. 水榭前廊挑檐挂灯 (4 盏江南朱漆古绢六角挑灯，点亮雕花木棂)
+  const lanternPaperMat = new THREE.MeshStandardMaterial({
+    color: 0xffe8b8,
+    emissive: 0xff9438,
+    emissiveIntensity: 2.4,
+    roughness: 0.75,
+  });
 
-  function createChair(px, pz, ry = 0) {
-    const chair = new THREE.Group();
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.06, 0.52), woodMat);
-    seat.position.y = 0.52;
-    const back = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.58, 0.05), woodMat);
-    back.position.set(0, 0.81, -0.24);
-    const leg = new THREE.BoxGeometry(0.05, 0.52, 0.05);
-    for (const sx of [-0.24, 0.24]) {
-      for (const sz of [-0.22, 0.22]) {
-        const cl = new THREE.Mesh(leg, woodMat);
-        cl.position.set(sx, 0.26, sz);
-        chair.add(cl);
-      }
-    }
-    chair.add(seat, back);
-    chair.position.set(px, yFloor, pz);
-    chair.rotation.y = ry;
-    return chair;
-  }
+  const lanternRoofGeo = new THREE.ConeGeometry(0.32, 0.15, 6);
+  const lanternBodyGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.42, 6);
+  const lanternBaseGeo = new THREE.CylinderGeometry(0.24, 0.18, 0.08, 6);
 
-  interiorRoot.add(createChair(cx - 1.15, cz - 4.5, Math.PI / 2));
-  interiorRoot.add(createChair(cx + 1.15, cz - 4.5, -Math.PI / 2));
-  interiorRoot.add(createChair(cx - 1.6, cz - 2.8, 0));
-  interiorRoot.add(createChair(cx + 1.6, cz - 2.8, 0));
+  const lanternPositions = [
+    [cx - 6.8, yFloor + 2.8, cz + 5.8],
+    [cx - 2.4, yFloor + 2.8, cz + 5.8],
+    [cx + 2.4, yFloor + 2.8, cz + 5.8],
+    [cx + 6.8, yFloor + 2.8, cz + 5.8],
+  ];
 
-  // 6. 东次间琴台雅集 (七弦古琴与琴案)
-  const qinDesk = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.78, 0.48), woodMat);
-  qinDesk.position.set(cx + 5.2, yFloor + 0.39, cz - 4.2);
-  const qinGeo = new THREE.BoxGeometry(1.2, 0.05, 0.22);
-  const qin = new THREE.Mesh(qinGeo, blackMat);
-  qin.position.set(cx + 5.2, yFloor + 0.805, cz - 4.2);
-  interiorRoot.add(qinDesk, qin);
+  lanternPositions.forEach((pos) => {
+    const lanternGroup = new THREE.Group();
+    const roof = new THREE.Mesh(lanternRoofGeo, blackMat);
+    roof.position.y = 0.28;
+    const body = new THREE.Mesh(lanternBodyGeo, lanternPaperMat);
+    const base = new THREE.Mesh(lanternBaseGeo, blackMat);
+    base.position.y = -0.25;
 
-  // 7. 西次间文人罗汉床与博古架
-  const bed = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.52, 1.25), woodMat);
-  bed.position.set(cx - 5.5, yFloor + 0.26, cz - 4.0);
-  const curio = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.5, 0.38), woodMat);
-  curio.position.set(cx - 7.2, yFloor + 1.25, cz - 6.6);
-  interiorRoot.add(bed, curio);
+    lanternGroup.add(roof, body, base);
+    lanternGroup.position.set(pos[0], pos[1], pos[2]);
+    interiorRoot.add(lanternGroup);
+
+    // 挂灯微光
+    const lLight = new THREE.PointLight(0xff9838, 14, 8, 2);
+    lLight.position.set(pos[0], pos[1] - 0.1, pos[2]);
+    interiorRoot.add(lLight);
+  });
 
   scene.add(interiorRoot);
 

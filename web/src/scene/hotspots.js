@@ -1,23 +1,24 @@
 import * as THREE from 'three';
+import { L } from '../../../shared/layout.js';
 
-// 5 处江南文人园林核心文化景观点
+// 5 处江南文人园林核心文化景观点 (基于 Node 版 L 布局基准派生)
 export const HOTSPOT_DATA = [
   {
     id: 'hall',
     title: '水榭主殿 · 歇山晨曦',
     badge: '重檐水榭',
     desc: '江南文人园林典型水榭建筑，采用苏式传统「嫩戗发戗」起翘营造，四面设步步锦长窗。立柱涂以栗壳色桐油大漆，四水环绕，是全园文人雅集与观景主核心。',
-    position: new THREE.Vector3(10.0, 4.2, -6.5),
-    lookTarget: new THREE.Vector3(10.0, 4.8, -16.0),
-    cameraPos: new THREE.Vector3(10.0, 3.8, 8.0),
+    position: new THREE.Vector3(L.hall.center[0], 4.2, -6.5),
+    lookTarget: new THREE.Vector3(L.hall.center[0], 4.8, L.hall.center[2] + 6.0),
+    cameraPos: new THREE.Vector3(L.hall.center[0], 3.8, 8.0),
   },
   {
     id: 'bridge',
     title: '小飞虹 · 青石拱桥',
     badge: '卧波飞虹',
     desc: '单孔青石拱桥跨越碧波荷塘，连接主殿与回廊。桥身曲线柔美，倒映入池，取「卧波千重、飞虹横水」之意，是园中移步换景与高低动线的咽喉枢纽。',
-    position: new THREE.Vector3(10.0, 2.2, 17.5),
-    lookTarget: new THREE.Vector3(10.0, 1.8, 17.5),
+    position: new THREE.Vector3(L.bridge.south[0], 2.2, (L.bridge.south[2] + L.bridge.north[2]) * 0.5 + 1.5),
+    lookTarget: new THREE.Vector3(L.bridge.south[0], 1.8, (L.bridge.south[2] + L.bridge.north[2]) * 0.5 + 1.5),
     cameraPos: new THREE.Vector3(20.0, 3.2, 14.0),
   },
   {
@@ -26,7 +27,7 @@ export const HOTSPOT_DATA = [
     badge: '旷世借景',
     desc: '苏州古典园林精湛的「借景」手法。利用荷花池与开阔庭院，将西北方数里外的北寺塔万斤建炎铁刹纳入园内构图，打破院墙界限，纳千里于方寸之间。',
     position: new THREE.Vector3(-24.0, 10.0, -20.0),
-    lookTarget: new THREE.Vector3(-105.0, 38.0, -48.0),
+    lookTarget: new THREE.Vector3(L.pagoda.center[0], L.pagoda.totalHeight * 0.5, L.pagoda.center[2]),
     cameraPos: new THREE.Vector3(26.0, 3.2, 24.0),
   },
   {

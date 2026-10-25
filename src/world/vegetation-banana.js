@@ -114,7 +114,7 @@ export function buildBananas(ctx, parent) {
   const { leafMat, stemMat } = makeBananaMats(ctx);
   const R = ctx.rng ? ctx.rng('banana') : { range: (a, b) => a + Math.random() * (b - a), float: () => Math.random() };
 
-  const clumps = [
+  const clumps = (ctx && ctx.L && ctx.L.bananas) || [
     { x: 18, z: -45.5, count: 4, scale: 1.1 },
     { x: -16, z: -45.5, count: 3, scale: 0.95 },
     { x: 44, z: 24.5, count: 5, scale: 1.2 },
