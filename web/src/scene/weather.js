@@ -118,7 +118,6 @@ export class WeatherSystem {
     this.currentPreset = presetKey;
 
     // 平滑过渡或即时设置环境
-    this.scene.background.copy(p.fogColor);
     if (this.scene.fog) {
       this.scene.fog.color.copy(p.fogColor);
       this.scene.fog.density = p.fogDensity;
@@ -134,6 +133,31 @@ export class WeatherSystem {
       this.envLights.hemiLight.color.copy(p.hemiSky);
       this.envLights.hemiLight.groundColor.copy(p.hemiGround);
       this.envLights.hemiLight.intensity = p.hemiIntensity;
+    }
+
+    // 动态同步物理大气天空
+    if (this.envLights.sky && this.envLights.sky.material && this.envLights.sky.material.uniforms) {
+      const u = this.envLights.sky.material.uniforms;
+      u.sunPosition.value.copy(p.sunPos).normalize();
+      if (presetKey === 'sunset') {
+        u.turbidity.value = 10.0;
+        u.rayleigh.value = 3.6;
+        u.mieCoefficient.value = 0.012;
+      } else if (presetKey === 'drizzle') {
+        u.turbidity.value = 14.0;
+        u.rayleigh.value = 1.2;
+        u.mieCoefficient.value = 0.02;
+      } else if (presetKey === 'night') {
+        u.turbidity.value = 2.0;
+        u.rayleigh.value = 0.3;
+        u.mieCoefficient.value = 0.001;
+      } else {
+        u.turbidity.value = 7.5;
+        u.rayleigh.value = 2.2;
+        u.mieCoefficient.value = 0.006;
+      }
+    } else if (this.scene.background) {
+      this.scene.background.copy(p.fogColor);
     }
 
     // 细雨粒子开关

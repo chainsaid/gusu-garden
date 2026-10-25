@@ -21,7 +21,7 @@ function makeLotusFlowerGeo() {
   // 弯曲花瓣尖端，形成含苞或初绽弧度
   const pos = basePetalGeo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
-    const z = pos.getZ(i);
+    const z = Math.max(0, pos.getZ(i));
     const arch = Math.pow(z / 0.68, 1.8) * 0.22;
     pos.setY(i, arch);
   }

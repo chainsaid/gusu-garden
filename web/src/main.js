@@ -22,8 +22,8 @@ async function bootstrap() {
   const engine = new Engine(canvas);
   window.__engine = engine;
 
-  // 1. 设置光照与大气环境
-  const envLights = setupEnvironment(engine.scene);
+  // 1. 设置光照与大气环境 (物理天空 + PMREM IBL + 朝夕低照暖阳)
+  const envLights = setupEnvironment(engine.scene, engine.renderer);
 
   // 2. 江南天气时序与细雨系统 (晨曦/细雨/晚霞/月夜)
   const weather = new WeatherSystem(engine.scene, engine.camera, envLights);
@@ -146,6 +146,9 @@ async function bootstrap() {
   configManager.on('showKoi', (val) => koi.setVisible(!!val));
   configManager.on('showRain', (val) => weather.setRainEnabled(!!val));
   configManager.on('weather', (val) => weather.setWeather(val));
+  configManager.on('postProcessing', (val) => {
+    if (engine.post) engine.post.setEnabled(!!val);
+  });
 
   // 13. 并行加载核心园林与北寺塔资产
   try {

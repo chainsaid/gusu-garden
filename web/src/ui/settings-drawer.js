@@ -152,6 +152,21 @@ export class SettingsDrawer {
               </label>
             </div>
           </div>
+
+          <!-- 6. 画质与后处理 -->
+          <div class="drawer-section">
+            <div class="section-title">画质与胶片光影</div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <span class="t-label">电影级胶片光影</span>
+                <span class="t-sub">柔和大气泛光、文人胶片色阶与意境暗角</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggle-post" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -207,6 +222,7 @@ export class SettingsDrawer {
     bindToggle('toggle-bananas', 'showBananas');
     bindToggle('toggle-trees', 'showTrees');
     bindToggle('toggle-koi', 'showKoi');
+    bindToggle('toggle-post', 'postProcessing');
 
     // 监听外部配置变动并同步 UI
     configManager.on('*', () => {
@@ -230,6 +246,7 @@ export class SettingsDrawer {
     setChecked('toggle-bananas', 'showBananas');
     setChecked('toggle-trees', 'showTrees');
     setChecked('toggle-koi', 'showKoi');
+    setChecked('toggle-post', 'postProcessing');
 
     // 天气按钮高亮
     const curW = configManager.get('weather') || 'morning';

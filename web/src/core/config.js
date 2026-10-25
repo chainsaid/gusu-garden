@@ -19,6 +19,8 @@ export const SCENE_CONFIG = {
   // 天气与时序光影
   weather: 'morning',      // 'morning' | 'drizzle' | 'sunset' | 'night'
   showRain: false,         // 江南细雨粒子与涟漪
+  // 电影画质与后处理
+  postProcessing: true,    // 电影级胶片光影 (柔和泛光 + 胶片色阶 + 意境暗角)
   // 听觉中枢
   audioEnabled: false,     // 程序化琴韵水声
 };
