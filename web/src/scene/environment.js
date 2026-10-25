@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { createProceduralSky } from './sky.js';
 import { createPavingTextures } from './textures.js';
+import { L } from '../../../shared/layout.js';
 
 export function setupEnvironment(scene, renderer) {
   // 严格对齐原版电影级太阳方位 (仰角 6.8°，西偏南方位角，拉出深长飞檐阴影)
@@ -30,9 +31,9 @@ export function setupEnvironment(scene, renderer) {
     }
   }
 
-  // 3. 江南烟雨空气透视微雾 (透气暖霞雾，确保百米外借景北寺塔清晰高拔)
+  // 3. 江南烟雨空气透视微雾 (透气暖霞雾，透出百米外北寺塔与数公里外叠翠远山)
   const fogColor = new THREE.Color(0xb6a48f);
-  scene.fog = new THREE.FogExp2(fogColor, 0.0018);
+  scene.fog = new THREE.FogExp2(fogColor, 0.00052);
 
   // 4. 朝夕低角度太阳主平行光 (暖杏金红 ~3300K，严格对齐母本 ENV.sunIntensity = 7.0)
   const sunLight = new THREE.DirectionalLight(0xffb572, 5.8);
@@ -64,23 +65,76 @@ export function setupEnvironment(scene, renderer) {
   hemiLight.position.set(0, 60, 0);
   scene.add(hemiLight);
 
-  // 6. 经典花街铺地与庭院青石大砖基础地坪
-  const pavingPbr = createPavingTextures();
-  const groundGeom = new THREE.PlaneGeometry(260, 260, 1, 1);
+  // 6. 经典花街铺地与庭院青石大砖基础地坪 (开辟荷池多边形内孔，池底不设地坪，杜绝水底穿模与阴影杂斑)
+  const groundShape = new THREE.Shape();
+  const half = 140;
+  groundShape.moveTo(10 - half, -(0 - half));
+  groundShape.lineTo(10 + half, -(0 - half));
+  groundShape.lineTo(10 + half, -(0 + half));
+  groundShape.lineTo(10 - half, -(0 + half));
+  groundShape.closePath();
+
+  if (L.pond && L.pond.outline) {
+    const pondHole = new THREE.Path();
+    const pts = L.pond.outline;
+    pondHole.moveTo(pts[0][0], -pts[0][1]);
+    for (let i = 1; i < pts.length; i++) pondHole.lineTo(pts[i][0], -pts[i][1]);
+    pondHole.closePath();
+    groundShape.holes.push(pondHole);
+  }
+
+  const groundGeom = new THREE.ShapeGeometry(groundShape, 32);
   groundGeom.rotateX(-Math.PI / 2);
 
   const groundMat = new THREE.MeshStandardMaterial({
-    color: 0x2e3c20, // 庭院外围连绵江南草木林地与苍翠深土，杜绝生硬水泥大灰地坪
+    color: 0x2d3b22, // 庭院外围连绵江南草木林地与苍翠深土
     roughness: 0.95,
     metalness: 0.01,
     envMapIntensity: 0.95,
   });
 
   const ground = new THREE.Mesh(groundGeom, groundMat);
-  ground.position.set(10, -0.02, 0);
+  ground.position.set(0, -0.02, 0);
   ground.receiveShadow = true;
   ground.name = 'garden_ground_paving';
   scene.add(ground);
+
+  // 6.1 水榭主殿大院落铺地 (对齐原版砂砾与青石板大露台，避开荷塘)
+  const courtTerraceGeo = new THREE.PlaneGeometry(108, 49);
+  courtTerraceGeo.rotateX(-Math.PI / 2);
+  const courtTerraceMat = new THREE.MeshStandardMaterial({
+    color: 0x6e6b63, // 经典暖灰苏式青石板与古砂砾露台
+    roughness: 0.88,
+    metalness: 0.02,
+  });
+  const courtTerrace = new THREE.Mesh(courtTerraceGeo, courtTerraceMat);
+  courtTerrace.position.set(6, 0.001, -21.5);
+  courtTerrace.receiveShadow = true;
+  courtTerrace.name = 'hall_courtyard_terrace';
+  scene.add(courtTerrace);
+
+  // 6.2 荷池深水沉砂池底 (y = -1.4m，沉泥与暗砂质感，为半透水体与锦鲤游弋提供物理深度)
+  if (L.pond && L.pond.outline) {
+    const basinShape = new THREE.Shape();
+    const pts = L.pond.outline;
+    basinShape.moveTo(pts[0][0], -pts[0][1]);
+    for (let i = 1; i < pts.length; i++) basinShape.lineTo(pts[i][0], -pts[i][1]);
+    basinShape.closePath();
+
+    const basinGeom = new THREE.ShapeGeometry(basinShape, 32);
+    basinGeom.rotateX(-Math.PI / 2);
+
+    const basinMat = new THREE.MeshStandardMaterial({
+      color: 0x12241b, // 幽深池底古水沉砂
+      roughness: 0.95,
+      metalness: 0.0,
+    });
+
+    const pondBasin = new THREE.Mesh(basinGeom, basinMat);
+    pondBasin.position.set(0, -1.4, 0);
+    pondBasin.name = 'pond_basin_floor';
+    scene.add(pondBasin);
+  }
 
   // 7. 远景借景群山 (Suzhou Distant Mountains Silhouette Ring)
   // 环绕园林四周 850 米处起伏的姑苏群山苍黛远岫 (层峦叠嶂，与北寺塔和水榭飞檐相映成趣)

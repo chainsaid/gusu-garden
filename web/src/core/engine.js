@@ -29,9 +29,9 @@ export class Engine {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
-    // 2. 初始化核心场景与相机 (将远平面设为 2500m，确保远山与远景借景不被视锥截断)
+    // 2. 初始化核心场景与相机 (将远平面设为 6000m，确保姑苏远山与借景山脉完整收纳)
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(45, this.width / this.height, 0.2, 2500);
+    this.camera = new THREE.PerspectiveCamera(45, this.width / this.height, 0.2, 6000);
     this.camera.position.set(8, 2.2, 8);
     this.camera.lookAt(0, 2.8, -2);
 

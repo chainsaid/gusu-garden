@@ -12,9 +12,9 @@ export const VIEWPOINTS = [
   },
   {
     name: '小飞虹拱桥',
-    desc: '青石单孔拱桥横卧碧波',
-    pos: new THREE.Vector3(22.0, 3.2, 12.0),
-    target: new THREE.Vector3(8.0, 1.8, (L.bridge.south[2] + L.bridge.north[2]) * 0.5 + 2.0),
+    desc: '经典电影镜头：卧波飞虹借景北寺塔',
+    pos: new THREE.Vector3(18.8, 0.45, 23.4),
+    target: new THREE.Vector3(5.5, 3.6, 7.5),
   },
   {
     name: '隔池借景北寺塔',

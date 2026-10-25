@@ -362,7 +362,7 @@ export function planLotus(ctx, site) {
   }
 
   // ---- colonies (noise-warped irregular outlines, ragged edges, outliers) ------
-  const colonies = [
+  const colonies = (L.pond && L.pond.colonies) ? L.pond.colonies : [
     { x: bx - 4.0, z: 12.5, rx: 2.2, rz: 5.5, d: 1.0 },
     { x: bx - 4.2, z: 23.0, rx: 2.0, rz: 3.0, d: 0.9 },
     { x: bx + 4.1, z: 10.5, rx: 2.4, rz: 4.0, d: 1.0 },
@@ -443,7 +443,7 @@ export function planLotus(ctx, site) {
     }
   }
   // ---- water lily patches -----------------------------------------------------
-  const lilyPatches = [
+  const lilyPatches = (L.pond && L.pond.lilyPatches) ? L.pond.lilyPatches : [
     { x: 37.0, z: 17.8, rx: 3.0, rz: 5.0, d: 1.0 },
     { x: -13.5, z: 18.5, rx: 2.6, rz: 3.2, d: 0.8 },
     { x: -5.0, z: 13.0, rx: 2.0, rz: 1.6, d: 0.7 },

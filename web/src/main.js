@@ -7,6 +7,8 @@ import { createJiangnanBananas } from './scene/bananas.js';
 import { createJiangnanLotusFlowers } from './scene/lotus-flowers.js';
 import { createJiangnanKoi } from './scene/koi.js';
 import { createJiangnanTrees } from './scene/trees.js';
+import { createDistantMountains } from './scene/mountains.js';
+import { createBackdropForest } from './scene/backdrop-forest.js';
 import { createJiangnanInterior } from './scene/interior.js';
 import { WeatherSystem } from './scene/weather.js';
 import { loadGardenAssets } from './scene/loader.js';
@@ -37,6 +39,12 @@ async function bootstrap() {
   const flowers = createJiangnanLotusFlowers(engine.scene);
   const bananas = createJiangnanBananas(engine.scene);
   const trees = createJiangnanTrees(engine.scene);
+
+  // 4.1 姑苏远山借景与院外郁葱林海 (Tiger Hill/Dongting ridges & perimeter canopy)
+  const mountains = createDistantMountains();
+  engine.scene.add(mountains);
+  const backdropForest = createBackdropForest();
+  engine.scene.add(backdropForest);
 
   // 5. 荷池生灵：灵动锦鲤游弋系统
   const koi = createJiangnanKoi(engine.scene);
@@ -170,7 +178,10 @@ async function bootstrap() {
   configManager.on('showLotusFlowers', (val) => flowers.setVisible(!!val));
   configManager.on('showBamboo', (val) => foliage.setBambooVisible(!!val));
   configManager.on('showBananas', (val) => bananas.setVisible(!!val));
-  configManager.on('showTrees', (val) => trees.setVisible(!!val));
+  configManager.on('showTrees', (val) => {
+    trees.setVisible(!!val);
+    backdropForest.visible = !!val;
+  });
   configManager.on('showKoi', (val) => koi.setVisible(!!val));
   configManager.on('showRain', (val) => weather.setRainEnabled(!!val));
   configManager.on('weather', (val) => weather.setWeather(val));

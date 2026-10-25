@@ -8,6 +8,7 @@ import {
   createWoodTextures,
   createStoneTextures,
   createTaihuRockTextures,
+  createPavingTextures,
 } from './textures.js';
 
 export function loadGardenAssets(scene, onProgress) {
@@ -18,6 +19,7 @@ export function loadGardenAssets(scene, onProgress) {
     const woodPbr = createWoodTextures();
     const stonePbr = createStoneTextures();
     const taihuPbr = createTaihuRockTextures();
+    const pavingPbr = createPavingTextures();
 
     // 1. 初始化 DRACO 几何解码器
     const dracoLoader = new DRACOLoader();
@@ -181,9 +183,10 @@ export function loadGardenAssets(scene, onProgress) {
                   return;
                 }
                 if (combined.includes('terrainpaving') || combined.includes('paving')) {
-                  child.material.map = stonePbr.map;
-                  child.material.color.setHex(0xb8b2a5); // 庭院温润青石板步道与排水明沟
-                  child.material.roughness = 0.72;
+                  child.material.map = pavingPbr.map;
+                  child.material.normalMap = pavingPbr.normalMap;
+                  child.material.color.setHex(0xb8b2a5); // 庭院花街铺地海棠人字锦纹与散水明沟
+                  child.material.roughness = 0.75;
                   child.material.metalness = 0.02;
                   child.material.needsUpdate = true;
                   return;

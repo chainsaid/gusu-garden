@@ -5,8 +5,31 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { WATER_Y } from './water.js';
+import { L } from '../../../shared/layout.js';
 
 const TAU = Math.PI * 2;
+
+// 水岸边界与岛屿碰撞多边形判别，确保荷花严格生长在真实水域内部
+function pointInPoly(x, z, poly) {
+  if (!poly || poly.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0], zi = poly[i][1];
+    const xj = poly[j][0], zj = poly[j][1];
+    const intersect = ((zi > z) !== (zj > z)) && (x < (xj - xi) * (z - zi) / (zj - zi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function isPondWater(x, z) {
+  if (!L.pond || !L.pond.outline) return true;
+  if (!pointInPoly(x, z, L.pond.outline)) return false;
+  if (L.pond.island && pointInPoly(x, z, L.pond.island)) return false;
+  // 严格避开小飞虹拱桥桥身走道与桥台
+  if (Math.abs(x - 10.0) < 1.95 && z > 4.5 && z < 27.5) return false;
+  return true;
+}
 
 // 构建真实植物学尺度单片三维舟形荷花花瓣 (长约 16 cm，宽约 7.8 cm，中肋内卷勺状尖梢)
 function makeLotusPetalGeo() {
@@ -94,19 +117,19 @@ function createLotusPetalTexture() {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, S, S);
 
-  // 柔美花瓣基底：自基部温润羊脂玉白，向上晕染至柔嫩桃粉，瓣尖绯红深艳
+  // 柔美花瓣基底：自基部温润羊脂玉白，向上晕染至柔嫩桃粉，瓣尖经典胭脂红
   const grad = ctx.createLinearGradient(0, S, 0, 0);
-  grad.addColorStop(0.0, '#fffefa');
-  grad.addColorStop(0.25, '#fae6ee');
-  grad.addColorStop(0.55, '#f494b2');
-  grad.addColorStop(0.82, '#e03a6b');
-  grad.addColorStop(1.0, '#ba1244');
+  grad.addColorStop(0.0, '#fffef2'); // 象牙羊脂玉白
+  grad.addColorStop(0.20, '#faedf0'); // 清透初粉
+  grad.addColorStop(0.55, '#f48fb1'); // 娇嫩水粉
+  grad.addColorStop(0.82, '#e91e63'); // 瓣尖鲜明洋红
+  grad.addColorStop(1.0, '#ba1244'); // 尖端深沉胭脂
 
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, S, S);
 
   // 极细腻平行的纵向花瓣微脉
-  ctx.strokeStyle = 'rgba(235, 75, 115, 0.16)';
+  ctx.strokeStyle = 'rgba(215, 65, 105, 0.15)';
   ctx.lineWidth = 1.2;
   const nVeins = 36;
   for (let i = 0; i < nVeins; i++) {
@@ -151,12 +174,13 @@ export function createJiangnanLotusFlowers(scene) {
   const flowerRoot = new THREE.Group();
   flowerRoot.name = 'jiangnan_lotus_flowers';
 
-  // 1. 娇嫩粉白花瓣材质 (贴图渐变 + 透光微粉，瓣尖绯红)
+  // 1. 娇嫩粉白花瓣材质 (贴图渐变 + 透光微粉，瓣尖绯红，带次表面微弱逆光漫射)
   const petalTex = createLotusPetalTexture();
   const petalMat = new THREE.MeshStandardMaterial({
     map: petalTex,
     color: 0xffffff,
-    roughness: 0.42,
+    emissive: 0x3d0818, // 模拟花瓣逆光微透光散射 (Subsurface scattering look)
+    roughness: 0.38,
     metalness: 0.02,
     side: THREE.DoubleSide,
   });
@@ -169,15 +193,16 @@ export function createJiangnanLotusFlowers(scene) {
   });
   const coreGeo = makeLotusCoreGeo();
 
-  // 3. 挺水花茎
+  // 3. 挺水花茎 (长 1.0m，向下深扎入水)
   const stemMat = new THREE.MeshStandardMaterial({
     color: 0x3d6e50,
     roughness: 0.65,
     metalness: 0.02,
   });
-  const stemGeo = new THREE.CylinderGeometry(0.008, 0.012, 0.60, 5).translate(0, -0.30, 0);
+  const stemGeo = new THREE.CylinderGeometry(0.008, 0.012, 1.0, 5).translate(0, -0.50, 0);
 
-  const FLOWER_COUNT = 100;
+  // 对齐原版 src/ 规模：总花量提升至 320 株 (原版含花苞共 300 株)
+  const FLOWER_COUNT = 320;
   const basePetalGeo = makeLotusPetalGeo();
 
   const PETALS_PER_FLOWER = 22; // 4 层花瓣 (7 + 6 + 5 + 4)
@@ -191,37 +216,30 @@ export function createJiangnanLotusFlowers(scene) {
   coreInst.castShadow = true;
   stemInst.castShadow = true;
 
-  // 荷花散布群落：围绕小飞虹桥东西两侧荷池与驳岸，并在 Benchmark 11 焦点处布置前景特写荷花
-  const flowerSpots = [
-    // 关键前景特写荷花 (精准对齐 Benchmark 11 视线 [cam: 18.8, 0.42, 23.4 -> look: 5.5, 3.6, 7.5])
-    { cx: 17.3, cz: 21.6, r: 0.2, n: 1, hero: true, yOff: 0.30 },
-    { cx: 16.2, cz: 19.8, r: 0.3, n: 1, hero: true, yOff: 0.26 },
-    { cx: 19.0, cz: 21.0, r: 0.5, n: 2, hero: true, yOff: 0.22 },
-
-    // 群落自然散布
-    { cx: 18.0, cz: 15.5, r: 7.0, n: 30 }, // 桥东侧近景核心开花区 (Benchmark 01 / 02 前景)
-    { cx: 11.5, cz: 16.5, r: 5.0, n: 22 }, // 桥前近景倒影荷花
-    { cx: 4.0, cz: 8.0, r: 5.5, n: 20 },   // 桥西侧水域 (Benchmark 03 隔水远眺)
-    { cx: -3.0, cz: 12.0, r: 4.5, n: 16 },  // 西侧水域
-    { cx: 21.0, cz: 21.0, r: 4.5, n: 16 },  // 东南驳岸
-  ];
-
   const dummy = new THREE.Object3D();
   let fIdx = 0;
   let pGlobalIdx = 0;
 
-  flowerSpots.forEach((sp) => {
-    for (let i = 0; i < sp.n && fIdx < FLOWER_COUNT; i++) {
+  // 严格从 shared/layout.js 统一读取 17 处标准荷花群落生态区 (与 src/ 离线电影系统保持同源同构)
+  const colonies = L.pond.colonies || [];
+
+  colonies.forEach((c) => {
+    // 按各群落面积与密度权重分配花朵数量，确保桥头与水榭台前盛开浓密
+    const area = Math.PI * c.rx * c.rz * (c.d || 1.0);
+    const nFlowers = Math.max(6, Math.round(area * 0.78));
+
+    for (let i = 0; i < nFlowers && fIdx < FLOWER_COUNT; i++) {
       const ang = Math.random() * TAU;
-      const dist = Math.sqrt(Math.random()) * sp.r;
-      const x = sp.cx + Math.cos(ang) * dist;
-      const z = sp.cz + Math.sin(ang) * dist;
+      const dist = Math.sqrt(Math.random()) * 0.92;
+      const x = c.x + Math.cos(ang) * c.rx * dist;
+      const z = c.z + Math.sin(ang) * c.rz * dist;
 
-      // 严格剔除桥身正下方
-      if (Math.abs(x - 10.0) < 2.6 && z > 4.5 && z < 27.5) continue;
+      if (!isPondWater(x, z)) continue;
 
-      const y = WATER_Y + (sp.yOff || (0.18 + Math.random() * 0.38));
-      const s = sp.hero ? (1.30 + Math.random() * 0.15) : (1.05 + Math.random() * 0.40);
+      // 关键：花朵高度必须挺立在荷叶上方 (原版 src/ 高度为 0.35 ~ 0.85m)，杜绝被叶片遮挡淹没
+      const isHero = Math.abs(c.x - 14.0) < 6.0 && Math.abs(c.z - 17.0) < 6.0;
+      const y = WATER_Y + (0.35 + Math.random() * 0.45);
+      const s = isHero ? (1.20 + Math.random() * 0.30) : (0.95 + Math.random() * 0.35);
 
       // 花蕊
       dummy.position.set(x, y, z);
@@ -230,10 +248,10 @@ export function createJiangnanLotusFlowers(scene) {
       dummy.updateMatrix();
       coreInst.setMatrixAt(fIdx, dummy.matrix);
 
-      // 茎
-      const stemLen = y - WATER_Y;
+      // 茎 (向下深扎入水下 15cm，挺立水面)
+      const stemLen = y - WATER_Y + 0.15;
       dummy.position.set(x, y, z);
-      dummy.scale.set(1, stemLen / 0.60, 1);
+      dummy.scale.set(1, stemLen / 1.0, 1);
       dummy.updateMatrix();
       stemInst.setMatrixAt(fIdx, dummy.matrix);
 
