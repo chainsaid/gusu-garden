@@ -1,34 +1,25 @@
 import * as THREE from 'three';
-import { Sky } from 'three/addons/objects/Sky.js';
+import { createProceduralSky } from './sky.js';
 import { createPavingTextures } from './textures.js';
 
 export function setupEnvironment(scene, renderer) {
-  // 1. 物理大气天空球 (Preetham / Nishita 物理大气散射模型)
-  const sky = new Sky();
-  sky.scale.setScalar(450000);
-  sky.name = 'jiangnan_sky';
+  // 严格对齐原版电影级太阳方位 (仰角 6.8°，西偏南方位角，拉出深长飞檐阴影)
+  const sunPosition = new THREE.Vector3(-0.932, 0.118, 0.337).normalize();
 
-  // 倾角 7.5° 的朝夕暖阳方位 (西南低照，拉出修长的飞檐与竹影)
-  const elevation = 7.5;
-  const azimuth = 205; // 西南微偏南
-  const phi = THREE.MathUtils.degToRad(90 - elevation);
-  const theta = THREE.MathUtils.degToRad(azimuth);
-  const sunPosition = new THREE.Vector3().setFromSphericalCoords(1, phi, theta);
-
-  const skyUniforms = sky.material.uniforms;
-  skyUniforms['turbidity'].value = 7.5;             // 江南水汽朦胧感
-  skyUniforms['rayleigh'].value = 2.2;              // 天顶青碧高旷
-  skyUniforms['mieCoefficient'].value = 0.006;      // 烟霞散射系数
-  skyUniforms['mieDirectionalG'].value = 0.82;      // 逆光光晕扩散度
-  skyUniforms['sunPosition'].value.copy(sunPosition);
+  // 1. 物理大气散射与程序化夕阳高积云天空球 (Nishita 单散射 + 黄金时刻高积云 + 边缘变暗日轮)
+  const sky = createProceduralSky(sunPosition);
   scene.add(sky);
 
   // 2. 烘焙全场景 PMREM 天光漫反射与镜面反射环境贴图 (IBL)
+  // 关键：在烘焙 PMREM 时隐藏太阳光球 (uSunDisc = 0)，防止高亮光球造成漫反射死白
   if (renderer) {
     try {
       const pmremGenerator = new THREE.PMREMGenerator(renderer);
       const skyScene = new THREE.Scene();
       const skyMesh = sky.clone();
+      if (skyMesh.material.uniforms.uSunDisc) {
+        skyMesh.material.uniforms.uSunDisc.value = 0.0;
+      }
       skyScene.add(skyMesh);
       const envMap = pmremGenerator.fromScene(skyScene).texture;
       scene.environment = envMap;
@@ -39,37 +30,37 @@ export function setupEnvironment(scene, renderer) {
     }
   }
 
-  // 3. 江南烟雨空气透视微雾 (与天空地平线天衣无缝衔接)
-  const fogColor = new THREE.Color(0xb4c2c6);
-  scene.fog = new THREE.FogExp2(fogColor, 0.0038);
+  // 3. 江南烟雨空气透视微雾 (透气暖霞雾，确保百米外借景北寺塔清晰高拔)
+  const fogColor = new THREE.Color(0xb6a48f);
+  scene.fog = new THREE.FogExp2(fogColor, 0.0018);
 
-  // 4. 朝夕低角度太阳主平行光 (暖杏玫瑰金色，打出深邃的雕花檐下阴影)
-  const sunLight = new THREE.DirectionalLight(0xffdfb8, 3.8);
+  // 4. 朝夕低角度太阳主平行光 (暖杏金红 ~3300K，严格对齐母本 ENV.sunIntensity = 7.0)
+  const sunLight = new THREE.DirectionalLight(0xffb572, 5.8);
   sunLight.name = 'sun_directional';
-  sunLight.position.copy(sunPosition).multiplyScalar(150);
+  sunLight.position.copy(sunPosition).multiplyScalar(180);
   sunLight.castShadow = true;
 
   // 4K 级别高质量软阴影视锥配置
   sunLight.shadow.mapSize.width = 2048;
   sunLight.shadow.mapSize.height = 2048;
   sunLight.shadow.camera.near = 10;
-  sunLight.shadow.camera.far = 280;
-  
-  const sExtent = 48;
+  sunLight.shadow.camera.far = 320;
+
+  const sExtent = 55;
   sunLight.shadow.camera.left = -sExtent;
   sunLight.shadow.camera.right = sExtent;
   sunLight.shadow.camera.top = sExtent;
   sunLight.shadow.camera.bottom = -sExtent;
-  sunLight.shadow.bias = -0.00018;
-  sunLight.shadow.normalBias = 0.025;
-  sunLight.shadow.radius = 1.6;
+  sunLight.shadow.bias = -0.00008;
+  sunLight.shadow.normalBias = 0.035;
+  sunLight.shadow.radius = 1.0;
 
   scene.add(sunLight);
   scene.add(sunLight.target);
-  sunLight.target.position.set(0, 0, 0);
+  sunLight.target.position.set(5, 1.5, 5);
 
-  // 5. 天光半球漫反射 (天顶冷青，地面深暖灰，形成自然立体冷暖明暗)
-  const hemiLight = new THREE.HemisphereLight(0xbdd0d6, 0x423830, 0.95);
+  // 5. 天光半球漫反射 (天顶冷清青灰，地面暖灰反光，形成立体温润漫反射)
+  const hemiLight = new THREE.HemisphereLight(0xc6dbe4, 0x56483c, 1.25);
   hemiLight.position.set(0, 60, 0);
   scene.add(hemiLight);
 
@@ -79,10 +70,10 @@ export function setupEnvironment(scene, renderer) {
   groundGeom.rotateX(-Math.PI / 2);
 
   const groundMat = new THREE.MeshStandardMaterial({
-    map: pavingPbr.map,
-    roughness: pavingPbr.roughness,
-    metalness: pavingPbr.metalness,
-    envMapIntensity: 0.8,
+    color: 0x2e3c20, // 庭院外围连绵江南草木林地与苍翠深土，杜绝生硬水泥大灰地坪
+    roughness: 0.95,
+    metalness: 0.01,
+    envMapIntensity: 0.95,
   });
 
   const ground = new THREE.Mesh(groundGeom, groundMat);
@@ -91,5 +82,35 @@ export function setupEnvironment(scene, renderer) {
   ground.name = 'garden_ground_paving';
   scene.add(ground);
 
-  return { sunLight, hemiLight, ground, sky, sunPosition };
+  // 7. 远景借景群山 (Suzhou Distant Mountains Silhouette Ring)
+  // 环绕园林四周 850 米处起伏的姑苏群山苍黛远岫 (层峦叠嶂，与北寺塔和水榭飞檐相映成趣)
+  const mountainGeom = new THREE.CylinderGeometry(850, 850, 160, 128, 2, true);
+  const mPos = mountainGeom.attributes.position;
+  for (let i = 0; i < mPos.count; i++) {
+    const y = mPos.getY(i);
+    if (y > 0) {
+      const x = mPos.getX(i);
+      const z = mPos.getZ(i);
+      const ang = Math.atan2(z, x);
+      // 自然群山连绵叠嶂 (西面天平山、灵岩山余脉，北面虞山借景，高度 65m~125m)
+      const westWeight = Math.max(0, Math.sin((ang - 1.2) * 0.8));
+      const northWeight = Math.max(0, Math.cos((ang - 0.2) * 0.9));
+      const wave = Math.sin(ang * 3.2) * 28 + Math.cos(ang * 6.5 + 0.8) * 16 + Math.sin(ang * 11.0) * 8 + westWeight * 36 + northWeight * 24;
+      mPos.setY(i, y + wave + 22);
+    }
+  }
+  mountainGeom.computeVertexNormals();
+
+  const mountainMat = new THREE.MeshStandardMaterial({
+    color: 0x485a53, // 远山苍黛微绿，与天际暮霞自然交融
+    roughness: 0.95,
+    metalness: 0.02,
+    side: THREE.BackSide,
+  });
+  const mountains = new THREE.Mesh(mountainGeom, mountainMat);
+  mountains.position.set(0, -35, 0);
+  mountains.name = 'distant_mountains';
+  scene.add(mountains);
+
+  return { sunLight, hemiLight, ground, sky, sunPosition, mountains };
 }

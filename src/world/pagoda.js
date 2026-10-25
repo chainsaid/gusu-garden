@@ -167,6 +167,9 @@ export async function build(ctx) {
     // stained red-brown wood of the eave structure (brackets, rafters, purlins)
     wood: mat.phys({ color: 0xffffff, roughness: 0.58, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.26, 0.10, 0.05)', C), 'wood')),
   };
+  for (const [k, v] of Object.entries(MT)) {
+    if (v && v.isMaterial) v.name = 'pagoda_' + k;
+  }
 
   // ---------------------------------------------------------------- helpers
   const _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();

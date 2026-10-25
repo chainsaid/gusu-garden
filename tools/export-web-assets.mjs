@@ -55,6 +55,9 @@ async function main() {
 
   const chromePath = findChrome();
   console.log('[exporter] 找到浏览器:', chromePath);
+  const targetArg = process.argv.find((a) => a.startsWith('--asset='));
+  const onlyAsset = targetArg ? targetArg.split('=')[1] : null;
+  if (onlyAsset) console.log(`[exporter] 指定导出目标: [${onlyAsset}]`);
 
   await ensureDevServer();
 
@@ -69,7 +72,11 @@ async function main() {
     res.setHeader('Access-Control-Allow-Headers', '*');
 
     if (req.method === 'OPTIONS') {
-      res.writeHead(200);
+      res.writeHead(200, {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': '*'
+      });
       res.end();
       return;
     }
@@ -83,7 +90,14 @@ async function main() {
         const buf = Buffer.concat(chunks);
         uploadedFiles[assetType] = buf;
         console.log(`[exporter] 收到资产 [${assetType}] 上传，大小: ${(buf.length / 1024 / 1024).toFixed(2)} MB`);
-        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.writeHead(200, {
+          'Content-Type': 'text/plain',
+          'Content-Length': '2',
+          'Connection': 'close',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': '*'
+        });
         res.end('OK');
 
         setTimeout(async () => {
@@ -112,8 +126,10 @@ async function main() {
           }
 
           compressedFiles[assetType] = true;
-          // 当两个资产均处理完毕，结束等待
-          if (compressedFiles['core'] && compressedFiles['pagoda']) {
+          // 当所需资产均处理完毕，结束等待
+          if (onlyAsset) {
+            if (compressedFiles[onlyAsset] && uploadResolve) uploadResolve();
+          } else if (compressedFiles['core'] && compressedFiles['pagoda']) {
             if (uploadResolve) uploadResolve();
           }
         }, 50);
@@ -144,15 +160,36 @@ async function main() {
         console.log(' [浏览器] ' + text);
       }
     });
+    page.on('pageerror', (err) => {
+      console.error(' [浏览器页面异常] ' + (err.stack || err.message || err));
+    });
 
-    console.log('[exporter] 打开导出页面 http://localhost:' + PORT + '/export.html ...');
-    await page.goto(`http://localhost:${PORT}/export.html`, { waitUntil: 'load', timeout: 60000 });
+    if (onlyAsset) {
+      console.log(`[exporter] 正在独立导出资产 [${onlyAsset}]...`);
+      await page.goto(`http://localhost:${PORT}/export.html?asset=${onlyAsset}`, { waitUntil: 'load', timeout: 60000 });
+      await Promise.race([
+        uploadPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('导出超时 (240秒)')), 240000))
+      ]);
+    } else {
+      console.log('[exporter] 阶段 1/2: 正在导出核心建筑群 (core)...');
+      await page.goto(`http://localhost:${PORT}/export.html?asset=core`, { waitUntil: 'load', timeout: 60000 });
+      // 等待 core 压缩完毕
+      for (let i = 0; i < 480; i++) {
+        if (compressedFiles['core']) break;
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      if (!compressedFiles['core']) throw new Error('核心建筑群导出超时');
 
-    console.log('[exporter] 等待模型生成与二进制打包...');
-    await Promise.race([
-      uploadPromise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('导出超时 (90秒)')), 90000))
-    ]);
+      console.log('\n[exporter] 阶段 2/2: 正在导出借景北寺塔 (pagoda)...');
+      await page.goto(`http://localhost:${PORT}/export.html?asset=pagoda`, { waitUntil: 'load', timeout: 60000 });
+      // 等待 pagoda 压缩完毕
+      for (let i = 0; i < 480; i++) {
+        if (compressedFiles['pagoda']) break;
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      if (!compressedFiles['pagoda']) throw new Error('借景北寺塔导出超时');
+    }
 
     console.log('====================================================');
     console.log(`✓ 全部核心资产自动化导出与压缩流水线圆满完成！`);

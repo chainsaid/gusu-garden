@@ -3,6 +3,7 @@
 // 红白、大正三色与黄金锦鲤在荷塘绿波下游弋，尾鳍摆动，为全园注入灵动生气。
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
+import { WATER_Y } from './water.js';
 
 const TAU = Math.PI * 2;
 
@@ -127,7 +128,7 @@ export function createJiangnanKoi(scene) {
     const pathIdx = i % paths.length;
     const path = paths[pathIdx];
     const phase = (i / KOI_COUNT) * TAU + Math.random() * 0.5;
-    const depth = -0.12 - Math.random() * 0.18; // 水面下 12~30 cm
+    const depth = WATER_Y - 0.08 - Math.random() * 0.16; // 水面下 8~24 cm
     const scale = 0.85 + Math.random() * 0.45;
     const color = koiColors[i % koiColors.length];
 

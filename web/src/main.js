@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { Engine } from './core/engine.js';
 import { setupEnvironment } from './scene/environment.js';
 import { createJiangnanWater } from './scene/water.js';
@@ -45,6 +46,33 @@ async function bootstrap() {
 
   // 7. 挂载相机漫游控制器
   const cameraRig = new CameraRig(engine.camera, canvas);
+
+  // 解析 URL 显式机位参数 (支持基准帧 1:1 精确对齐: ?cam=x,y,z&look=x,y,z&focal=mm)
+  const Q = new URLSearchParams(window.location.search);
+  if (Q.has('clean')) {
+    const style = document.createElement('style');
+    style.textContent = '.top-header, .top-actions, .tour-bar, .controls-hint, .hotspot-tag, .hotspot-card, .settings-drawer, .hotspots-overlay, .poi-modal-backdrop { display: none !important; }';
+    document.head.appendChild(style);
+  }
+  if (Q.has('cam') && Q.has('look')) {
+    const cp = Q.get('cam').split(',').map(Number);
+    const lp = Q.get('look').split(',').map(Number);
+    cameraRig.controls.enabled = false; // 禁用 OrbitControls 极角截断，保证显式机位绝对 1:1 精确对齐
+    engine.camera.position.set(cp[0], cp[1], cp[2]);
+    engine.camera.up.set(0, 1, 0);
+    if (Q.has('focal')) {
+      const focal = +Q.get('focal');
+      const aspect = engine.camera.aspect || (1280 / 720);
+      const sensorH = 36 / aspect;
+      engine.camera.fov = (2 * Math.atan(sensorH / (2 * focal)) * 180) / Math.PI;
+      engine.camera.updateProjectionMatrix();
+    } else if (Q.has('fov')) {
+      engine.camera.fov = +Q.get('fov');
+      engine.camera.updateProjectionMatrix();
+    }
+    engine.camera.lookAt(lp[0], lp[1], lp[2]);
+    engine.camera.updateMatrixWorld();
+  }
 
   // 8. 挂载 3D 景致文化标牌与毛玻璃信息卡系统
   const hotspotManager = new HotspotManager(
@@ -175,6 +203,7 @@ async function bootstrap() {
     // 加载完成，平滑隐去水墨开屏界面
     setTimeout(() => {
       loadingScreen.classList.add('fade-out');
+      window.__READY = true;
       console.log('[gusu-garden-web] 场景与全套素材装载完毕，进入满帧交互！');
     }, 400);
 
@@ -195,6 +224,11 @@ async function bootstrap() {
 
     // 更新水体波动
     water.update(elapsed);
+
+    // 更新天空云霞微移 (慢速自然云游)
+    if (envLights.sky && envLights.sky.material && envLights.sky.material.uniforms && envLights.sky.material.uniforms.uCloudOffset) {
+      envLights.sky.material.uniforms.uCloudOffset.value.set(elapsed * 0.004 + 0.15, elapsed * 0.0016 + 0.08);
+    }
 
     // 更新竹梢微风摆动
     foliage.update(elapsed);

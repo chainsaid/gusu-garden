@@ -80,6 +80,9 @@ function makeMaterials(ctx) {
   K.redDark = H.redDark; K.gold = M.blackLacquer; K.cap = M.lacquerRed; K.floorX = H.floorX; K.floorZ = H.floorZ;
   K.dark = mat.std({ color: new THREE.Color().setRGB(0.025, 0.018, 0.014), roughness: 0.9 });
   K.rope = mat.std({ color: new THREE.Color().setRGB(0.42, 0.33, 0.2), roughness: 0.95 });
+  for (const [k, v] of Object.entries(K)) {
+    if (v && v.isMaterial && !v.name) v.name = 'building_' + k;
+  }
   return K;
 }
 
@@ -158,7 +161,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
   // veranda edge beam (檐甲) around the floor
   { const fl = lb.child(m4([0, 0, zc]));
     fl.add(sweep(loopPath(hx - 0.06, hz - 0.06, () => yF - 0.2, 0.5), rectProfile(0.13, 0.205), { closed: true, outward: true }), K.redDark);
-    fl.add(sweep(loopPath(hx - 0.002, hz - 0.002, () => yF - 0.2, 0.5), rectProfile(0.012, 0.03, 0.03), { closed: true, outward: true }), K.redA); }
+    fl.add(sweep(loopPath(hx - 0.002, hz - 0.002, () => yF - 0.2, 0.5), rectProfile(0.012, 0.03, 0.03), { closed: true, outward: true }), K.red); }
 
   // ---- columns with gold fittings
   for (const x of xs) for (const z of zs) {

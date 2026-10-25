@@ -496,9 +496,9 @@ export function buildXieshanGables(acc, T, mats) {
       beam(redA, face(z, Hg + 0.48, 0.07), face(z, top, 0.07), 0.2, 0.2, 0.02, [0, 0, 1]);
     }
     // 荷叶墩 between the upper beams at the centre and either side
-    lotusBlock(red, gold, mul(xf(face(0, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.4, 0.95, 0.16);
-    lotusBlock(red, gold, mul(xf(face(-zg * 0.31, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.1, 0.95, 0.14);
-    lotusBlock(red, gold, mul(xf(face(zg * 0.31, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.1, 0.95, 0.14);
+    lotusBlock(red, null, mul(xf(face(0, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.4, 0.95, 0.16);
+    lotusBlock(red, null, mul(xf(face(-zg * 0.31, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.1, 0.95, 0.14);
+    lotusBlock(red, null, mul(xf(face(zg * 0.31, beamsY[0] + 0.13, 0.12)), basis([0, 0, 0], [0, 0, 1], [0, 1, 0], [sx, 0, 0])), 1.1, 0.95, 0.14);
     // --- gable foot ridge (where the hip face meets the gable wall)
     const fp = [];
     for (let i = 0; i <= 12; i++) fp.push([xw + sx * 0.18, Hg - 0.05, -zg + (2 * zg * i) / 12]);

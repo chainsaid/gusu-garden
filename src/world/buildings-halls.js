@@ -349,7 +349,7 @@ export function buildGate(ctx, K, lb, anchors, toW) {
   const bx = cxL + 0.98, bz = czL + 0.98;
   lb.add(sweep(loopPath(cxL + 0.8, czL + 0.8, () => yKB + kH, 0.6), rectProfile(0.16, 0.16), { closed: true, outward: true }), K.red);
   lb.add(sweep(loopPath(bx - 0.08, bz - 0.08, () => yBal - 0.22, 0.6), rectProfile(0.16, 0.24), { closed: true, outward: true }), K.redDark);
-  lb.add(sweep(loopPath(bx, bz, () => yBal - 0.2, 0.6), rectProfile(0.014, 0.025, 0.12), { closed: true, outward: true }), K.redA);
+  lb.add(sweep(loopPath(bx, bz, () => yBal - 0.2, 0.6), rectProfile(0.014, 0.025, 0.12), { closed: true, outward: true }), K.red);
   for (let i = 0; i < 20; i++) {
     const z = -bz + 0.06 + (2 * bz - 0.12) * (i + 0.5) / 20;
     lb.box(K.floorX, 2 * bx - 0.12, 0.05, (2 * bz - 0.12) / 20 - 0.008, [0, yBal - 0.025, z], [0, 0, 0], 0.004);
@@ -357,7 +357,7 @@ export function buildGate(ctx, K, lb, anchors, toW) {
   // under-balcony soffit (between bracket tips)
   lb.box(K.soffit, 2 * bx, 0.03, 2 * bz, [0, yBal - 0.27, 0]);
   railing(lb, [[-bx + 0.1, -bz + 0.1], [bx - 0.1, -bz + 0.1], [bx - 0.1, bz - 0.1], [-bx + 0.1, bz - 0.1], [-bx + 0.1, -bz + 0.1 + 0.001]], yBal, {
-    H: 0.8, post: 0.12, spacing: 1.6, midY: 0.45, gibSeg: 22, lo: true, K: { red: K.red, redDark: K.redDark, gold: K.redA, gib: K.gib },
+    H: 0.8, post: 0.12, spacing: 1.6, midY: 0.45, gibSeg: 22, lo: true, K: { red: K.red, redDark: K.redDark, gold: K.red, gib: K.gib },
   });
   // upper storey
   const up = hallBuilding(lb, K, {
@@ -632,8 +632,8 @@ export function buildSideHall(ctx, K, lb, anchors, toW, spec) {
     lb.box(K.redDark, 2 * cx + 1.04, 0.16, 0.1, [0, vy - 0.1, vz1], [0, 0, 0], 0.01);
     const sw = bw * 0.8;
     const rx = cx + 0.45, rz = vz1 - 0.06;
-    railing(lb, [[-sw, rz], [-rx, rz], [-rx, vz0 + 0.05]], vy, { H: 0.72, post: 0.11, spacing: 1.5, midY: 0.4, gibSeg: 16, lo: true, panelGold: false, K: { red: K.red, redDark: K.redDark, gold: K.redA, gib: K.gib } });
-    railing(lb, [[sw, rz], [rx, rz], [rx, vz0 + 0.05]], vy, { H: 0.72, post: 0.11, spacing: 1.5, midY: 0.4, gibSeg: 16, lo: true, panelGold: false, K: { red: K.red, redDark: K.redDark, gold: K.redA, gib: K.gib } });
+    railing(lb, [[-sw, rz], [-rx, rz], [-rx, vz0 + 0.05]], vy, { H: 0.72, post: 0.11, spacing: 1.5, midY: 0.4, gibSeg: 16, lo: true, panelGold: false, K: { red: K.red, redDark: K.redDark, gold: K.red, gib: K.gib } });
+    railing(lb, [[sw, rz], [rx, rz], [rx, vz0 + 0.05]], vy, { H: 0.72, post: 0.11, spacing: 1.5, midY: 0.4, gibSeg: 16, lo: true, panelGold: false, K: { red: K.red, redDark: K.redDark, gold: K.red, gib: K.gib } });
   }
   const H = hallBuilding(lb, K, {
     xs, zs, colR: 0.2, y0: yF, yct: yF + 3.55, knH: 0.26,

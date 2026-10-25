@@ -11,47 +11,47 @@ import * as THREE from 'three';
 export const WEATHER_PRESETS = {
   morning: {
     name: '晴日晨曦',
-    fogColor: new THREE.Color(0xb0c2c5),
-    fogDensity: 0.0075,
-    sunColor: new THREE.Color(0xfff6e8),
-    sunIntensity: 1.85,
-    sunPos: new THREE.Vector3(38, 45, 28),
-    hemiSky: new THREE.Color(0xedf4f6),
-    hemiGround: new THREE.Color(0x54625b),
-    hemiIntensity: 1.15,
+    fogColor: new THREE.Color(0xb6a48f),
+    fogDensity: 0.0012,
+    sunColor: new THREE.Color(0xffb572),
+    sunIntensity: 5.8,
+    sunPos: new THREE.Vector3(-0.932, 0.118, 0.337).normalize().multiplyScalar(180),
+    hemiSky: new THREE.Color(0xc6dbe4),
+    hemiGround: new THREE.Color(0x56483c),
+    hemiIntensity: 1.25,
     rain: false,
   },
   drizzle: {
     name: '江南细雨',
-    fogColor: new THREE.Color(0x76878c),
-    fogDensity: 0.014,
+    fogColor: new THREE.Color(0x829196),
+    fogDensity: 0.0035,
     sunColor: new THREE.Color(0xdde5e8),
-    sunIntensity: 0.85,
-    sunPos: new THREE.Vector3(20, 40, 20),
+    sunIntensity: 1.8,
+    sunPos: new THREE.Vector3(-20, 60, 20),
     hemiSky: new THREE.Color(0x9cb0b5),
     hemiGround: new THREE.Color(0x3e494a),
-    hemiIntensity: 0.95,
+    hemiIntensity: 1.15,
     rain: true,
   },
   sunset: {
     name: '夕照晚霞',
-    fogColor: new THREE.Color(0xc97f67),
-    fogDensity: 0.0085,
-    sunColor: new THREE.Color(0xff8c42),
-    sunIntensity: 2.1,
-    sunPos: new THREE.Vector3(55, 18, -35), // 低角度斜阳
-    hemiSky: new THREE.Color(0xffaa88),
-    hemiGround: new THREE.Color(0x422d26),
-    hemiIntensity: 1.05,
+    fogColor: new THREE.Color(0xb6a48f),
+    fogDensity: 0.0014,
+    sunColor: new THREE.Color(0xffb572),
+    sunIntensity: 6.2,
+    sunPos: new THREE.Vector3(-0.932, 0.118, 0.337).normalize().multiplyScalar(180),
+    hemiSky: new THREE.Color(0xc6dbe4),
+    hemiGround: new THREE.Color(0x56483c),
+    hemiIntensity: 1.25,
     rain: false,
   },
   night: {
     name: '月夜清辉',
     fogColor: new THREE.Color(0x131922),
-    fogDensity: 0.009,
+    fogDensity: 0.0025,
     sunColor: new THREE.Color(0x8cb6d9), // 皎洁月光
-    sunIntensity: 0.65,
-    sunPos: new THREE.Vector3(-30, 48, -25),
+    sunIntensity: 0.85,
+    sunPos: new THREE.Vector3(-30, 80, -25),
     hemiSky: new THREE.Color(0x233142),
     hemiGround: new THREE.Color(0x0f151c),
     hemiIntensity: 0.55,
@@ -135,26 +135,44 @@ export class WeatherSystem {
       this.envLights.hemiLight.intensity = p.hemiIntensity;
     }
 
-    // 动态同步物理大气天空
+    // 动态同步物理大气与程序化云霞天空
     if (this.envLights.sky && this.envLights.sky.material && this.envLights.sky.material.uniforms) {
       const u = this.envLights.sky.material.uniforms;
-      u.sunPosition.value.copy(p.sunPos).normalize();
-      if (presetKey === 'sunset') {
-        u.turbidity.value = 10.0;
-        u.rayleigh.value = 3.6;
-        u.mieCoefficient.value = 0.012;
-      } else if (presetKey === 'drizzle') {
-        u.turbidity.value = 14.0;
-        u.rayleigh.value = 1.2;
-        u.mieCoefficient.value = 0.02;
-      } else if (presetKey === 'night') {
-        u.turbidity.value = 2.0;
-        u.rayleigh.value = 0.3;
-        u.mieCoefficient.value = 0.001;
-      } else {
-        u.turbidity.value = 7.5;
-        u.rayleigh.value = 2.2;
-        u.mieCoefficient.value = 0.006;
+      if (u.uSunDir) u.uSunDir.value.copy(p.sunPos).normalize();
+      if (u.sunPosition) u.sunPosition.value.copy(p.sunPos).normalize();
+
+      if (u.uSunI) {
+        if (presetKey === 'sunset') {
+          u.uSunI.value = 24.0;
+          if (u.uCloudCover) u.uCloudCover.value = 0.55;
+        } else if (presetKey === 'drizzle') {
+          u.uSunI.value = 4.0;
+          if (u.uCloudCover) u.uCloudCover.value = 0.88;
+        } else if (presetKey === 'night') {
+          u.uSunI.value = 0.5;
+          if (u.uCloudCover) u.uCloudCover.value = 0.25;
+        } else {
+          u.uSunI.value = 18.0;
+          if (u.uCloudCover) u.uCloudCover.value = 0.50;
+        }
+      } else if (u.turbidity) {
+        if (presetKey === 'sunset') {
+          u.turbidity.value = 10.0;
+          u.rayleigh.value = 3.6;
+          u.mieCoefficient.value = 0.012;
+        } else if (presetKey === 'drizzle') {
+          u.turbidity.value = 14.0;
+          u.rayleigh.value = 1.2;
+          u.mieCoefficient.value = 0.02;
+        } else if (presetKey === 'night') {
+          u.turbidity.value = 2.0;
+          u.rayleigh.value = 0.3;
+          u.mieCoefficient.value = 0.001;
+        } else {
+          u.turbidity.value = 7.5;
+          u.rayleigh.value = 2.2;
+          u.mieCoefficient.value = 0.006;
+        }
       }
     } else if (this.scene.background) {
       this.scene.background.copy(p.fogColor);

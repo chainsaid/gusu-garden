@@ -14,9 +14,9 @@ const FilmicGradeShader = {
   name: 'FilmicGradeShader',
   uniforms: {
     tDiffuse: { value: null },
-    uVignette: { value: 0.28 },
-    uContrast: { value: 1.06 },
-    uWarmth: { value: 0.04 },
+    uVignette: { value: 0.20 },
+    uContrast: { value: 1.04 },
+    uWarmth: { value: 0.02 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -71,12 +71,12 @@ export class PostPipeline {
     this.renderPass = new RenderPass(this.scene, this.camera);
     this.composer.addPass(this.renderPass);
 
-    // 3. 柔和大气泛光 (晨暮暖阳、水面反光与飞檐微光)
+    // 3. 柔和大气泛光 (晨暮暖阳、水面反光与飞檐微光，阈值设为 1.25，强度设为 0.05，严格对齐原版电影 0.06 泛光比例)
     this.bloomPass = new UnrealBloomPass(
       new THREE.Vector2(width, height),
-      0.18,  // strength
-      0.40,  // radius
-      0.82   // threshold
+      0.05,  // strength
+      0.25,  // radius
+      1.25   // threshold
     );
     this.composer.addPass(this.bloomPass);
 
@@ -106,3 +106,4 @@ export class PostPipeline {
     this.enabled = !!val;
   }
 }
+

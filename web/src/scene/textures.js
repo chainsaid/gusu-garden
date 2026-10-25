@@ -220,7 +220,7 @@ export function createStoneTextures() {
   const ctx = canvas.getContext('2d');
 
   // 太湖青灰石基色
-  ctx.fillStyle = '#5c6468';
+  ctx.fillStyle = '#687074';
   ctx.fillRect(0, 0, S, S);
 
   // 花岗石白石英细粒与黑云母微粒
@@ -247,39 +247,176 @@ export function createStoneTextures() {
   return { map: albedo, roughness: 0.82, metalness: 0.03 };
 }
 
-// 5. 苏州园林经典“花街铺地”庭院地坪贴图 (卵石拼花 + 瓦片间杂 + 青石阶沿)
+// 4.5 极高保真太湖石/冠云峰 PBR 材质套件 (皱漏瘦透溶蚀沟壑 + 矿物氧化 + 法线凹凸)
+export function createTaihuRockTextures() {
+  const S = 512;
+  const heightData = new Float32Array(S * S);
+
+  // 1. 生成程序化溶蚀高程场 (Heightfield)
+  for (let y = 0; y < S; y++) {
+    const ny = y / S;
+    for (let x = 0; x < S; x++) {
+      const nx = x / S;
+      // (a) 纵向水蚀沟槽 (Vertical dissolution rills)
+      const rillFreq = 16.0;
+      const rillWarp = Math.sin(ny * 12.0) * 0.08 + Math.sin(ny * 24.0) * 0.03;
+      const rillVal = Math.sin((nx + rillWarp) * rillFreq * Math.PI * 2) * 0.5 + 0.5;
+      const rill = Math.pow(rillVal, 2.8) * 0.45;
+
+      // (b) 喀斯特多孔蜂窝溶蚀小穴 (Karst dissolution pits)
+      const pitVal1 = Math.sin(nx * 38.0) * Math.cos(ny * 38.0);
+      const pitVal2 = Math.sin(nx * 76.0 + 1.2) * Math.cos(ny * 76.0 + 0.8);
+      const pits = Math.max(0, pitVal1 * 0.6 + pitVal2 * 0.4 - 0.45) * 0.35;
+
+      // (c) 岩石基底细腻砂质起伏
+      const baseGrain = (Math.random() - 0.5) * 0.08;
+
+      const idx = y * S + x;
+      heightData[idx] = Math.max(0, Math.min(1, 0.5 + rill + pits + baseGrain));
+    }
+  }
+
+  // 2. 绘制彩色漫反射 (Albedo)
+  const aCanvas = document.createElement('canvas');
+  aCanvas.width = aCanvas.height = S;
+  const actx = aCanvas.getContext('2d');
+  const aImg = actx.createImageData(S, S);
+  const aData = aImg.data;
+
+  // 太湖石经典色调：冷银灰、氧化赭黄与青苔初萌
+  for (let y = 0; y < S; y++) {
+    const ny = y / S;
+    for (let x = 0; x < S; x++) {
+      const nx = x / S;
+      const idx = y * S + x;
+      const h = heightData[idx];
+
+      // 银白基色 (苏式太湖石，对齐母本 vec3(0.55, 0.57, 0.58))
+      let r = 142 + (h - 0.5) * 45;
+      let g = 146 + (h - 0.5) * 45;
+      let b = 150 + (h - 0.5) * 42;
+
+      // 溶蚀沟底暗青灰阴影
+      if (h < 0.42) {
+        r *= 0.78; g *= 0.80; b *= 0.82;
+      }
+
+      // 局部氧化暖赭矿物晕染
+      const ochreNoise = Math.sin(nx * 8.0 + 3.1) * Math.cos(ny * 8.0 + 1.7);
+      if (ochreNoise > 0.3) {
+        const ochreMix = (ochreNoise - 0.3) * 0.6;
+        r = r * (1 - ochreMix) + 165 * ochreMix;
+        g = g * (1 - ochreMix) + 148 * ochreMix;
+        b = b * (1 - ochreMix) + 118 * ochreMix;
+      }
+
+      // 微孔黑斑点缀
+      if (Math.random() < 0.015) {
+        r *= 0.6; g *= 0.6; b *= 0.6;
+      }
+
+      const p4 = idx * 4;
+      aData[p4] = Math.floor(Math.max(0, Math.min(255, r)));
+      aData[p4 + 1] = Math.floor(Math.max(0, Math.min(255, g)));
+      aData[p4 + 2] = Math.floor(Math.max(0, Math.min(255, b)));
+      aData[p4 + 3] = 255;
+    }
+  }
+  actx.putImageData(aImg, 0, 0);
+
+  // 3. 由高程场派生 Sobel 切线空间法线贴图 (Normal Map)
+  const nCanvas = document.createElement('canvas');
+  nCanvas.width = nCanvas.height = S;
+  const nctx = nCanvas.getContext('2d');
+  const nImg = nctx.createImageData(S, S);
+  const nData = nImg.data;
+  const bumpStrength = 4.5;
+
+  for (let y = 0; y < S; y++) {
+    const ym1 = (y - 1 + S) % S;
+    const yp1 = (y + 1) % S;
+    for (let x = 0; x < S; x++) {
+      const xm1 = (x - 1 + S) % S;
+      const xp1 = (x + 1) % S;
+
+      // 3x3 Sobel 差分滤波
+      const h00 = heightData[ym1 * S + xm1];
+      const h10 = heightData[ym1 * S + x];
+      const h20 = heightData[ym1 * S + xp1];
+      const h01 = heightData[y * S + xm1];
+      const h21 = heightData[y * S + xp1];
+      const h02 = heightData[yp1 * S + xm1];
+      const h12 = heightData[yp1 * S + x];
+      const h22 = heightData[yp1 * S + xp1];
+
+      const dx = (h20 + 2 * h21 + h22) - (h00 + 2 * h01 + h02);
+      const dy = (h02 + 2 * h12 + h22) - (h00 + 2 * h10 + h20);
+
+      let nx = -dx * bumpStrength;
+      let ny = -dy * bumpStrength;
+      let nz = 1.0;
+      const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1.0;
+      nx /= len; ny /= len; nz /= len;
+
+      const p4 = (y * S + x) * 4;
+      nData[p4] = Math.floor((nx * 0.5 + 0.5) * 255);
+      nData[p4 + 1] = Math.floor((ny * 0.5 + 0.5) * 255);
+      nData[p4 + 2] = Math.floor((nz * 0.5 + 0.5) * 255);
+      nData[p4 + 3] = 255;
+    }
+  }
+  nctx.putImageData(nImg, 0, 0);
+
+  const albedoTex = new THREE.CanvasTexture(aCanvas);
+  albedoTex.wrapS = albedoTex.wrapT = THREE.RepeatWrapping;
+  albedoTex.colorSpace = THREE.SRGBColorSpace;
+  albedoTex.repeat.set(4, 4);
+
+  const normalTex = new THREE.CanvasTexture(nCanvas);
+  normalTex.wrapS = normalTex.wrapT = THREE.RepeatWrapping;
+  normalTex.repeat.set(4, 4);
+
+  return {
+    map: albedoTex,
+    normalMap: normalTex,
+    roughness: 0.84,
+    metalness: 0.02,
+  };
+}
+
+// 5. 苏州园林经典“花街铺地”庭院地坪贴图 (暖灰青石方砖 + 砂浆拼缝 + 石英质感)
 export function createPavingTextures() {
   const S = 512;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = S;
   const ctx = canvas.getContext('2d');
 
-  // 深泥灰与古旧石灰砂浆底
-  ctx.fillStyle = '#42484a';
+  // 古旧石灰砂浆底
+  ctx.fillStyle = '#585248';
   ctx.fillRect(0, 0, S, S);
 
-  // 绘制方形青石大砖拼缝网格 (苏式方砖地)
+  // 绘制方形青石大砖拼缝网格 (温润暖灰花岗岩方砖)
   const tileSize = 64;
   for (let x = 0; x < S; x += tileSize) {
     for (let y = 0; y < S; y += tileSize) {
-      const tone = 0.92 + Math.random() * 0.16;
-      ctx.fillStyle = `rgb(${Math.floor(70 * tone)}, ${Math.floor(76 * tone)}, ${Math.floor(78 * tone)})`;
+      const tone = 0.88 + Math.random() * 0.24;
+      ctx.fillStyle = `rgb(${Math.floor(148 * tone)}, ${Math.floor(142 * tone)}, ${Math.floor(132 * tone)})`;
       ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
-      
+
       // 砖缝泥灰阴影
-      ctx.fillStyle = '#262a2b';
+      ctx.fillStyle = '#3e3830';
       ctx.fillRect(x, y, tileSize, 2);
       ctx.fillRect(x, y, 2, tileSize);
     }
   }
 
-  // 偶有青苔从石缝渗出
-  for (let i = 0; i < 30; i++) {
+  // 微量古意水渍与青苔
+  for (let i = 0; i < 40; i++) {
     const rx = Math.random() * S;
     const ry = Math.random() * S;
-    ctx.fillStyle = 'rgba(55, 78, 52, 0.35)';
+    ctx.fillStyle = 'rgba(75, 95, 65, 0.28)';
     ctx.beginPath();
-    ctx.arc(rx, ry, 6 + Math.random() * 12, 0, Math.PI * 2);
+    ctx.arc(rx, ry, 4 + Math.random() * 8, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -288,5 +425,6 @@ export function createPavingTextures() {
   albedo.colorSpace = THREE.SRGBColorSpace;
   albedo.repeat.set(16, 16);
 
-  return { map: albedo, roughness: 0.84, metalness: 0.02 };
+  return { map: albedo, roughness: 0.82, metalness: 0.02 };
 }
+

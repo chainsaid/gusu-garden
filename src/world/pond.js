@@ -19,7 +19,7 @@ try { const m = await import('../shots.js'); SHOTS = m.SHOTS; evalShot = m.evalS
 // ---------------------------------------------------------------------------
 // Site: shore distance field, floor depth, map texture
 // ---------------------------------------------------------------------------
-async function makeSite(ctx) {
+export async function makeSite(ctx) {
   const L = ctx.L;
   const P = L.pond;
   const waterY = P.waterY ?? -0.55;

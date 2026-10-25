@@ -21,17 +21,17 @@ export class Engine {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.setSize(this.width, this.height);
     
-    // 电影级 ACES 胶片色调映射与曝光控制
+    // 电影级 ACES 胶片色调映射与曝光控制 (与原版电影管线 1.0 曝光精准对齐)
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
+    this.renderer.toneMappingExposure = 1.0;
 
     // 启用高质量软阴影 (PCFShadowMap)
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
-    // 2. 初始化核心场景与相机
+    // 2. 初始化核心场景与相机 (将远平面设为 2500m，确保远山与远景借景不被视锥截断)
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(45, this.width / this.height, 0.2, 800);
+    this.camera = new THREE.PerspectiveCamera(45, this.width / this.height, 0.2, 2500);
     this.camera.position.set(8, 2.2, 8);
     this.camera.lookAt(0, 2.8, -2);
 

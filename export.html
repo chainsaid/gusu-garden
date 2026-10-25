@@ -12,7 +12,7 @@
 </head>
 <body>
   <h1>姑苏园林核心几何资产导出器 (GLB Exporter)</h1>
-  <p>从纯代码世界中提取【水榭主厅、北寺塔、青石拱桥、太湖石石景、荷池驳岸、庭院围墙】并打包为标准 glTF/GLB 格式。</p>
+  <p>从纯代码世界中提取【水榭主厅、北寺塔、青石拱桥、太湖石石景、荷池驳岸、庭院围墙、庭院铺地】并打包为标准 glTF/GLB 格式。</p>
   <div id="status">正在准备环境...</div>
   <div style="margin: 15px 0;">
     <button id="btnExport" disabled>手动下载 gusu-garden.glb</button>
@@ -22,7 +22,6 @@
   <script type="module">
     import * as THREE from 'three';
     import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-    import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
     import { materials, patch, std, phys, glow, PROC, depthMaterialFor } from './src/core/materials.js';
     import { L } from './src/layout.js';
     import { setDetailTier } from './src/core/detail.js';
@@ -39,8 +38,78 @@
       logEl.scrollTop = logEl.scrollHeight;
     };
 
-    // 配置适中精度导出 (detail 0.35 保持发戗、铁刹与望柱精致，同时剔除死面)
-    setDetailTier('realtime', 0.35);
+    // 突破 Chromium 原生 FileReader 内存截断与 NotReadableError 限制：
+    // Three.js GLTFExporter 内部仅使用 Blob + FileReader 来拼接 ArrayBuffer 数组。
+    // 我们在此截获 Blob 构造并直接在纯内存中完成毫秒级无损合并，彻底杜绝操作系统与 Chromium 临时文件权限异常。
+    const OrigBlob = window.Blob;
+    window.Blob = class CustomBlob extends OrigBlob {
+      constructor(parts, options) {
+        super(parts, options);
+        this._rawParts = parts ? Array.from(parts) : [];
+      }
+    };
+
+    function flattenPartsToBuffer(parts) {
+      function getLen(p) {
+        if (!p) return 0;
+        if (p instanceof ArrayBuffer) return p.byteLength;
+        if (ArrayBuffer.isView(p)) return p.byteLength;
+        if (typeof p === 'string') return new TextEncoder().encode(p).byteLength;
+        if (p._rawParts) {
+          let s = 0;
+          for (const sp of p._rawParts) s += getLen(sp);
+          return s;
+        }
+        return p.size || 0;
+      }
+
+      let total = 0;
+      for (const p of parts) total += getLen(p);
+      const out = new Uint8Array(total);
+      let offset = 0;
+
+      function writePart(p) {
+        if (!p) return;
+        if (p instanceof ArrayBuffer) {
+          out.set(new Uint8Array(p), offset);
+          offset += p.byteLength;
+        } else if (ArrayBuffer.isView(p)) {
+          out.set(new Uint8Array(p.buffer, p.byteOffset, p.byteLength), offset);
+          offset += p.byteLength;
+        } else if (typeof p === 'string') {
+          const enc = new TextEncoder().encode(p);
+          out.set(enc, offset);
+          offset += enc.byteLength;
+        } else if (p._rawParts) {
+          for (const sp of p._rawParts) writePart(sp);
+        }
+      }
+
+      for (const p of parts) writePart(p);
+      return out.buffer;
+    }
+
+    const origReadAsArrayBuffer = FileReader.prototype.readAsArrayBuffer;
+    FileReader.prototype.readAsArrayBuffer = function (blob) {
+      if (blob && blob._rawParts && blob._rawParts.length > 0) {
+        try {
+          const buf = flattenPartsToBuffer(blob._rawParts);
+          Object.defineProperty(this, 'result', { value: buf, configurable: true, writable: true });
+          Object.defineProperty(this, 'readyState', { value: 2, configurable: true, writable: true });
+          queueMicrotask(() => {
+            if (typeof this.onload === 'function') this.onload(new ProgressEvent('load'));
+            if (typeof this.onloadend === 'function') this.onloadend(new ProgressEvent('loadend'));
+          });
+          return;
+        } catch (e) {
+          console.warn('[CustomBlob readAsArrayBuffer error]', e);
+        }
+      }
+      origReadAsArrayBuffer.call(this, blob);
+    };
+
+    // 配置适中高精度导出 (detail 0.38 保持椽条紧密、筒瓦层叠、斗栱细腻与发戗真实，同时控制内存安全)
+    setDetailTier('realtime', 0.38);
 
     const scene = new THREE.Scene();
     scene.userData = {};
@@ -53,60 +122,184 @@
       modules: {},
     };
 
-    // 标准化江南 PBR 材质映射表 (确保导出的 glb 拥有干净合法的白墙黛瓦与栗壳木质感)
+    // 标准化江南古典 PBR 材质映射表
     const MAT_MAP = {
-      woodChestnut: new THREE.MeshStandardMaterial({ name: 'woodChestnut', color: 0x4a2416, roughness: 0.60, metalness: 0.04 }),
-      tileCyan: new THREE.MeshStandardMaterial({ name: 'tileCyan', color: 0x2e353b, roughness: 0.82, metalness: 0.05 }),
-      plasterWhite: new THREE.MeshStandardMaterial({ name: 'plasterWhite', color: 0xf2ede4, roughness: 0.92, metalness: 0.01 }),
-      stoneCyan: new THREE.MeshStandardMaterial({ name: 'stoneCyan', color: 0x768084, roughness: 0.78, metalness: 0.04 }),
-      taihuRock: new THREE.MeshStandardMaterial({ name: 'taihuRock', color: 0x62666a, roughness: 0.90, metalness: 0.02 }),
-      castIron: new THREE.MeshStandardMaterial({ name: 'castIron', color: 0x202224, roughness: 0.65, metalness: 0.45 }),
-      pearlGold: new THREE.MeshStandardMaterial({ name: 'pearlGold', color: 0xdca646, roughness: 0.32, metalness: 0.88 }),
+      woodChestnut: new THREE.MeshStandardMaterial({ name: 'woodChestnut', color: 0x44261a, roughness: 0.58, metalness: 0.02 }),
+      woodDark: new THREE.MeshStandardMaterial({ name: 'woodDark', color: 0x221712, roughness: 0.62, metalness: 0.04 }),
+      tileCyan: new THREE.MeshStandardMaterial({ name: 'tileCyan', color: 0x2c3338, roughness: 0.80, metalness: 0.05 }),
+      plasterWhite: new THREE.MeshStandardMaterial({ name: 'plasterWhite', color: 0xf5f0e8, roughness: 0.92, metalness: 0.01 }),
+      stoneCyan: new THREE.MeshStandardMaterial({ name: 'stoneCyan', color: 0xd2cdc4, roughness: 0.75, metalness: 0.02 }),
+      stoneGib: new THREE.MeshStandardMaterial({ name: 'stoneGib', color: 0x828b8e, roughness: 0.68, metalness: 0.02 }),
+      taihuRock: new THREE.MeshStandardMaterial({ name: 'taihuRock', color: 0x6e7276, roughness: 0.88, metalness: 0.02 }),
+      castIron: new THREE.MeshStandardMaterial({ name: 'castIron', color: 0x242628, roughness: 0.65, metalness: 0.45 }),
+      pearlGold: new THREE.MeshStandardMaterial({ name: 'pearlGold', color: 0xdca646, roughness: 0.32, metalness: 0.85 }),
+      pagodaOchre: new THREE.MeshStandardMaterial({ name: 'pagodaOchre', color: 0xd4a656, roughness: 0.90, metalness: 0.01 }),
+      pagodaRed: new THREE.MeshStandardMaterial({ name: 'pagodaRed', color: 0x5a2318, roughness: 0.55, metalness: 0.02 }),
+      lanternPaper: new THREE.MeshStandardMaterial({ name: 'lanternPaper', color: 0xffd188, emissive: 0xff9922, emissiveIntensity: 0.8, roughness: 0.9 }),
+      paperWhite: new THREE.MeshStandardMaterial({ name: 'paperWhite', color: 0xf6efe4, roughness: 0.95, metalness: 0.0 }),
+      woodFloor: new THREE.MeshStandardMaterial({ name: 'woodFloor', color: 0x1f140e, roughness: 0.28, metalness: 0.08 }),
+      mossGround: new THREE.MeshStandardMaterial({ name: 'mossGround', color: 0x384c24, roughness: 0.95, metalness: 0.01 }),
+      silkRed: new THREE.MeshStandardMaterial({ name: 'silkRed', color: 0x8a241b, roughness: 0.65, metalness: 0.02 }),
       defaultMat: new THREE.MeshStandardMaterial({ name: 'defaultGrey', color: 0x888888, roughness: 0.7, metalness: 0.1 }),
     };
 
-    function resolveStdMat(srcMat) {
-      if (!srcMat) return MAT_MAP.defaultMat;
-      const n = (srcMat.name || '').toLowerCase();
-      if (/tile|瓦/i.test(n)) return MAT_MAP.tileCyan;
-      if (/plaster|white|墙|壁/i.test(n)) return MAT_MAP.plasterWhite;
-      if (/wood|chestnut|timber|col|beam|rafter|red|柱|梁/i.test(n)) return MAT_MAP.woodChestnut;
-      if (/rock|taihu|湖石|峰/i.test(n)) return MAT_MAP.taihuRock;
-      if (/iron|铁|刹/i.test(n)) return MAT_MAP.castIron;
-      if (/gold|pearl|金|珠/i.test(n)) return MAT_MAP.pearlGold;
-      if (/stone|granite|rock|podium|stair|台基|阶/i.test(n)) return MAT_MAP.stoneCyan;
-      return MAT_MAP.stoneCyan;
+    function resolveStdMat(srcMat, meshName = '', parentName = '') {
+      if (srcMat && srcMat.map) return srcMat; // 保留立轴与对联原版贴图
+      const n = ((srcMat && srcMat.name) || '').toLowerCase();
+      const mn = (meshName || '').toLowerCase();
+      const pn = (parentName || '').toLowerCase();
+      const combined = `${n} ${mn} ${pn}`;
+
+      // 0. 室内中堂文人雅集陈设构件 (Interior)
+      if (combined.includes('interior') || /scroll|couplet|zhongtang|screen|curio|luohan|guqin|altar|chair|squaretable|fruit|vase|burner/i.test(combined)) {
+        if (/scroll|couplet|zhongtang/i.test(combined) && srcMat && srcMat.map) return srcMat;
+        if (/floor|nanmu/i.test(combined)) return MAT_MAP.woodFloor;
+        if (/gold|pearl|gilt|relief|金|panel/i.test(combined)) return MAT_MAP.pearlGold;
+        if (/black|lacquer|漆/i.test(combined)) return MAT_MAP.woodDark;
+        if (/silk|tassel|cord|red/i.test(combined)) return MAT_MAP.silkRed;
+        if (/paper|lantern/i.test(combined)) return MAT_MAP.lanternPaper;
+        return MAT_MAP.woodChestnut;
+      }
+
+      // 1. 灯笼发光纸质 (宫灯、角灯、灯笼面)
+      if (/paper|panel|lanternpanel/i.test(mn) && /lantern/i.test(combined)) return MAT_MAP.lanternPaper;
+      if (/props\.paper|lanternpaper/i.test(n)) return MAT_MAP.lanternPaper;
+
+      // 2. 北寺塔专属材质 (赭黄粉壁、红棕斗栱与飞椽、铁刹相轮)
+      if (combined.includes('pagoda')) {
+        if (/plaster|wall|赭/i.test(combined)) return MAT_MAP.pagodaOchre;
+        if (/iron|spire|needle|stud|刹|钉/i.test(combined)) return MAT_MAP.castIron;
+        if (/tile|disc|noshi|lip|瓦|脊/i.test(combined)) return MAT_MAP.tileCyan;
+        if (/gold|pearl|lotuscap|珠|顶/i.test(combined)) return MAT_MAP.pearlGold;
+        if (/granite|stone|台基/i.test(combined)) return MAT_MAP.stoneCyan;
+        return MAT_MAP.pagodaRed; // 斗栱、飞椽、梁枋、立柱、勾栏平座默认红棕木作
+      }
+
+      // 3. 小飞虹石拱桥构件
+      if (combined.includes('bridge')) {
+        if (/lotuscap|gib|望柱/i.test(combined)) return MAT_MAP.stoneGib; // 青石雕刻望柱头
+        if (/dark|capping|band/i.test(combined)) return MAT_MAP.woodDark;
+        if (/gold|kazari/i.test(combined)) return MAT_MAP.pearlGold;
+        if (/granite|stone|pier|abutment|墩|台/i.test(combined)) return MAT_MAP.stoneCyan;
+        return MAT_MAP.woodChestnut; // 拱券红木、桥面铺板、寻杖栏杆
+      }
+
+      // 4. 水榭主厅构件
+      if (combined.includes('hall')) {
+        if (/plaster|hook_37169040|hook_36640648|intplaster/i.test(combined)) return MAT_MAP.plasterWhite;
+        if (/intfloor/i.test(combined)) return MAT_MAP.woodFloor;
+        if (/podium|hook_24735478|台基|踏步/i.test(combined)) return MAT_MAP.stoneCyan;
+        if (/tile|halltile/i.test(combined)) return MAT_MAP.tileCyan;
+        if (/goldcarve|gold|carve/i.test(combined)) return MAT_MAP.pearlGold;
+        if (/hook_42614364|hook_23556852|iron|metal/i.test(combined)) return MAT_MAP.castIron;
+        if (/soffit|bracket|panel|beam|red|chestnut|wood|timber|intwall|intceil/i.test(combined)) return MAT_MAP.woodChestnut;
+      }
+
+      // 5. 通用类别匹配
+      if (/tile|瓦|noshi|disc|roof/i.test(combined)) return MAT_MAP.tileCyan;
+      if (/plaster|white|墙|壁|粉/i.test(combined)) return MAT_MAP.plasterWhite;
+      if (/taihu|rock|peak|pondrocks|湖石|峰|假山/i.test(combined)) return MAT_MAP.taihuRock;
+      if (/ground|moss|lawn|earth|soil|草坪|苔藓|地坪/i.test(combined)) return MAT_MAP.mossGround;
+      if (/iron|dark|stud|castiron|铁|钉/i.test(combined)) return MAT_MAP.castIron;
+      if (/gold|pearl|bronze|bell|windbell|金|铜|铎|铃/i.test(combined)) return MAT_MAP.pearlGold;
+      if (/stone|granite|podium|stair|paving|pondwalls|curb|gutter|台基|阶|石|铺地/i.test(combined)) return MAT_MAP.stoneCyan;
+      if (/wood|chestnut|timber|col|beam|rafter|red|lacquer|deck|panel|soffit|bracket|corridor|door|chair|table|bed|shelf|zither|qin|柱|梁|椽|枋|斗|栱|板|木/i.test(combined)) return MAT_MAP.woodChestnut;
+
+      return MAT_MAP.woodChestnut;
     }
 
     function prepareCleanMeshes(group, name) {
       log(`[${name}] 正在预处理：烘焙展平 InstancedMesh 并规范化材质...`);
-      // 1. 展平 InstancedMesh -> 独立 Mesh
+      
+      // 0. 清理特效与非 Mesh 物体 (灯光、点微粒、自定义着色器)
+      const toRemove = [];
+      group.traverse((c) => {
+        if (c.customDepthMaterial) c.customDepthMaterial = null;
+        if (c.customDistanceMaterial) c.customDistanceMaterial = null;
+        if (c.isPoints || c.isLight || c.isLine || c.isSprite) {
+          toRemove.push(c);
+        } else if (c.isMesh && c.material && (c.material.isShaderMaterial || c.material.type === 'ShaderMaterial')) {
+          toRemove.push(c);
+        }
+      });
+      for (const obj of toRemove) {
+        if (obj.parent) obj.parent.remove(obj);
+      }
+
+      // 1. 高性能展平 InstancedMesh -> 独立标准 Mesh
       const toReplace = [];
       group.traverse((c) => {
         if (c.isInstancedMesh) toReplace.push(c);
       });
       if (toReplace.length > 0) {
-        log(`[${name}] 发现 ${toReplace.length} 个实例合批网格，正在烘焙转换为独立标准网格...`);
+        log(`[${name}] 发现 ${toReplace.length} 个实例合批网格，正在执行高效烘焙展平...`);
+        const matrix = new THREE.Matrix4();
+        const normalMatrix = new THREE.Matrix3();
+        const v = new THREE.Vector3();
+        const n = new THREE.Vector3();
+
         for (const im of toReplace) {
           const parent = im.parent;
           if (!parent) continue;
           const count = im.count;
           const baseGeo = im.geometry;
-          const matrix = new THREE.Matrix4();
-          const geos = [];
+          if (!baseGeo || !baseGeo.attributes.position) continue;
+
+          const posAttr = baseGeo.attributes.position;
+          const nrmAttr = baseGeo.attributes.normal;
+          const uvAttr = baseGeo.attributes.uv;
+          const index = baseGeo.index;
+          const vCount = posAttr.count;
+          const iCount = index ? index.count : 0;
+          const totalV = vCount * count;
+
+          const outPos = new Float32Array(totalV * 3);
+          const outNrm = nrmAttr ? new Float32Array(totalV * 3) : null;
+          const outUv = uvAttr ? new Float32Array(totalV * 2) : null;
+          const outIdx = index ? (totalV > 65535 ? new Uint32Array(iCount * count) : new Uint16Array(iCount * count)) : null;
+
           for (let i = 0; i < count; i++) {
             im.getMatrixAt(i, matrix);
-            const cloned = baseGeo.clone();
-            cloned.applyMatrix4(matrix);
-            geos.push(cloned);
+            normalMatrix.getNormalMatrix(matrix);
+            const vOffset = i * vCount;
+
+            for (let j = 0; j < vCount; j++) {
+              v.fromBufferAttribute(posAttr, j).applyMatrix4(matrix);
+              outPos[(vOffset + j) * 3] = v.x;
+              outPos[(vOffset + j) * 3 + 1] = v.y;
+              outPos[(vOffset + j) * 3 + 2] = v.z;
+
+              if (nrmAttr && outNrm) {
+                n.fromBufferAttribute(nrmAttr, j).applyMatrix3(normalMatrix).normalize();
+                outNrm[(vOffset + j) * 3] = n.x;
+                outNrm[(vOffset + j) * 3 + 1] = n.y;
+                outNrm[(vOffset + j) * 3 + 2] = n.z;
+              }
+
+              if (uvAttr && outUv) {
+                outUv[(vOffset + j) * 2] = uvAttr.getX(j);
+                outUv[(vOffset + j) * 2 + 1] = uvAttr.getY(j);
+              }
+            }
+
+            if (index && outIdx) {
+              const iOffset = i * iCount;
+              for (let k = 0; k < iCount; k++) {
+                outIdx[iOffset + k] = index.getX(k) + vOffset;
+              }
+            }
           }
-          if (geos.length > 0) {
-            const mergedGeo = mergeGeometries(geos, false);
-            const newMesh = new THREE.Mesh(mergedGeo, im.material);
-            newMesh.name = im.name;
-            parent.remove(im);
-            parent.add(newMesh);
-          }
+
+          const mergedGeo = new THREE.BufferGeometry();
+          mergedGeo.setAttribute('position', new THREE.BufferAttribute(outPos, 3));
+          if (outNrm) mergedGeo.setAttribute('normal', new THREE.BufferAttribute(outNrm, 3));
+          if (outUv) mergedGeo.setAttribute('uv', new THREE.BufferAttribute(outUv, 2));
+          if (outIdx) mergedGeo.setIndex(new THREE.BufferAttribute(outIdx, 1));
+
+          const newMesh = new THREE.Mesh(mergedGeo, im.material);
+          newMesh.name = im.name || 'instancedMesh';
+          parent.remove(im);
+          parent.add(newMesh);
         }
       }
 
@@ -118,7 +311,8 @@
           const g = c.geometry;
           const tris = g.index ? g.index.count / 3 : g.attributes.position.count / 3;
           totalTris += tris;
-          c.material = resolveStdMat(c.material);
+          const parentName = c.parent ? c.parent.name : '';
+          c.material = resolveStdMat(c.material, c.name, parentName);
           c.castShadow = true;
           c.receiveShadow = true;
         }
@@ -131,8 +325,26 @@
       log(`--- 开始处理资产 [${targetName}] ---`);
       const cleanGroup = prepareCleanMeshes(group, targetName);
       
+      log(`[${targetName}] 正在调用 GLTFExporter 进行二进制打包...`);
       const exporter = new GLTFExporter();
-      const glbBuffer = await exporter.parseAsync(cleanGroup, { binary: true });
+      const glbBuffer = await new Promise((resolve, reject) => {
+        exporter.parse(
+          cleanGroup,
+          (result) => {
+            if (!result) {
+              log(`[${targetName}] parse onDone returned null!`);
+              reject(new Error(`onDone result is null`));
+            } else {
+              resolve(result);
+            }
+          },
+          (err) => {
+            log(`[${targetName}] parse onError: ${err && (err.stack || err.message || err)}`);
+            reject(err);
+          },
+          { binary: true }
+        );
+      });
       const sizeMB = (glbBuffer.byteLength / 1024 / 1024).toFixed(2);
       log(`[${targetName}] GLB 导出完成: ${sizeMB} MB`);
 
@@ -143,8 +355,9 @@
           headers: { 'Content-Type': 'application/octet-stream' },
           body: glbBuffer
         });
+        const respText = await resp.text();
         if (resp.ok) {
-          log(`✓ [${targetName}] 自动化上传成功！`);
+          log(`✓ [${targetName}] 自动化上传成功！(${respText})`);
         }
       } catch (e) {
         log(`上传失败: ${e.message}`);
@@ -153,28 +366,104 @@
 
     async function runExport() {
       try {
-        log('1. 正在构建核心建筑群 (hall, bridge, props, buildings)...');
-        const coreModules = ['hall', 'bridge', 'props', 'buildings'];
-        const coreGroup = new THREE.Group();
-        coreGroup.name = 'gusu_garden_core';
-        for (const name of coreModules) {
-          log(`  -> 构建模块 [${name}]...`);
-          const mod = await import(`./src/world/${name}.js`);
-          const res = await mod.build(ctx);
-          const obj = res.isObject3D ? res : res.object;
-          if (obj) { obj.name = name; coreGroup.add(obj); }
-        }
-        await exportGroup(coreGroup, 'core');
+        const Q = new URLSearchParams(window.location.search);
+        const targetAsset = Q.get('asset') || 'all';
 
-        log('2. 正在构建借景北寺塔 (pagoda)...');
-        const pagodaMod = await import('./src/world/pagoda.js');
-        const pRes = await pagodaMod.build(ctx);
-        const pObj = pRes.isObject3D ? pRes : pRes.object;
-        const pagodaGroup = new THREE.Group();
-        pagodaGroup.name = 'beisi_pagoda';
-        const merged = pObj.getObjectByName('pagoda_merged') || pObj;
-        pagodaGroup.add(merged);
-        await exportGroup(pagodaGroup, 'pagoda');
+        if (targetAsset === 'all' || targetAsset === 'core') {
+          log('1. 正在构建核心建筑群与造园硬景资产 (hall, bridge, props, buildings, paving, pondStone, anchors)...');
+          const coreGroup = new THREE.Group();
+          coreGroup.name = 'gusu_garden_core';
+
+          const builtResults = {};
+
+          // 1.1 建筑模块与中堂陈设
+          const coreModules = ['hall', 'interior', 'bridge', 'props', 'buildings'];
+          for (const name of coreModules) {
+            log(`  -> 构建模块 [${name}]...`);
+            const mod = await import(`./src/world/${name}.js`);
+            const res = await mod.build(ctx);
+            builtResults[name] = res;
+            const obj = res.isObject3D ? res : res.object;
+            if (obj) { obj.name = name; coreGroup.add(obj); }
+          }
+
+          // 1.2 地面花岗岩铺装、阶梯与排水沟 (terrain-paving) 与自然地坪 (terrain-ground)
+          log(`  -> 构建庭院青石铺地与石阶踏道 (paving)...`);
+          const tf = await import('./src/world/terrain-field.js');
+          const F = tf.createField(L);
+          ctx.modules.terrain = { field: F };
+          const tp = await import('./src/world/terrain-paving.js');
+          const pavingMesh = tp.buildPaving(ctx, F);
+          if (pavingMesh) {
+            pavingMesh.name = 'terrainPaving';
+            coreGroup.add(pavingMesh);
+          }
+
+          log(`  -> 构建庭院自然地坪与苔藓草坪 (terrainGround)...`);
+          const tg = await import('./src/world/terrain-ground.js');
+          const groundRes = tg.buildGround(ctx, F);
+          if (groundRes && groundRes.mesh) {
+            groundRes.mesh.name = 'courtyardGround';
+            const gPos = groundRes.mesh.geometry.attributes.position;
+            if (gPos && !groundRes.mesh.geometry.attributes.uv) {
+              const uvs = new Float32Array(gPos.count * 2);
+              for (let v = 0; v < gPos.count; v++) {
+                uvs[v * 2] = gPos.getX(v) * 0.15;
+                uvs[v * 2 + 1] = gPos.getZ(v) * 0.15;
+              }
+              groundRes.mesh.geometry.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+            }
+            coreGroup.add(groundRes.mesh);
+          }
+
+          // 1.3 荷池驳岸叠石与护岸石壁 (pond-stone)
+          log(`  -> 构建荷池叠石驳岸与石矶 (pondStone)...`);
+          const { makeSite } = await import('./src/world/pond.js');
+          const { pondUniforms } = await import('./src/world/pond-water.js');
+          const { buildStone } = await import('./src/world/pond-stone.js');
+          const site = await makeSite(ctx);
+          const U = pondUniforms(site);
+          const stoneRes = buildStone(ctx, site, U);
+          if (stoneRes && stoneRes.object) {
+            stoneRes.object.name = 'pondStone';
+            coreGroup.add(stoneRes.object);
+          }
+
+          // 1.4 悬挂宫灯与飞檐风铎 (placeAnchors)
+          log(`  -> 装配檐下宫灯与发戗风铎 (anchors)...`);
+          const anchors = { hangingLanterns: [], bells: [] };
+          for (const r of Object.values(builtResults)) {
+            if (r && r.anchors) {
+              for (const k of Object.keys(r.anchors)) {
+                anchors[k] = (anchors[k] || []).concat(r.anchors[k]);
+              }
+            }
+          }
+          const propsMod = await import('./src/world/props.js');
+          if (propsMod.placeAnchors && (anchors.hangingLanterns.length > 0 || anchors.bells.length > 0)) {
+            const anchorGroup = propsMod.placeAnchors(ctx, anchors);
+            if (anchorGroup) {
+              anchorGroup.name = 'anchors';
+              coreGroup.add(anchorGroup);
+            }
+          }
+
+          await exportGroup(coreGroup, 'core');
+          coreGroup.clear();
+        }
+
+        if (targetAsset === 'all' || targetAsset === 'pagoda') {
+          // 2. 借景北寺塔 (包含全部 9 层腰檐、平座、斗栱、飞椽、瓦陇、滴水、铁刹)
+          log('2. 正在构建借景北寺塔 (pagoda)...');
+          const pagodaMod = await import('./src/world/pagoda.js');
+          const pRes = await pagodaMod.build(ctx);
+          const pObj = pRes.isObject3D ? pRes : pRes.object;
+          pObj.position.set(0, 0, 0);
+          const pagodaGroup = new THREE.Group();
+          pagodaGroup.name = 'beisi_pagoda';
+          pagodaGroup.add(pObj);
+          await exportGroup(pagodaGroup, 'pagoda');
+        }
 
         statusEl.textContent = '✓ 全部核心资产导出完毕！';
         log('=============================================');

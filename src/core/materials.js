@@ -537,6 +537,9 @@ export function materials() {
   M.lanternGlow = glow([1.0, 0.58, 0.24], 9);
   M.lanternGlowSoft = glow([1.0, 0.62, 0.30], 4);
   M.flame = glow([1.0, 0.62, 0.25], 40);
+  for (const [k, v] of Object.entries(M)) {
+    if (v && v.isMaterial && !v.name) v.name = k;
+  }
   _lib = M;
   return M;
 }
