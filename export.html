@@ -108,8 +108,13 @@
       origReadAsArrayBuffer.call(this, blob);
     };
 
-    // 配置适中高精度导出 (detail 0.38 保持椽条紧密、筒瓦层叠、斗栱细腻与发戗真实，同时控制内存安全)
-    setDetailTier('realtime', 0.38);
+    // 配置导出精度档位 (可被 URL ?detail=<0.15..1> 覆盖，供导出脚本对不同资产分别设定)
+    // - core 核心建筑群: 默认 0.38，保持椽条紧密、筒瓦层叠、斗栱细腻与发戗真实
+    // - pagoda 借景北寺塔: 由导出脚本传入更低档位。塔位于 (-105,-48)，永久远观 150m 以上，
+    //   单个瓦当在屏幕上不足 2px，高频几何没有信息量却主导了闪碎感，必须大幅减面。
+    // 注: 此设置只作用于导出的 GLB，不影响 src/ 离线电影渲染 (那边仍为 DETAIL.s = 1 的完整精细节奏)。
+    const _detailOverride = parseFloat(new URLSearchParams(location.search).get('detail'));
+    setDetailTier('realtime', Number.isFinite(_detailOverride) ? _detailOverride : 0.38);
 
     const scene = new THREE.Scene();
     scene.userData = {};
@@ -133,7 +138,7 @@
       taihuRock: new THREE.MeshStandardMaterial({ name: 'taihuRock', color: 0x6e7276, roughness: 0.88, metalness: 0.02 }),
       castIron: new THREE.MeshStandardMaterial({ name: 'castIron', color: 0x242628, roughness: 0.65, metalness: 0.45 }),
       pearlGold: new THREE.MeshStandardMaterial({ name: 'pearlGold', color: 0xdca646, roughness: 0.32, metalness: 0.85 }),
-      pagodaOchre: new THREE.MeshStandardMaterial({ name: 'pagodaOchre', color: 0xd4a656, roughness: 0.90, metalness: 0.01 }),
+      pagodaOchre: new THREE.MeshStandardMaterial({ name: 'pagodaOchre', color: 0xdccaa0, roughness: 0.93, metalness: 0.01 }),
       pagodaRed: new THREE.MeshStandardMaterial({ name: 'pagodaRed', color: 0x5a2318, roughness: 0.55, metalness: 0.02 }),
       lanternPaper: new THREE.MeshStandardMaterial({ name: 'lanternPaper', color: 0xffd188, emissive: 0xff9922, emissiveIntensity: 0.8, roughness: 0.9 }),
       paperWhite: new THREE.MeshStandardMaterial({ name: 'paperWhite', color: 0xf6efe4, roughness: 0.95, metalness: 0.0 }),

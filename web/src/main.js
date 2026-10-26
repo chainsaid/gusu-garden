@@ -207,6 +207,7 @@ async function bootstrap() {
     foliage.setBambooVisible(!!configManager.get('showBamboo'));
     bananas.setVisible(!!configManager.get('showBananas'));
     trees.setVisible(!!configManager.get('showTrees'));
+    backdropForest.visible = !!configManager.get('showTrees'); // URL ?trees=0 同步隐藏院外林海
     koi.setVisible(!!configManager.get('showKoi'));
     weather.setWeather(configManager.get('weather') || 'morning');
     weather.setRainEnabled(!!configManager.get('showRain'));

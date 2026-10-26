@@ -81,11 +81,9 @@ export function loadGardenAssets(scene, onProgress) {
                 if (asset.name === 'pagoda' || combined.includes('pagoda')) {
                   child.castShadow = false;
                   child.receiveShadow = false; // 远景借景建筑免受庭院阴影相机截断致盲
-                  if (/plaster|wall|赭/i.test(combined)) {
-                    child.material.map = null;
-                    child.material.color.setHex(0xbaa06e); // 苏州北寺塔温润风化赭黄外壁 (对齐母本 pgwall 暖赭石灰粉壁)
-                    child.material.roughness = 0.92;
-                    child.material.metalness = 0.0;
+                  if (/plaster|wall|ochre|赭/i.test(combined)) {
+                    // 赭黄墙面颜色与质感由 GLB 源材质直接决定 (src MT.plaster = 0xd8c090),
+                    // Web 端不再二次覆盖, 保证「所见即 GLB」可在固定视角逐点校型
                     child.material.needsUpdate = true;
                     return;
                   }
@@ -122,10 +120,10 @@ export function loadGardenAssets(scene, onProgress) {
                     child.material.needsUpdate = true;
                     return;
                   }
-                  // 斗栱、飞椽、梁枋、勾栏平座、大门门框 -> 典雅红棕木构 (对齐母本 pagoda.red vec3(0.34, 0.13, 0.06))
+                  // 斗栱、飞椽、梁枋、勾栏平座、大门门框 -> 风化灰褐红木构 (对齐 ref 实物褪色观感, 降饱和压暗)
                   child.material.map = null;
-                  child.material.color.setHex(0x7e3524);
-                  child.material.roughness = 0.56;
+                  child.material.color.setHex(0x5a3326);
+                  child.material.roughness = 0.60;
                   child.material.metalness = 0.02;
                   child.material.needsUpdate = true;
                   return;

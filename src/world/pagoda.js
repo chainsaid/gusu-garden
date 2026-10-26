@@ -157,7 +157,7 @@ export async function build(ctx) {
     tileRound: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(tileProc('round'), 'tile')),
     tileFlat: mat.std({ color: 0xffffff, roughness: 0.45, metalness: 0.1 }, rig(tileProc('flat'), 'tile')),
     // 赭黄砖身 plaster (the brick body is lime-washed warm ochre)
-    plaster: mat.std({ color: 0xd6a858, roughness: 0.92, metalness: 0 }, rig(P.plaster(), 'wall')),
+    plaster: mat.std({ color: 0xd8c090, roughness: 0.93, metalness: 0 }, rig(P.plaster(), 'wall')),
     // 窗格木框: dark red-brown wood
     green: mat.std({ color: 0xffffff, roughness: 0.6, metalness: 0 }, rig(P.chestnutWood('vec3(0.16, 0.07, 0.04)'), 'wood')),
     dark: M.woodDark,
@@ -345,43 +345,37 @@ export async function build(ctx) {
         const yk0 = F + hL + hn, yk1 = F + kb;
         if (yk1 - yk0 > 0.03) box(j, MT.plaster, w, yk1 - yk0, 0.07, cx, (yk0 + yk1) / 2, a - 0.005, 0, 0.006);
         if (b === 1) {
-          // 当心间: the door
+          // 当心间: 壶门 —— 实物为砖砌透空拱形门洞, 无木门板/门钉/铰链/门框柱
           const cl = bay / 2 - rc * 0.7; // clear half span of the central bay
           const dh = hL - hj;
-          for (const sx of [-1, 1]) box(j, MT.red, 0.13, dh, 0.17, sx * (cl - 0.065), F + hj + dh / 2, a + 0.03, 0, 0.012);
-          const wl = cl - 0.13;
-          const nr = i === 0 ? 6 : 3, nc = i === 0 ? 4 : 3;
-          for (const sx of [-1, 1]) {
-            const lx = sx * wl / 2;
-            box(j, MT.redDark, wl - 0.012, dh - 0.01, 0.07, lx, F + hj + dh / 2, a + 0.0, 0, 0.01);
-            // stiles/rails relief
-            box(j, MT.red, wl - 0.02, 0.07, 0.03, lx, F + hj + dh * 0.5, a + 0.045, 0, 0.008);
-            // studs
-            for (let r = 0; r < nr; r++) for (let c = 0; c < nc; c++) {
-              const yy = F + hj + dh * (0.12 + (0.76 * r) / (nr - 1));
-              const xx = lx + (wl - 0.02) * (-0.5 + (c + 0.5) / nc);
-              I.add('stud', m4(j, xx, yy, a + 0.035, 0, 0, 0, i === 0 ? 1 : 0.8, i === 0 ? 1 : 0.8, 1));
-            }
-            // iron hinge bands
-            for (const fy of [0.06, 0.94]) box(j, MT.iron, wl - 0.03, 0.05 * (i === 0 ? 1 : 0.8), 0.012, lx, F + hj + dh * fy, a + 0.04, 0, 0.004);
-            // ring pull
-            B.add(new THREE.TorusGeometry(0.04 * k, 0.007, 6, 16), MT.iron, m4(j, sx * 0.06, F + hj + dh * 0.47, a + 0.05));
+          const doorW = Math.min(cl * 1.24, dh * 0.66);
+          const arcR = doorW / 2;
+          const doorTop = dh * 0.66;    // 拱顶最高点 (相对 F+hj)
+          const rectH = doorTop - arcR; // 门洞矩形段高度
+          const skirtH = hw0 - hj;
+          // 门洞两侧: 下红棕墙裙 + 上赭黄砖身 (与次间连成整圈裙带)
+          const sideW = cl - doorW / 2;
+          if (sideW > 0.03) for (const sx of [-1, 1]) {
+            const sxm = sx * (doorW / 2 + sideW / 2);
+            box(j, MT.red, sideW - 0.02, skirtH, 0.07, sxm, F + hj + skirtH / 2, a - 0.005, 0, 0.006);
+            box(j, MT.plaster, sideW - 0.02, doorTop - skirtH, 0.07, sxm, F + hj + (skirtH + doorTop) / 2, a - 0.005, 0, 0.006);
           }
+          // 拱顶以上赭黄砖身
+          box(j, MT.plaster, 2 * cl, dh - doorTop, 0.07, 0, F + hj + (doorTop + dh) / 2, a - 0.005, 0, 0.006);
+          // 壶门洞: 矩形 + 圆弧顶深色板 (视觉透空)
+          const shp = new THREE.Shape();
+          shp.moveTo(-doorW / 2, 0);
+          shp.lineTo(-doorW / 2, rectH);
+          shp.absarc(0, rectH, arcR, Math.PI, 0, true);
+          shp.lineTo(doorW / 2, 0);
+          shp.closePath();
+          const dg = new THREE.ExtrudeGeometry(shp, { depth: 0.06, bevelEnabled: false });
+          dg.translate(0, 0, -0.03);
+          B.add(dg, MT.dark, m4(j, 0, F + hj, a + 0.02));
         } else {
-          // 次间: lower plaster, sill, lattice window
-          box(j, MT.plaster, w, hw0 - hj, 0.07, cx, F + (hj + hw0) / 2, a - 0.005, 0, 0.006);
-          const wy0 = F + hw0, wy1 = F + hL;
-          box(j, MT.green, w, 0.075, 0.16, cx, wy0 + 0.0375, a + 0.02, 0, 0.01);
-          for (const sx of [-1, 1]) box(j, MT.green, 0.075, wy1 - wy0, 0.15, cx + sx * (w / 2 - 0.0375), (wy0 + wy1) / 2, a + 0.02, 0, 0.01);
-          const inner = w - 0.15;
-          const nbar = Math.max(5, Math.round(inner / 0.105));
-          const bh = wy1 - wy0 - 0.075;
-          for (let q = 0; q < nbar; q++) {
-            const xx = cx - inner / 2 + (inner * (q + 0.5)) / nbar;
-            box(j, MT.green, 0.042, bh, 0.042, xx, wy0 + 0.075 + bh / 2, a + 0.02, Math.PI / 4, 0.006);
-          }
-          box(j, MT.green, inner, 0.035, 0.05, cx, wy0 + 0.075 + bh * 0.5, a + 0.02, 0, 0.006);
-          box(j, i === 0 ? MT.dark : MT.plaster, w, wy1 - wy0, 0.03, cx, (wy0 + wy1) / 2, a - 0.05, 0, 0.004);
+          // 次间: 实物无窗 —— 下部红棕墙裙 + 上部整片赭黄砖身
+          box(j, MT.red, w, hw0 - hj, 0.07, cx, F + (hj + hw0) / 2, a - 0.005, 0, 0.006);
+          box(j, MT.plaster, w, hL - hw0, 0.07, cx, F + (hL + hw0) / 2, a - 0.005, 0, 0.006);
         }
       }
       // plaster behind the bracket zone
@@ -542,14 +536,17 @@ export async function build(ctx) {
         if (h1 - h0 > 0.14) rafter(j, x, h0, h1, hTop);
       }
       // 望板 (roof sheathing directly on top of the rafters, under the tiles)
-      addG(j, PP.gridSurface((u, v) => {
+      // 单面会被背面剔除 -> 从檐上方看瓦缝漏天光; 上下各铺一层封死屋顶
+      const sheath = (u, v) => {
         const w = -1 + 2 * u;
         const pStart = s.top ? 0.35 : Math.max(s.a, s.Rt - 0.08);
         const pTipDiag = s.a + s.O + s.flare * Math.pow(Math.abs(w), 3) - 0.05;
         const p = pStart + (pTipDiag - pStart) * v;
         const x = w * p * TAN;
         return V3(x, roofY(s, x, p) - 0.048, p);
-      }, dseg(36), 6, V3(0, -1, 0)), MT.wood);
+      };
+      addG(j, PP.gridSurface(sheath, dseg(36), 6, V3(0, -1, 0)), MT.wood);
+      addG(j, PP.gridSurface(sheath, dseg(36), 6, V3(0, 1, 0)), MT.wood);
       // 外廊木天花 (veranda walkway ceiling between inner wall and outer colonnade lintel)
       {
         const rCol = s.a + (s.i === 0 ? s.O * 0.5 : 1.15 * k);

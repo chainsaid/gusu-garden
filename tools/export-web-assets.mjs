@@ -59,6 +59,12 @@ async function main() {
   const onlyAsset = targetArg ? targetArg.split('=')[1] : null;
   if (onlyAsset) console.log(`[exporter] 指定导出目标: [${onlyAsset}]`);
 
+  // 借景北寺塔专用精度档位 (默认 0.25)。塔永久远观 150m+，原 0.38 档仍产出数百万面。
+  // 注意: detail.js 的 gap() 分母下限为 0.25，低于此值构件间距不再变大，再调低只会减少分段数。
+  // 用法: node tools/export-web-assets.mjs --asset=pagoda --pagoda-detail=0.25
+  const detailArg = process.argv.find((a) => a.startsWith('--pagoda-detail='));
+  const pagodaDetail = detailArg ? detailArg.split('=')[1] : '0.25';
+
   await ensureDevServer();
 
   const uploadedFiles = {};
@@ -164,16 +170,22 @@ async function main() {
       console.error(' [浏览器页面异常] ' + (err.stack || err.message || err));
     });
 
+    // 资产请求 URL: 借景北寺塔额外附带更低的精度档位
+    const assetUrl = (name) =>
+      name === 'pagoda'
+        ? `http://localhost:${PORT}/export.html?asset=pagoda&detail=${pagodaDetail}`
+        : `http://localhost:${PORT}/export.html?asset=${name}`;
+
     if (onlyAsset) {
       console.log(`[exporter] 正在独立导出资产 [${onlyAsset}]...`);
-      await page.goto(`http://localhost:${PORT}/export.html?asset=${onlyAsset}`, { waitUntil: 'load', timeout: 60000 });
+      await page.goto(assetUrl(onlyAsset), { waitUntil: 'load', timeout: 60000 });
       await Promise.race([
         uploadPromise,
         new Promise((_, reject) => setTimeout(() => reject(new Error('导出超时 (240秒)')), 240000))
       ]);
     } else {
       console.log('[exporter] 阶段 1/2: 正在导出核心建筑群 (core)...');
-      await page.goto(`http://localhost:${PORT}/export.html?asset=core`, { waitUntil: 'load', timeout: 60000 });
+      await page.goto(assetUrl('core'), { waitUntil: 'load', timeout: 60000 });
       // 等待 core 压缩完毕
       for (let i = 0; i < 480; i++) {
         if (compressedFiles['core']) break;
@@ -181,8 +193,8 @@ async function main() {
       }
       if (!compressedFiles['core']) throw new Error('核心建筑群导出超时');
 
-      console.log('\n[exporter] 阶段 2/2: 正在导出借景北寺塔 (pagoda)...');
-      await page.goto(`http://localhost:${PORT}/export.html?asset=pagoda`, { waitUntil: 'load', timeout: 60000 });
+      console.log(`\n[exporter] 阶段 2/2: 正在导出借景北寺塔 (pagoda, detail=${pagodaDetail})...`);
+      await page.goto(assetUrl('pagoda'), { waitUntil: 'load', timeout: 60000 });
       // 等待 pagoda 压缩完毕
       for (let i = 0; i < 480; i++) {
         if (compressedFiles['pagoda']) break;
