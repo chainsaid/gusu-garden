@@ -178,7 +178,7 @@ flowchart TD
   - 每面开间由 3 间改为 **1 间**（角柱 + 槏柱），台基与平坐楼板由方盒改为 NS 棱柱；楼梯只保留在 4 个正向面
   - 校验：相邻两面檐角间距 **0.0000 m**、墙角半径 = `a*SEC`、檐角半径 = `(a+O+flare)*SEC`、`h/a = 0.4142` — 平面严格闭合
 - [x] **P0-3** **16 座春日灯笼 kasuga-dōrō**（带发光纸窗 + 火点光）— 已删除并替换为江南石景小品：`props-stone.js` 重写为 石笋 / 石鼓墩 / 散置湖石 三种生成器；`layout.js` 字段 `stoneLanterns → stoneStands`；`props.js` `placeStoneLanterns → placeStoneStands`（不再生成纸窗与火点光）；`terrain-field.js` `lanterns/sdLanterns → stands/sdStands`、`shoreLanterns → shoreStands`；`terrain-ground.js` `uLant → uStands`；`terrain-cover.js`、`vegetation.js`（`lanternR → standR`）同步
-- [x] **P0-4** **枯山水耙纹白砂** — 已彻底移除：`terrain-ground.js` 废弃 `tg_rake*` 复杂积分与白砂条纹，替换为苏式古典园林**青石板铺地与花街地坪**（含石板错缝、潮湿水痕与泛碱青苔）；`terrain-field.js` 移除 `gRake` 与 `rakeDist` 全链路
+- [~] **P0-4** **枯山水耙纹白砂** — **部分完成，甬道处漏网**：`terrain-ground.js` 废弃 `tg_rake*` 积分与白砂条纹、改为**青石板铺地**（石板错缝、潮湿水痕与泛碱青苔），`terrain-field.js` 移除 `gRake` 与 `rakeDist` 全链路 ✅；但**甬道两侧的耙砂肩带仍存活**——`terrain-glsl.js:100-112` 的 `tg_yongdao()` 保留了 `cos(6.2831853 * sx / 0.12)`（周期 0.12 m 平行耙沟）与白砂色 `vec3(0.56,0.54,0.50)`，P1-5 只改了函数名（`tg_sando`→`tg_yongdao`）而未动函数体。另「花街地坪」从未实现 → 见 **P0-GROUND-1 / P0-GROUND-4**
 - [x] **P0-5** **枯山水三尊石组** — 已改为**庭院太湖石立峰与石笋组**：`terrain-cover.js` 重构 `ISLES` 石组分布，由日式三尊石组改为中式高耸立峰、伴石与散置湖石
 - [x] **P0-6** 主厅正面**千鸟破风 chidori-hafu** — 已停用（`hall.js` 移除 `buildChidori` 调用与 `hall-kara.js` 导入）；`hall-kara.js` 已随 **P2-8** 删除
 - [x] **P0-7** **唐破风残洞（缺陷）** — 已修复：`hall.js` 删除 `karahafuParams()`、`mok.frontExcl`、`mok.hide` 与檐下 AO 暗区，下檐屋面不再被挖空；楼梯栏杆改用具名常量 `PORCH_Z = 12.4`
@@ -260,6 +260,54 @@ flowchart TD
 ### 5. Web 端同步（P0-WEB，2026-10-29 完成）
 - [x] **P0-WEB-1** **Web 端灌木丛生化**：`web/src/scene/vegetation.js` 的 `SphereGeometry(0.75,10,8,…,0.52π)` 半球修剪球改为 `mergeGeometries` 合成的丛生单体（中央低矮叶团 + 4 根斜向外伸枝端叶团，无公共竖直轴），仍走 `InstancedMesh` 合批（实例数不变），配色改江南灌木深绿；`build:web` 与 `dev:web` 目视验证通过。
 - [x] **P0-WEB-2** **材质匹配去和风关键字**：`web/src/scene/loader.js` 熟铁套筒匹配正则由 `/iron|dark|gold|kazari/i` 移除 `kazari` 分支。
+
+---
+
+## 阶段十：地面铺装与室内地坪（2026-10-29 勘查记录，**待施工**）
+
+> 用户指出"地砖和室内木地板不像江南特色"。2026-10-29 全仓勘查确认：地面层是**前几轮的系统性漏网区**——
+> 灌木、树木、建筑构件都改完了，唯独脚下和室内地坪没动。以下 6 项均未动工，按优先级排列。
+>
+> 勘查已定位到精确行号与代码证据，可直接照此施工。**均无需新增纹理或几何**：庭院地面已是
+> `CELL = 0.2 m` 的 height-field（`terrain-ground.js:14-16`），拼花靠 shader + `n_bumpView`
+> 高度起伏（`:364`）即可表现；室内地坪只是替换一块 box 的材质。
+
+### P0-GROUND-1 甬道耙纹白砂（🔴 最优先，枯山水最标志性符号）
+- **位置**：`src/world/terrain-glsl.js:100-112` `tg_yongdao()`；调用点 `terrain-glsl.js:138`（`tg_meadow` 内）、`terrain-ground.js:340`
+- **证据**：`float ln = (0.5 + 0.5 * cos(6.2831853 * sx / 0.12)) * ...` = 周期 0.12 m 的平行耙沟；`vec3 gc = vec3(0.56,0.54,0.50)` = 白砂浅灰白；`hOut = mix(hOut, ln * 0.008, sh)` = 8 mm 耙沟起伏
+- **范围**：`gate.center = [10,0,46]`（`layout.js:143`）→ z ∈ [46, 92]（46 m 长），x ∈ [7.15, 12.85]；甬道石板宽 3.4 m（`terrain-paving.js:50`），故两侧各约 **1.15 m × 46 m 的耙砂肩带**
+- **为何漏网**：P1-5 只把函数名 `tg_sando`→`tg_yongdao`（参道→甬道），函数体一行未改；P0-4 清的是广场那处独立代码，两处并存
+- **做法**：删除 `tg_yongdao` 的耙纹与白砂色，改为「甬道两侧仄砖镶边 + 青灰碎石散铺」；同步清 `terrain-field.js:232` 的 "raked gravel walk" 注释。**约 15 行 shader**
+
+### P0-GROUND-2 室内木地板 → 苏州御窑金砖（🔴 审计 3.4 节明确要求）
+- **位置**：`src/world/interior.js:239-243` `buildFloor()`；材质 `src/world/interior-mats.js:230-253` `M.woodFloor`
+- **证据**：注释已写「水磨金砖地面」，但材质从未替换——`B.box(M.woodFloor, 25.0, 0.04, 16.0, ...)` 全厅通铺；板宽 0.30 m / 板长 1.8 m、`rings = sin(g*14.0 + wp.z*30.0)` 木纹年轮、roughness 0.22、**clearcoat 0.9**（镜面打蜡）、深栗褐 `vec3(0.085,0.035,0.016)`。此组合更像日式数奇屋「板の間」
+- **做法**：`fragColor` 重写为 **0.58 m 见方砖**（删 `rings` 木纹）、缝 0.012 → 0.0018、配色改冷青灰 `vec3(0.30,0.325,0.335)`、新增高频「金星」颗粒 + 中心踩踏包浆 + 四边磨圆；参数 `roughness 0.22→~0.38`、`clearcoat 0.9→~0.40`、`clearcoatRoughness 0.07→~0.25`；`interior-mats.js:541` 的 `envK 0.75→~0.45`。**约 25 行 GLSL + 3 参数**
+- **注意**：`core/materials.js:532-533` 的 `M.woodFloorX/Z`（建筑木楼板）**保留**——江南厅堂楼上与廊道确为木楼板，属苏式做法
+
+### P0-GROUND-3 甬道石板去 uchimizu 打水（🟡 日本茶庭特有做法）
+- **位置**：`src/world/terrain-paving.js:81-82`（`wetBase`）、`:322-338`（`// sprinkled water (uchimizu)`）
+- **证据**：`p_rough = mix(p_rough, 0.035, film)` 把水膜粗糙度拉到近镜面；注释仍写 uchimizu
+- **做法**：`wetBase` 大幅下调，`film` 水膜删除或降为雨后自然潮气，注释改中文。**约 20 行**
+
+### P0-GROUND-4 花岗岩条石改冷青灰（🟡 日式延段/敷石形制）
+- **位置**：`src/world/terrain-paving.js:253-263`
+- **证据**：存在 `pink feldspar granite` 与 `iron-stained` 分支（日式花岗岩常见配色）；形制为 running bond + 双侧石 kerb（日式延段 nobedan）
+- **做法**：base 调色板改冷青灰，删除粉红长石与铁锈染色分支。**约 10 行**
+
+### P0-GROUND-5 新增花街铺地（🟢 江南特色，工作量最大）
+- **现状**：**完全缺失**。全仓搜索 `万字/海棠/冰裂/鱼鳞/卵石拼花` 零命中；`terrain-cover.js:312` 的 pebbles 只是散落卵石，`terrain-gutter.js` 的 cobble bed 是暗色河卵石散铺，均非拼花
+- **注**：P0-4 记录曾写「青石板铺地与花街地坪」，花街部分从未实现
+- **做法**：`terrain-ground.js:198-243`（青石板）旁新增分支 + `terrain-glsl.js` 新增 `tg_huajie()`：万字/海棠/冰裂/鱼鳞 SDF + Worley 卵石细胞（每颗 2~4 cm，青灰/赭红/米黄/黑随机）+ 深色灰浆细缝；区域遮罩复用 `uRect`。**新增 GLSL 约 60-100 行 + JS 约 20 行**
+
+### P0-GROUND-6 地面层术语清理（🟢 极小）
+- `terrain.js:2` `// courtyard ground (raked gravel, moss, pond bed)`
+- `terrain-field.js:204` 枯山水 islands、`:232` raked gravel walk、`:437` 参道 lane
+- `terrain-cover.js:359` `ishigumi` 石組み、`:548` cherries（应已为 peach）
+- `terrain-gutter.js:2` `// Drip-line gutters (檐口滴水-mizo)` 溝
+- `terrain-paving.js:128` `// stepping stones through the moss gardens`（苔庭）
+- `terrain-ground.js:2/94/262` 与全链路变量 `g_wG`（G = gravel）
+- **注**：`tatami/畳/縁側/板の間/寄木/nobedan/ishidatami/tobiishi/三和土/玉砂利/沓脱石` 源码已 0 命中 ✅
 
 ---
 
