@@ -442,13 +442,30 @@ export function createJiangnanFoliage(scene) {
   foliageGroup.add(bambooInst);
   foliageGroup.add(leafInst);
 
-  // 3. GPU 实例合批：石隙剪形黄杨灌木 (Boxwood Shrubs) 与阴生凤尾蕨 (Ferns)
-  // (与母本 src/world/vegetation.js 对齐，消除粉墙脚与驳岸石头根部生硬缝隙)
-  const shrubGeo = new THREE.SphereGeometry(0.75, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.52);
-  shrubGeo.scale(1.0, 0.65, 1.0);
+  // 3. GPU 实例合批：江南灌木丛 (loose Jiangnan shrub clumps) 与阴生凤尾蕨 (Ferns)
+  // (与母本 src/world/vegetation.js 对齐：灌木是斜向丛生的叶团，不作几何修剪；
+  //  消除粉墙脚与驳岸石头根部生硬缝隙)
+  const shrubTufts = [];
+  {
+    // 一个丛生单体：中央低矮叶团 + 三四根斜向外伸的枝端叶团，各自高低不一，
+    // 没有公共竖直轴，实例化后仍保持丛生剪影而非球体
+    const nShoot = 4;
+    for (let k = 0; k <= nShoot; k++) {
+      const a = (k / nShoot) * Math.PI * 2 + 0.5;
+      const out = k === 0 ? 0 : 0.30 + (k % 2) * 0.14;
+      const h = k === 0 ? 0.26 : 0.30 + (k % 3) * 0.09;
+      const r = k === 0 ? 0.38 : 0.24 + (k % 2) * 0.07;
+      const g = new THREE.IcosahedronGeometry(r, 1);
+      g.scale(1.0, 0.78 + (k % 2) * 0.1, 0.92);
+      g.translate(Math.cos(a) * out, h, Math.sin(a) * out);
+      shrubTufts.push(g);
+    }
+  }
+  const shrubGeo = mergeGeometries(shrubTufts, false);
+  shrubTufts.forEach((g) => g.dispose());
   const shrubMat = new THREE.MeshStandardMaterial({
-    color: 0x3d5a22, // 剪形黄杨温润深绿
-    roughness: 0.62,
+    color: 0x2f4d20, // 江南灌木丛沉稳深绿（南天竹 / 栀子叶色）
+    roughness: 0.66,
     metalness: 0.02,
   });
 
@@ -470,21 +487,21 @@ export function createJiangnanFoliage(scene) {
   });
 
   const shrubSpots = [
-    // 桥头两侧护坡石隙
-    { x: 8.2, z: 5.6 }, { x: 11.8, z: 5.6 }, { x: 8.2, z: 26.4 }, { x: 11.8, z: 26.4 },
-    { x: 7.2, z: 7.2 }, { x: 12.8, z: 7.2 }, { x: 7.2, z: 24.8 }, { x: 12.8, z: 24.8 },
-    // 水榭远香堂月台基座与踏步两翼
-    { x: 14.5, z: -6.2 }, { x: 16.2, z: -6.2 }, { x: 23.8, z: -6.2 }, { x: 25.5, z: -6.2 },
-    { x: 12.8, z: -3.8 }, { x: 27.2, z: -3.8 }, { x: 13.5, z: 0.5 }, { x: 26.5, z: 0.5 },
+    // 桥头护坡石隙（靠水一侧密集，离水一侧稀疏，不成镜像）
+    { x: 7.6, z: 5.0 }, { x: 9.4, z: 6.2 }, { x: 11.8, z: 5.4 }, { x: 12.6, z: 27.0 },
+    { x: 7.2, z: 25.8 }, { x: 8.6, z: 8.0 }, { x: 12.9, z: 7.4 }, { x: 10.4, z: 24.6 },
+    // 水榭远香堂月台：轴线让空，西侧一组，东侧零星
+    { x: 13.8, z: -6.6 }, { x: 15.6, z: -5.8 }, { x: 12.4, z: -3.4 },
+    { x: 14.2, z: 0.8 }, { x: 26.8, z: -4.2 }, { x: 26.0, z: 1.2 },
     // 冠云峰与立峰周边伴生
-    { x: 21.2, z: -4.2 }, { x: 22.8, z: -2.8 }, { x: 33.8, z: 7.8 }, { x: 35.2, z: 9.2 },
-    { x: 41.2, z: 3.8 }, { x: 42.8, z: 5.2 },
-    // 西侧回廊白粉墙脚与漏窗下
-    { x: -47.0, z: -32 }, { x: -47.0, z: -16 }, { x: -47.0, z: 0 }, { x: -47.0, z: 16 }, { x: -47.0, z: 32 },
-    // 东侧回廊白粉墙脚
-    { x: 61.0, z: -32 }, { x: 61.0, z: -16 }, { x: 61.0, z: 0 }, { x: 61.0, z: 16 }, { x: 61.0, z: 32 },
-    // 北廊漏窗下
-    { x: -10, z: -47.8 }, { x: 10, z: -47.8 }, { x: 30, z: -47.8 },
+    { x: 21.6, z: -4.6 }, { x: 23.4, z: -2.2 }, { x: 34.2, z: 8.4 }, { x: 36.0, z: 8.8 },
+    { x: 40.6, z: 3.2 }, { x: 43.2, z: 5.8 },
+    // 西侧回廊白粉墙脚（间距不等，避开门洞）
+    { x: -47.2, z: -33.5 }, { x: -47.0, z: -21 }, { x: -47.2, z: -8.5 }, { x: -46.8, z: 6.5 }, { x: -47.2, z: 27.5 },
+    // 东侧回廊白粉墙脚（与西侧错开）
+    { x: 60.8, z: -30 }, { x: 61.2, z: -18.5 }, { x: 60.8, z: -3.5 }, { x: 61.2, z: 12 }, { x: 60.8, z: 31 },
+    // 北廊漏窗下（间距不等）
+    { x: -11.5, z: -47.6 }, { x: 8.5, z: -47.8 }, { x: 31.5, z: -47.5 },
     // 南门草坪与汀步周边
     { x: -13.5, z: -5.0 }, { x: -16.0, z: -8.0 }, { x: -11.0, z: 2.5 },
   ];

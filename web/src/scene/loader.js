@@ -222,7 +222,7 @@ export function loadGardenAssets(scene, onProgress) {
                     child.material.envMapIntensity = 0.85;
                   }
                   // 3. 熟铁饰件套筒与抱箍
-                  else if (/iron|dark|gold|kazari/i.test(combined) || (vCount > 20000 && vCount < 30000)) {
+                  else if (/iron|dark|gold/i.test(combined) || (vCount > 20000 && vCount < 30000)) {
                     child.material.map = null;
                     child.material.color.setHex(0x282b2e);
                     child.material.roughness = 0.65;
