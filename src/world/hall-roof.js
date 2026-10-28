@@ -34,7 +34,7 @@ export function makeProfile(s0, s1, D, k = 1.5) {
   return { P, dP, arc, dOf, D, s0, s1 };
 }
 
-// Roof warp: Jiangnan sori with faqiang upturn (飞檐戗角高翘).
+// Roof warp: Jiangnan 嫩戗发戗 eave upturn (飞檐戗角高翘).
 // L = c(ux) * c(uz): zero inside wall bounds, dramatically sweeping upward and outward at eave corners.
 export function makeWarp(ex, ez, A, B, u0 = 0.68, pw = 2.2) {
   const c = (u) => {
@@ -451,7 +451,7 @@ export function buildXieshanRidges(acc, T, mats) {
     const he = hp[hp.length - 1];
     const hd = v3.norm([sx, 0, sz]);
     chiwen(tile, null, basis(v3.add(he, [0, -0.1, 0]), v3.cross([0, 1, 0], hd), [0, 1, 0], hd), 0.82, 1.05, 0.22);
-    // small gold 截金 crest on the hip end tile
+    // small gold crest on the hip end tile
   }
 }
 

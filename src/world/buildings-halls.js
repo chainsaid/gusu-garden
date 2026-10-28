@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LB, m4, beamM, chamferBox, block, lathe, lotusFinial, sweep, rectProfile, roundProfile, tileParams, tileCapGeos, makeLift, extrude, hash3, armGeo, ni, kibanaGeo, scrollPlate } from './buildings-kit.js';
-import { eaves, bracketSet, column, irimoyaRoof, railing, loopPath, linePath, ridgeProfile } from './buildings-arch.js';
+import { eaves, bracketSet, column, xieshanRoof, railing, loopPath, linePath, ridgeProfile } from './buildings-arch.js';
 import { gap, seg as dseg } from '../core/detail.js';
 
 const V3 = THREE.Vector3;
@@ -27,7 +27,7 @@ export function wallBay(lb, K, a, b, c, type, Y, o = {}) {
   const y1 = y0 + 0.18;
   if (type === 'plaster') {
     lb.box(K.plaster, L, yN - y1, t, [x, (yN + y1) / 2, c]);
-    // vertical stud (tsuka) in long bays
+    // 间柱 vertical stud in long bays
     if (L > 2.6) lb.box(K.red, 0.14, yN - y1, t + 0.04, [x, (yN + y1) / 2, c], [0, 0, 0], 0.01);
   } else if (type === 'window') {
     const yk = y1 + Math.min(0.75, (yN - y1) * 0.36);
@@ -178,7 +178,7 @@ export function hallBuilding(lb, K, S) {
   const a0 = S.slope0 ?? 0.4;
   const b2 = (S.roofRise - a0 * ezT) / (ezT * ezT);
   const prof = (d) => a0 * d + b2 * d * d;
-  const roof = irimoyaRoof(lb, {
+  const roof = xieshanRoof(lb, {
     ex: exT, ez: ezT, y0: ry0, prof, gd: S.gd ?? Math.min(ezT * 0.42, 2.6), ov: S.ovG ?? 0.6, lift, T,
     K: { tileVC: K.tileVC, tile: K.tile, gold: K.red, red: K.red, soffit: K.soffit, plaster: K.plaster, lattice: K.lattice },
     ridge: S.ridge || { w: 0.62, h: 0.58, layers: 6, capR: 0.11, drop: 0.45 }, hip: S.hip || { w: 0.34, h: 0.34, layers: 4, capR: 0.08, drop: 0.22 },
@@ -540,7 +540,7 @@ export function buildGate(ctx, K, lb, anchors, toW) {
   const a0 = 0.38;
   const b2 = (2.1 - a0 * ezT) / (ezT * ezT);
   const prof = (d) => a0 * d + b2 * d * d;
-  const roof = irimoyaRoof(lb, {
+  const roof = xieshanRoof(lb, {
     ex: exT, ez: ezT, y0: ry0, prof, gd: 2.1, ov: 0.55, lift, T,
     K: { tileVC: K.tileVC, tile: K.tile, gold: K.red, red: K.red, soffit: K.soffit, plaster: K.plaster, lattice: K.lattice },
     ridge: { w: 0.54, h: 0.50, layers: 5, capR: 0.10, drop: 0.38 },

@@ -1,17 +1,17 @@
 // ---------------------------------------------------------------------------
-// BRIDGE — arched vermilion garden bridge across the pond on the hall axis.
+// BRIDGE — arched chestnut garden bridge across the pond on the hall axis.
 //
 // Structure (all in world coordinates, axis x = L.bridge.x, running N-S):
 //   * deck: a circular arc (crown = L.bridge.rise above ground), individual
 //     weathered planks with gaps, nail heads and a worn walking line
-//   * side fascia "arch boards": thick vermilion curved girders whose intrados
+//   * side fascia "arch boards": thick chestnut curved girders whose intrados
 //     deepens toward the banks so the arch springs out of granite abutments,
 //     with a dark capping band on top
 //   * railings: posts (dark sleeve + detailed lathe lotus post cap on
 //     every post), oval top rail swept up past the end posts, flat mid rail with nail
 //     heads, base sill, plumb struts; larger end posts on granite bases
 //   * substructure: inner girders, floor beams, two bents of stacked granite
-//     piers on stepped footings with a vermilion cap beam
+//     piers on stepped footings with a chestnut cap beam
 //   * coursed granite abutments + landing slabs adapted to the real shoreline
 //     (queried from the pond module when present)
 // Materials are bridge-specific variants of the shared procedural library.
@@ -60,9 +60,9 @@ export async function build(ctx) {
   const GIRDER_X = [-0.82, 0, 0.82];
   const GIRDER_BOT = -0.74;
   // 莲瓣望柱头 lathe landmarks (local metres): chased band A, stud band B,
-  // bud start/height/radius, incised rings. (was: the 拟宝珠(已替换为莲瓣望柱头) onion bulb)
-  const GIB = { bandA: [0.0384, 0.0583], bandB: [0.0795, 0.0935], bulb0: 0.1255, H: 0.205, Rm: 0.086, tEnd: 0.93 };
-  GIB.rings = [GIB.bulb0 + GIB.H * 0.255, GIB.bulb0 + GIB.H * 0.285, GIB.bulb0 + GIB.H * 0.8];
+  // petal-bud start/height/radius, incised rings.
+  const CAP = { bandA: [0.0384, 0.0583], bandB: [0.0795, 0.0935], bud0: 0.1255, H: 0.205, Rm: 0.086, tEnd: 0.93 };
+  CAP.rings = [CAP.bud0 + CAP.H * 0.255, CAP.bud0 + CAP.H * 0.285, CAP.bud0 + CAP.H * 0.8];
 
   // ---------------------------------------------------------------- shoreline (adapt abutments to the pond)
   const pondSite = ctx.modules && ctx.modules.pond && ctx.modules.pond.site;
@@ -155,7 +155,7 @@ export async function build(ctx) {
       reflectedLight.indirectDiffuse += material.diffuseColor * RECIPROCAL_PI * bounce;
     }
   `;
-  // vermilion lacquer over timber. vColor: r = grain mode (0 arc / .5 vertical / 1 along x), g = grime, b = piece random
+  // chestnut lacquer over timber. vColor: r = grain mode (0 arc / .5 vertical / 1 along x), g = grime, b = piece random
   const lac = mat.phys({ color: 0xffffff, roughness: 0.52, metalness: 0, clearcoat: 0.09, clearcoatRoughness: 0.45, vertexColors: true }, {
     fragHead: ARC_GLSL + 'float g_h; float g_r;',
     fragColor: /* glsl */ `
@@ -234,7 +234,7 @@ export async function build(ctx) {
         // worn lacquer revealing dark timber
         float wear = smoothstep(0.68, 0.84, n_fbm3(wp * 3.1 + pr * 9.0, 3) * 0.5 + 0.5);
         col = mix(col, vec3(0.075, 0.032, 0.018), wear * mix(0.28, 0.5, kindR));
-        // chipped arrises: on the rounded edges (high normal curvature) the shu coat has flaked off to the
+        // chipped arrises: on the rounded edges (high normal curvature) the finish has flaked off to the
         // black undercoat and, in places, the grey timber; only resolved up close
         float curvL = length(fwidth(wn)) / max(pxL, 1e-5);
         float edgeN = n_fbm3(wp * 19.0 + pr * 4.0, 2) * 0.5 + 0.5;
@@ -255,7 +255,7 @@ export async function build(ctx) {
     fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0022);
       { vec3 dn = fwidth(normal); roughnessFactor = max(roughnessFactor, clamp(length(dn) * 0.6, 0.0, 0.35)); }`,
     // the golden-hour sky fills real shade more than the captured IBL does: lift the lacquer's
-    // indirect light so vermilion stays readable on the backlit (east) side
+    // indirect light so chestnut stays readable on the backlit (east) side
     fragLight: AO_GLSL + 'reflectedLight.indirectDiffuse *= 1.45;',
   });
   lac.name = 'bridgeLacquer';
@@ -381,63 +381,16 @@ export async function build(ctx) {
   });
   dark.name = 'bridgeDark';
 
-  // wrought iron fittings (熟铁构件)
-  // vColor: r = brightness, g = extra roughness (matte punched ground), b = tint shift
-  const gold = mat.std({ color: 0xffffff, roughness: 0.65, metalness: 0.12, vertexColors: true }, {
-    fragHead: 'float g_h; float g_r;',
-    fragColor: /* glsl */ `
-      {
-        vec3 wp = vWPos;
-        // g = matte (+2 when the sheet carries engraved 卷草)
-        float engr = step(1.5, vColor.g);
-        float bright = vColor.r, rAdd = vColor.g - 2.0 * engr, tsh = vColor.b;
-        float n = n_fbm3(wp * 3.1, 3);
-        float tarnish = smoothstep(0.15, 0.75, n_fbm3(wp * 1.1 + 7.0, 3) * 0.5 + 0.5);
-        vec3 base = mix(vec3(0.12, 0.11, 0.10), vec3(0.08, 0.078, 0.075), tsh);
-        vec3 col = base * (0.93 + 0.1 * n);
-        col = mix(col, base * vec3(0.52, 0.40, 0.24), tarnish * (0.25 + 0.35 * max(rAdd, 0.0)));
-        // punched ground: tiny dots
-        float dots = n_snoise3(wp * 420.0) * (1.0 - smoothstep(0.0007, 0.002, length(fwidth(wp))));
-        col *= bright * (1.0 - max(rAdd, 0.0) * 0.25 * smoothstep(0.2, 0.8, dots));
-        g_h = n * 0.4 + tarnish * 0.25 + rAdd * dots * 0.15;
-        g_r = tarnish * 0.12 + rAdd;
-        if (engr > 0.5) {
-          // engraved scrolls on the vertical faces of sleeves / bands: spirals linked by a running vine
-          vec3 wnE = normalize(vWNrm);
-          float sideE = 1.0 - smoothstep(0.55, 0.8, abs(wnE.y));
-          vec2 tE = normalize(vec2(-wnE.z, wnE.x) + vec2(1e-5, 0.0));
-          vec2 q = vec2(dot(wp.xz, tE), wp.y) / 0.03;
-          vec2 cellE = floor(q); vec2 fE = fract(q) - 0.5;
-          float flipE = mod(cellE.x + cellE.y, 2.0) * 2.0 - 1.0;
-          float rE = length(fE); float aE = atan(fE.y, fE.x * flipE);
-          float spl = abs(fract(aE / 6.2832 + rE * 2.4) - 0.5);
-          float spiral = (1.0 - smoothstep(0.07, 0.13, spl)) * (1.0 - smoothstep(0.34, 0.42, rE)) * smoothstep(0.03, 0.07, rE);
-          float vine = 1.0 - smoothstep(0.035, 0.075, abs(fE.y + 0.42 * flipE * cos(fE.x * 3.1416)));
-          float aaE = 1.0 - smoothstep(0.18, 0.45, length(fwidth(q)));
-          float groove = max(spiral, vine * 0.8) * sideE * aaE;
-          col *= 1.0 - 0.5 * groove;
-          g_h -= groove * 0.6;
-          g_r += groove * 0.2;
-        }
-        diffuseColor.rgb = diffuse * col;
-      }
-    `,
-    fragRough: /* glsl */ `roughnessFactor = clamp(roughnessFactor + g_r, 0.06, 1.0);`,
-    fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0011);
-      { vec3 dn = fwidth(normal); roughnessFactor = max(roughnessFactor, clamp(length(dn) * 0.9, 0.0, 0.42)); }`,
-  });
-  gold.name = 'bridgeGold';
-
   // 莲瓣望柱头 (lotus post cap): carved bluestone (青石雕刻望柱头)
-  const gibC = (k) => f6(k);
-  const gib = mat.std({ color: 0xffffff, roughness: 0.72, metalness: 0.0, vertexColors: true }, {
-    vertexHead: 'varying vec2 vGib;',
-    vertexWorld: 'vGib = uv;',
-    fragHead: 'varying vec2 vGib; float g_h; float g_r;',
+  const capC = (k) => f6(k);
+  const capMat = mat.std({ color: 0xffffff, roughness: 0.72, metalness: 0.0, vertexColors: true }, {
+    vertexHead: 'varying vec2 vCap;',
+    vertexWorld: 'vCap = uv;',
+    fragHead: 'varying vec2 vCap; float g_h; float g_r;',
     fragColor: /* glsl */ `
       {
         vec3 wp = vWPos;
-        float h = vGib.y;
+        float h = vCap.y;
         float petal = step(1.5, vColor.r);
         float bright = vColor.r - 2.0 * petal;
         float cav = vColor.g;
@@ -457,11 +410,11 @@ export async function build(ctx) {
         col = mix(col, vec3(0.24, 0.30, 0.18), verd * 0.5);
         float gx = 0.0, grv = 0.0, matte = 0.0;
         if (petal < 0.5) {
-          float ang = vGib.x;
+          float ang = vCap.x;
           // band A: chased 卷草 scroll (running vine with curls) on a punched ground
-          float inA = smoothstep(${gibC(GIB.bandA[0])}, ${gibC(GIB.bandA[0] + 0.0012)}, h) * (1.0 - smoothstep(${gibC(GIB.bandA[1] - 0.0012)}, ${gibC(GIB.bandA[1])}, h));
+          float inA = smoothstep(${capC(CAP.bandA[0])}, ${capC(CAP.bandA[0] + 0.0012)}, h) * (1.0 - smoothstep(${capC(CAP.bandA[1] - 0.0012)}, ${capC(CAP.bandA[1])}, h));
           if (inA > 0.0) {
-            vec2 q = vec2(ang * 40.0, (h - ${gibC((GIB.bandA[0] + GIB.bandA[1]) / 2)}) / 0.0122);
+            vec2 q = vec2(ang * 40.0, (h - ${capC((CAP.bandA[0] + CAP.bandA[1]) / 2)}) / 0.0122);
             float aaq = 1.0 - smoothstep(0.12, 0.35, length(fwidth(q)));
             float c = floor(q.x); vec2 f = vec2(fract(q.x) - 0.5, q.y);
             float fl = mod(c, 2.0) * 2.0 - 1.0;
@@ -474,7 +427,7 @@ export async function build(ctx) {
             matte = inA * (1.0 - grv);
           }
           // band B: ring-punched ground under the stud ring
-          float inB = smoothstep(${gibC(GIB.bandB[0])}, ${gibC(GIB.bandB[0] + 0.001)}, h) * (1.0 - smoothstep(${gibC(GIB.bandB[1] - 0.001)}, ${gibC(GIB.bandB[1])}, h));
+          float inB = smoothstep(${capC(CAP.bandB[0])}, ${capC(CAP.bandB[0] + 0.001)}, h) * (1.0 - smoothstep(${capC(CAP.bandB[1] - 0.001)}, ${capC(CAP.bandB[1])}, h));
           matte = max(matte, inB);
           if (matte > 0.0) {
             vec2 qd = vec2(ang * 360.0, h / 0.00135);
@@ -484,13 +437,13 @@ export async function build(ctx) {
             gx -= ringd * 0.25;
             col *= 1.0 - 0.2 * ringd;
           }
-          // bulb: incised rings at the girth and below the point; hammered raising marks
-          float onB = step(${gibC(GIB.bulb0)}, h);
+          // petal bud: incised rings at the girth and below the tip; carved chasing marks
+          float onB = step(${capC(CAP.bud0)}, h);
           float fwh = max(fwidth(h), 1e-6);
           float rings = 0.0;
-          rings = max(rings, 1.0 - smoothstep(0.0004, 0.0004 + fwh * 1.5, abs(h - ${gibC(GIB.rings[0])})));
-          rings = max(rings, 1.0 - smoothstep(0.0004, 0.0004 + fwh * 1.5, abs(h - ${gibC(GIB.rings[1])})));
-          rings = max(rings, 1.0 - smoothstep(0.0004, 0.0004 + fwh * 1.5, abs(h - ${gibC(GIB.rings[2])})));
+          rings = max(rings, 1.0 - smoothstep(0.0004, 0.0004 + fwh * 1.5, abs(h - ${capC(CAP.rings[0])})));
+          rings = max(rings, 1.0 - smoothstep(0.0004, 0.0004 + fwh * 1.5, abs(h - ${capC(CAP.rings[1])})));
+          rings = max(rings, 1.0 - smoothstep(0.0004, 0.0004 + fwh * 1.5, abs(h - ${capC(CAP.rings[2])})));
           grv = max(grv, rings * onB * (1.0 - smoothstep(0.0007, 0.002, fwh)));
           float aah = 1.0 - smoothstep(0.0015, 0.004, px);
           // shallow round planishing dimples (smooth-edged), barely breaking the reflection
@@ -499,7 +452,7 @@ export async function build(ctx) {
           gx -= dim * dim * 0.035 * aah * onB;
         } else {
           // lotus petal: veins fanning along the petal, darker toward the root
-          float v = vGib.x, u = vGib.y;
+          float v = vCap.x, u = vCap.y;
           float aav = 1.0 - smoothstep(0.12, 0.4, fwidth(v * 3.5));
           float veins = (1.0 - smoothstep(0.1, 0.22, abs(fract(v * 3.5 + 0.5) - 0.5))) * aav * (1.0 - u * 0.5) * (1.0 - smoothstep(0.75, 1.0, abs(v)));
           grv = max(grv, veins * 0.55);
@@ -516,7 +469,7 @@ export async function build(ctx) {
     fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0006);
       { vec3 dn = fwidth(normal); roughnessFactor = max(roughnessFactor, clamp(length(dn) * 0.9, 0.0, 0.42)); }`,
   });
-  gib.name = 'bridgeLotusCap';
+  capMat.name = 'bridgeLotusCap';
   const RIVET = new THREE.SphereGeometry(0.0048, 7, 3, 0, Math.PI * 2, 0, Math.PI / 2); RIVET.rotateX(Math.PI / 2); RIVET.scale(1, 1, 0.75);
 
   // granite (piers, abutments, slabs) with a waterline algae band and wet darkening
@@ -594,7 +547,7 @@ export async function build(ctx) {
     g.setAttribute('color', new THREE.BufferAttribute(a, 3));
     return g;
   }
-  // kind 1 = railing member (shu), 0 = fascia / substructure (oxblood)
+  // kind 1 = railing member (栗壳桐油木), 0 = fascia / substructure (深栗壳)
   const addLac = (g, mode, dirt, m = null, kind = 0) => B.add(paint(g, mode, dirt + 2 * kind, rnd.next()), lac, m);
   const addDark = (g, m = null) => B.add(paint(g, 1, 1, 1), dark, m);
   const addStone = (g, m = null, tone = 1) => { const t = tone * (0.72 + 0.36 * rnd.next()); const w = rnd.next(); return B.add(paint(g, t * (1.0 + 0.06 * w), t * (0.97 + 0.03 * w), t * (0.9 + 0.08 * (1 - w))), granite, m); };
@@ -730,8 +683,8 @@ export async function build(ctx) {
   // ---------------------------------------------------------------- 莲瓣望柱头 (lotus-bud post cap)
   // Lathe profile (local: base on the cap plate at y = 0, scale 1 for a 0.16 m post): foot bead,
   // cavetto, a chased band between raised rims, a second cavetto, a stud-ring seat, a waisted neck
-  // with a collar bead, then a lotus bud that swells and closes to a blunt tip
-  // (was: the 宝珠 onion bulb with a drawn-out point). A double lotus-petal
+  // with a collar bead, then a lotus bud that swells and closes to a blunt tip.
+  // A double lotus-petal
   // collar hugs the base of the bud. uv = (angle fraction, local height) drives
   // the chasing in the shader; colour g = cavity (0 polished arris .. 1 deep recess -> patina).
   function lotusCapProfileHi(nb) {
@@ -750,7 +703,7 @@ export async function build(ctx) {
     add(0.0640, 0.0995); add(0.0575, 0.1035); add(0.0515, 0.1075); add(0.0478, 0.1115); add(0.0466, 0.1145);
     bead(0.0466, 0.1192, 0.0045, 5);
     add(0.0462, 0.1250);
-    const { bulb0: y0, H, Rm, tEnd } = GIB;
+    const { bud0: y0, H, Rm, tEnd } = CAP;
     // 莲蕾: the petals swell to their widest about a third of the way up, then
     // the bud closes with a full convex curve to a blunt, rounded tip
     for (let i = 1; i <= nb; i++) {
@@ -765,7 +718,7 @@ export async function build(ctx) {
     return P;
   }
   const GP_HI = lotusCapProfileHi(40);
-  const bulbR = (y) => {
+  const budR = (y) => {
     for (let j = 1; j < GP_HI.length; j++) if (GP_HI[j][1] >= y) { const [r0, y0] = GP_HI[j - 1], [r1, y1] = GP_HI[j]; return r0 + (r1 - r0) * (y - y0) / Math.max(y1 - y0, 1e-6); }
     return 0;
   };
@@ -799,7 +752,7 @@ export async function build(ctx) {
             const a = phi + v * Math.max(w, 0.04) * wAng;
             const lift = flare * Math.pow(u, 2.4) * (1 - 0.6 * v * v);
             const th = outer ? thick * (1 - v * v) * (1 - 0.5 * u) + 0.0011 * Math.pow(1 - Math.abs(v), 8) * (1 - u * 0.7) : 0;
-            const r = Math.max(bulbR(y), 0.0512) + rOff + lift + th;
+            const r = Math.max(budR(y), 0.0512) + rOff + lift + th;
             pos.push(r * Math.sin(a), y + lift * 0.35, r * Math.cos(a));
             uvA.push(v, u);
             const c = outer ? clamp(0.5 - 0.3 * Math.pow(1 - Math.abs(v), 6) + 0.45 * Math.pow(1 - u, 3), 0, 1) : 0.85;
@@ -850,7 +803,7 @@ export async function build(ctx) {
     // lotus-bud post cap (莲瓣望柱头) sits on the plain lacquered post sleeve
     const s = w / PW;
     const M = mat4([x, yTop + 0.016 * s, z], [0, rnd.next() * 6.28, 0], scale);
-    for (const g of (hero ? CAP_HERO : CAP_STD)) B.add(g, gib, M);
+    for (const g of (hero ? CAP_HERO : CAP_STD)) B.add(g, capMat, M);
   }
 
   // ---------------------------------------------------------------- DECK planks
@@ -889,7 +842,7 @@ export async function build(ctx) {
     }
   }
 
-  // ---------------------------------------------------------------- fallen maple leaves + a few cherry petals
+  // ---------------------------------------------------------------- fallen maple leaves + a few peach petals
   // drifted against the railing sills and into the board joints (wind from the west piles them on the east side)
   {
     const leafMat = mat.std({ color: 0xffffff, roughness: 0.62, metalness: 0, vertexColors: true, side: THREE.DoubleSide }, {
@@ -996,7 +949,7 @@ export async function build(ctx) {
     }
   }
 
-  // ---------------------------------------------------------------- BENTS: granite piers + vermilion cap beams
+  // ---------------------------------------------------------------- BENTS: granite piers + chestnut cap beams
   const bentZ = [ZC - 3.4, ZC + 3.4];
   for (const zb of bentZ) {
     const fb = (z) => yAt(z, FT) - fasciaDepth(z);
@@ -1035,7 +988,7 @@ export async function build(ctx) {
         }
         y += h;
       });
-      // wedge (kusabi) driven through the tie just outside the pillar
+      // 木楔 driven through the tie just outside the pillar
       {
         const ny = footTop + (pillarTop - footTop) * 0.56;
         addLac(rbox(0.05, 0.36, 0.075, 0.008, 1), MODE_VERT, 0.6, mat4([px + side * 0.345, ny + 0.02, zb]));
@@ -1045,7 +998,7 @@ export async function build(ctx) {
       addStone(stoneBlock(1.1, f1Top - (BOTTOM - 0.5), 1.1, 0.05, 0.016, 0.14, zb * 2 + side, 0.006), mat4([px, (f1Top + BOTTOM - 0.5) / 2, zb], [0, (sr.next() - 0.5) * 0.06, 0]), 0.85);
       addStone(stoneBlock(0.84, footTop - f1Top + 0.01, 0.84, 0.045, 0.012, 0.1, zb * 3 + side, 0.006), mat4([px, (footTop + f1Top) / 2, zb], [0, (sr.next() - 0.5) * 0.05, 0]), 0.88);
     }
-    // vermilion through-tie (穿枋) binding the pillar pair
+    // chestnut through-tie (穿枋) binding the pillar pair
     {
       const ny = footTop + (pillarTop - footTop) * 0.56;
       const nL = 2 * (1.62 + 0.29 + 0.17);
@@ -1125,35 +1078,15 @@ export async function build(ctx) {
 
   for (const side of [-1, 1]) {
     const xr = X0 + side * XR;
-    // base sill (jifuku)
+    // 地栿 (base sill)
     addLac(sweep(arcPts((SILL.v0 + SILL.v1) / 2, zPostN, zPostS, xr, 0.08), rrect(SILL.w, SILL.v1 - SILL.v0, 0.016, 3)), MODE_ARC, 0.15, null, 1);
-    // mid rail (hira-穿枋)
+    // 横枋 (mid rail)
     addLac(sweep(arcPts((MID.v0 + MID.v1) / 2, zPostN, zPostS, xr, 0.08), rrect(MID.w, MID.v1 - MID.v0, 0.012, 3)), MODE_ARC, 0.05, null, 1);
-    // top rail (hoko-gi) with curled ends + gilt end ferrules
+    // 扶手 (top rail): runs level between the end posts and stops there.
+    // No upturned 反り curl — a Jiangnan rail terminates square on its end post.
     {
       const main = arcPts(TOP.v, zPostN, zPostS, xr, 0.06);
-      // beyond the end posts the rail runs on and sweeps up to level (sori), ending in a gilt cap
-      const curl = (pts, atStart) => {
-        const n = pts.length; const p = (atStart ? pts[0] : pts[n - 1]).clone();
-        const q = atStart ? pts[1] : pts[n - 2];
-        const d = p.clone().sub(q).normalize(); // outward
-        const out = [];
-        const sgnZ = Math.sign(d.z);
-        const turn = Math.asin(clamp(-d.y, -1, 1)) + 0.1; // rotate until slightly rising
-        const N = 9;
-        for (let k = 1; k <= N; k++) {
-          const a = k <= 2 ? 0 : turn / (N - 2);
-          const dz = d.z, dy = d.y;
-          const ca = Math.cos(a), sa = Math.sin(a);
-          if (sgnZ > 0) { d.z = dz * ca - dy * sa; d.y = dz * sa + dy * ca; } else { d.z = dz * ca + dy * sa; d.y = -dz * sa + dy * ca; }
-          p.addScaledVector(d, 0.034);
-          out.push(p.clone());
-        }
-        return out;
-      };
-      const cN = curl(main, true).reverse(), cS = curl(main, false);
-      const pts = [...cN, ...main, ...cS];
-      addLac(sweep(pts, ellipse(TOP.a, TOP.b, 24)), MODE_ARC, 0.0, null, 1);
+      addLac(sweep(main, ellipse(TOP.a, TOP.b, 24)), MODE_ARC, 0.0, null, 1);
     }
     // posts
     for (let k = 0; k < postZ.length; k++) {
@@ -1170,7 +1103,7 @@ export async function build(ctx) {
         addStone(stoneBlock(0.42, 0.18, 0.42, 0.03, 0.004, 0.08, zp + side), mat4([xr, LAND_TOP + 0.09, zp]), 1.1);
       }
     }
-    // struts (tsuka) between posts, lower and upper rows, plus nail heads on the mid rail
+    // 蜀柱 (short struts) between posts, lower and upper rows, plus nail heads on the mid rail
     for (let k = 0; k < postZ.length - 1; k++) {
       const za = postZ[k], zb2 = postZ[k + 1];
       const ta = thAtZ(za), tb = thAtZ(zb2);
@@ -1183,7 +1116,7 @@ export async function build(ctx) {
         const ub = yAt(z, MID.v1) - 0.015, ut = yAt(z, TOP.v - TOP.b * 0.5);
         addLac(rbox(0.062, lt - lb, 0.062, 0.008, 1), MODE_VERT, 0.05, mat4([xr, (lb + lt) / 2, z]), 1);
         addLac(rbox(0.062, ut - ub, 0.062, 0.008, 1), MODE_VERT, 0.0, mat4([xr, (ub + ut) / 2, z]), 1);
-        // nail heads + gilt washers on both faces of the mid rail
+        // 熟铁钉头 on both faces of the mid rail
         const ym = yAt(z, (MID.v0 + MID.v1) / 2);
         for (const fs of [-1, 1]) {
           const fx = xr + fs * (MID.w / 2);
@@ -1193,7 +1126,7 @@ export async function build(ctx) {
 
       }
     }
-    // forged iron nail heads in two rows along the black capping band (clear of the gilt fittings)
+    // forged iron nail heads in two rows along the dark capping band
     for (let th = -thE + 0.02; th < thE - 0.02; th += 0.22 / RA) {
       const z = ZC + RA * Math.sin(th);
       if (postZ.some((zp) => Math.abs(zp - z) < 0.11)) continue;
@@ -1222,7 +1155,7 @@ export async function build(ctx) {
       { cam: [11.15, 3.4, 22], look: [10.3, 4.2, -16], focal: 30 },   // on the deck walking north, post cap at eye level
       { cam: [-2, 1.6, 24], look: [10, 1.2, 15], focal: 28 },         // classic side elevation over the lotus
       { cam: [2, 2.2, 30], look: [10, 1.3, 16], focal: 30 },          // elevated south-west 3/4
-      { cam: [5.5, 0.1, 19], look: [8.2, 1.9, 16], focal: 40 },       // crown kazari-kanagu from water level
+      { cam: [5.5, 0.1, 19], look: [8.2, 1.9, 16], focal: 40 },       // bridge crown from water level
     ],
   };
 

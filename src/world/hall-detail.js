@@ -39,7 +39,7 @@ function petalPoly(r0, r1, hw, a) {
 
 // 莲花瓦当 — eave tile end (axis = local +Y, face toward +Y).
 // A rimmed dark tile disc with a 弦纹 ring, eight lotus petals and a domed
-// seed pod. (was: 巴纹Disc, with a gilt mitsudomoe — a Shinto shrine motif)
+// seed pod. (was: 巴纹Disc with a gilt mitsudomoe — a Shinto shrine motif, removed)
 export function lotusDisc(msTile, msGold, X, R = 0.122, th = 0.05) {
   lathe(msTile, X, [[0, -th], [R, -th], [R, 0], [R * 0.93, 0.014], [R * 0.84, 0.014], [R * 0.8, 0.004], [0, 0.004]], 16, { hardDeg: 40 });
   // flat frame for planar relief: XY plane = disc face, +Z = disc axis

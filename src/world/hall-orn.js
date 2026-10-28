@@ -174,15 +174,4 @@ export function chiwen(msTile, msGold, X, W = 0.9, H = 1.2, T = 0.22, opts = {})
   }
 }
 
-// Square gold sleeve fitting (kazari-金物) around a beam end. Frame: beam
-// along local X, section w x h centred; sleeve length L starting at origin.
-export function sleeve(ms, X, w, h, L = 0.25, t = 0.012) {
-  cbox(ms, mul(X, xf([L / 2, 0, 0])), L / 2, h / 2 + t, w / 2 + t, 0.006);
-}
-
-// Simple bracket "卷斗" style block with gold face plate.
-export function goldPlate(ms, X, hw, hh, t = 0.006) {
-  cbox(ms, X, hw, hh, t, Math.min(t, 0.004));
-}
-
 export { bez };

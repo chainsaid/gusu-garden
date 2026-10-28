@@ -3,7 +3,7 @@
 //  - every exterior material gets a baked ambient-occlusion attribute (aAO)
 //    that attenuates indirect light only (deep eaves, porch, crawlspace)
 //  - "orn": vermilion lacquer with raised gold 卷草 / flower relief
-//    (截金-style ornament for beams, gables, transoms)
+//    (卷草/缠枝雕 ornament for beams, gables, transoms)
 //  - "blackOrn": black lacquer with fine gold scroll relief
 // ---------------------------------------------------------------------------
 
@@ -112,7 +112,7 @@ export function agedGiltHooks(amt = 1.0) {
         vec3 c = diffuseColor.rgb;
         c = mix(c, c * vec3(0.52, 0.42, 0.30), g_tarn * 0.65);
         c *= mix(0.62, 1.0, smoothstep(0.15, 0.85, vAO));
-        // gold-leaf squares (kinpaku, ~10.9 cm) laid with faint overlapping seams,
+        // gold-leaf squares laid with faint overlapping seams,
         // plus fine wiping marks; both filtered by the pixel footprint
         {
           vec2 q = hk_uv(vWPos, normalize(vWNrm)) / 0.109 + vec2(0.37, 0.61);

@@ -2,7 +2,7 @@
 // hall-lib: low-level procedural mesh accumulation for the main hall.
 // Everything is appended into growable typed buffers per material (one draw
 // call per material), with optional local transforms, mirroring, smooth
-// "rounded" chamfers and a post-hoc world warp (roof sori).
+// "rounded" chamfers and a post-hoc world warp (屋顶起翘).
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { seg as dseg } from '../core/detail.js';

@@ -36,12 +36,12 @@ function makito(red, gold, X, x, y, z, s = 0.15, h = 0.15, goldFace = true) {
   cbox(red, mul(X, xf([x, y + h / 2, z])), s, h / 2, s, C, { taper: [0.8, 0.8] });
 }
 
-// type: '三手先' (3 steps), '出三斗' (1 step), 'flat' (no projection)
-// opts.inter: intermediate set (sits on a 蛙股(已替换为荷叶墩) instead of a column)
-export function bracketSet(acc, mats, X, type = 'mitesaki', opts = {}) {
+// 斗拱出跳制（清式踩数）：'qimai' 七踩 (3 出跳)、'sanmai' 三踩 (1 出跳)、'flat' 不出跳
+// opts.inter: 补间铺作（坐于荷叶墩之上，而非柱头）
+export function bracketSet(acc, mats, X, type = 'qimai', opts = {}) {
   const red = acc.m(mats.bkt || mats.red), gold = acc.m(mats.gold), redD = acc.m(mats.redDark), redA = acc.m(mats.redA || mats.red);
   const AH = 0.19, MH = 0.15; // arm height, makito height
-  const steps = type === 'mitesaki' ? 3 : type === 'demitsudo' ? 1 : 0;
+  const steps = type === 'qimai' ? 3 : type === 'sanmai' ? 1 : 0;
   const P = 0.44; // projection per step
   const lat = opts.lat || 0.62; // lateral arm half length
   let y = 0;
@@ -97,7 +97,7 @@ export function bracketSet(acc, mats, X, type = 'mitesaki', opts = {}) {
 export function bracketBeams(acc, mats, p0, p1, outward, type) {
   const red = acc.m(mats.bkt || mats.red);
   const AH = 0.19, P = 0.44;
-  const steps = type === 'mitesaki' ? 3 : type === 'demitsudo' ? 1 : 0;
+  const steps = type === 'qimai' ? 3 : type === 'sanmai' ? 1 : 0;
   const levels = [];
   for (let s = 0; s < Math.max(1, steps); s++) levels.push([s * P, 0.6 + s * 0.34]);
   for (const [off, yb] of levels) {

@@ -2,15 +2,14 @@
 // 主厅 — exterior shell. 重檐歇山（下檐副阶 + 上檐歇山顶），嫩戗发戗起翘，
 // 青石台基，栗壳色桐油木柱，斗拱与暗哑铁件。
 // Built in hall-local coordinates and placed at L.hall.center (faces +Z).
-// (was: a Japanese main hall with a 副阶 skirt roof, a 歇山 main roof with a
-//  千鸟破风 dormer and a 唐破风 porch over the stairs: all removed)
-//  and a 唐破风(已移除) porch over the stairs: all removed for the Jiangnan style)
+// (早期曾套用日式本殿形制：副阶 + 歇山 + 千鸟破风天窗 + 阶前唐破风抱厦，
+//  现均已移除，改为纯江南重檐歇山）
 // ---------------------------------------------------------------------------
 import { Acc, xf, basis, mul, v3, sweep, cbox, lathe } from './hall-lib.js';
 import { makeProfile, makeWarp, buildTiles, buildEaves, buildXieshanRidges, buildXieshanGables, ridgeAlong } from './hall-roof.js';
 import { chiwen } from './hall-orn.js';
-// hall-kara.js (唐破风(已移除) 唐破风 / chidori 千鸟破风) is no longer imported:
-// both are Japanese-only roof forms and have been removed from the Jiangnan hall.
+// hall-kara.js（唐破风抱厦 / 千鸟破风天窗）已删除且不再导入：
+// 两者均为和风独有屋顶形式，已从江南主厅移除。
 import { HB, buildPodium, buildStairs, buildVeranda, buildWalls, buildInterior, buildUpper, placeBrackets, kentoku, railing } from './hall-body.js';
 import { stairBalustrade } from './hall-stair.js';
 import { aoVariant, weatherHooks, mergeHooks, agedGiltHooks, lacquerMicroHooks } from './hall-mats.js';
@@ -71,7 +70,7 @@ function makeMaterials(ctx) {
     woodX: A(M.woodRaw), woodZ: A(M.woodRawZ), woodDark: A(M.woodDark), bronze: A(M.bronze),
     // (all-over painted ornament materials retired: gilt work is real carved geometry now)
     goldL: A(gilt('vec3(1.0, 0.65, 0.25)', 0.36), agedGiltHooks(0.6)),
-    // carved gilt relief (horimono): fresher leaf, a bit rougher than fittings
+    // carved relief: fresher finish, a bit rougher than the fittings
     goldC: Object.assign(A(gilt('vec3(1.0, 0.66, 0.25)', 0.3), agedGiltHooks(0.45)), { name: 'hallGoldCarve' }),
     // recessed ground of gilt carvings: deeper amber, rougher (reads as shadowed gilding)
     goldR: Object.assign(A(gilt('vec3(0.78, 0.45, 0.14)', 0.5), agedGiltHooks(0.6)), { name: 'hallGoldRecess' }),
@@ -219,7 +218,7 @@ export async function build(ctx) {
     for (const sz of [-1, 1]) { const pts = []; for (let i = 0; i <= 20; i++) { const x = -(xi + 0.15) + (2 * (xi + 0.15) * i) / 20; pts.push([x, yF(mok.ez - zi - 0.14), sz * (zi + 0.14)]); } pf(pts); }
     for (const sx of [-1, 1]) { const pts = []; for (let i = 0; i <= 12; i++) { const z = -(zi + 0.15) + (2 * (zi + 0.15) * i) / 12; pts.push([sx * (xi + 0.14), yF(mok.ex - xi - 0.14), z]); } pf(pts); }
   }
-  placeBrackets(accM, mats, HB.colX, HB.colZ, HB.colTop, 'demitsudo');
+  placeBrackets(accM, mats, HB.colX, HB.colZ, HB.colTop, 'sanmai');
   kentoku(accM, mats, 13, 8.5, HB.colTop - 0.02, mok.E.yP + mok.E.sb * (mok.E.dwX - mok.E.dP) + 0.02, HB.colR);
   accM.warp(warpM);
   for (const b of bellsM.bells) { warpM(b.pos[0], b.pos[1], b.pos[2], tmp); b.pos = [tmp[0], tmp[1], tmp[2]]; anchors.bells.push(b); }
@@ -230,10 +229,10 @@ export async function build(ctx) {
   const bellsU = buildEaves(accU, main, mats);
   buildXieshanRidges(accU, main, mats);
   buildXieshanGables(accU, main, mats);
-  // 千鸟破风 千鸟破风(已移除) removed: a Chinese hip-gable roof has no dormer gable
-  // standing on the front slope (was: buildChidori(accU, mats, R, {...}, mainYc))
+  // 千鸟破风天窗已移除：中式歇山顶不在前坡立抱厦天窗
+  // (was: buildChidori(accU, mats, R, {...}, mainYc))
   buildUpper(accU, mats, R);
-  placeBrackets(accU, mats, HB.up.xs, HB.up.zs, HB.up.top, 'mitesaki', { kw: 1.05, fullInter: true });
+  placeBrackets(accU, mats, HB.up.xs, HB.up.zs, HB.up.top, 'qimai', { kw: 1.05, fullInter: true });
   kentoku(accU, mats, xi, zi, HB.up.top - 0.02, main.E.yP + main.E.sb * (main.E.dwX - main.E.dP) + 0.03, HB.up.r);
   accU.warp(warpU);
   for (const b of bellsU.bells) { warpU(b.pos[0], b.pos[1], b.pos[2], tmp); b.pos = [tmp[0], tmp[1], tmp[2]]; anchors.bells.push(b); }

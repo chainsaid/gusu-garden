@@ -271,7 +271,7 @@ export function column(lb, K, x, z, yb, yt, r, o = {}) {
 // 歇山屋顶: tiles, ridges, 螭吻, gable (山花), 破风(已移除), 悬鱼.
 // R = { ex, ez, y0, prof(d), gd, ov, lift, T, K, ridge:{h,w}, hip:{w,h}, chiwen:{s}, gableDeco }
 // ---------------------------------------------------------------------------
-export function irimoyaRoof(lb, R) {
+export function xieshanRoof(lb, R) {
   const K = R.K, T = R.T, lift = R.lift;
   const { ex, ez, gd, ov } = R;
   const xg = ex - gd, xv = xg + ov, zb = ez - gd, zj = ez - (gd - ov);

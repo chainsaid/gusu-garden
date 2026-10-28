@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// hall-carve: real-geometry gilt relief carving (horimono) for gable fields,
+// hall-carve: real-geometry relief carving (卷草/缠枝雕) for gable fields,
 // beam faces and panels. Everything is laid out in a local XY plane and raised
 // toward local +Z, then mapped by a frame matrix X (hall-local).
 //  - ridge2: tapered half-round strand along a 2D polyline (vines, leaves)
@@ -127,7 +127,7 @@ export function cloud(ms, X, cx, cy, S, h, dir = 1, z0 = 0) {
 
 // Scrolling-vine (卷草) composition filling a band. yLo/yHi: fn(x).
 // opts: { R (rng for variation), minH, maxRowH, scale (stroke scale), flowers }
-export function karakusaBand(ms, X, x0, x1, yLo, yHi, opts = {}) {
+export function scrollBand(ms, X, x0, x1, yLo, yHi, opts = {}) {
   const maxRowH = opts.maxRowH || 0.75;
   const minH = opts.minH || 0.16;
   // split into rows if tall: rows are sub-bands of equal height fraction
@@ -141,7 +141,7 @@ export function karakusaBand(ms, X, x0, x1, yLo, yHi, opts = {}) {
       let a = x0, b = x1;
       while (a < b && hi(a) - lo(a) < minH) a += 0.03;
       while (b > a && hi(b) - lo(b) < minH) b -= 0.03;
-      if (b - a > 0.3) karakusaBand(ms, X, a, b, lo, hi, { ...opts, _row: true, phase: (opts.phase || 0) + r * 0.5 });
+      if (b - a > 0.3) scrollBand(ms, X, a, b, lo, hi, { ...opts, _row: true, phase: (opts.phase || 0) + r * 0.5 });
     }
     return;
   }

@@ -258,7 +258,7 @@ export function flatTileGeo(nx = 6) {
   return g;
 }
 
-// Eave end disc (nokimarugawara mon): faces +Z, back at z~-0.03. Mitsudomoe-ish
+// Eave end disc (巴纹瓦当): faces +Z, back at z~-0.03. Spiral-comma motif,
 // pinwheel + bead ring + rim.
 export function discGeo(R = 0.104, detail = 1) {
   const prof = (detail ? [

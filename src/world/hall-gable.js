@@ -5,7 +5,7 @@
 // right half is carved in a frame and mirrored for the left half.
 // ---------------------------------------------------------------------------
 import { xf, mul, basis } from './hall-lib.js';
-import { karakusaBand, beamMotif, peony, scroll, leaf, ridge2, bead, cloud } from './hall-carve.js';
+import { scrollBand, beamMotif, peony, scroll, leaf, ridge2, bead, cloud } from './hall-carve.js';
 
 const goldOf = (acc, mats) => acc.m(mats.redA || mats.red);
 
@@ -23,14 +23,14 @@ export function carveKaraGable(acc, mats, K, zp) {
   const o = { maxRowH: 0.62, minH: 0.2, scale: 1.45 };
   for (const X of pair(xf([0, 0, zp]))) {
     // lower zone (between 虹梁 and the horizontal beam)
-    karakusaBand(g, X, 0.98, 2.27, () => yB0, () => yB1, { ...o, phase: 0.0 });
-    karakusaBand(g, X, 2.53, 3.27, () => yB0, () => yB1, { ...o, phase: 0.5, flowers: false });
-    karakusaBand(g, X, 4.53, 6.05, () => yB0, (x) => Math.min(yB1, top(x)), { ...o, phase: 0.25 });
+    scrollBand(g, X, 0.98, 2.27, () => yB0, () => yB1, { ...o, phase: 0.0 });
+    scrollBand(g, X, 2.53, 3.27, () => yB0, () => yB1, { ...o, phase: 0.5, flowers: false });
+    scrollBand(g, X, 4.53, 6.05, () => yB0, (x) => Math.min(yB1, top(x)), { ...o, phase: 0.25 });
     // above the side 蛙股(已替换为荷叶墩) (they are only 0.62 high)
-    karakusaBand(g, X, 3.33, 4.47, () => K.colTop + 0.72, () => yB1, { ...o, phase: 0.75, flowers: false, minH: 0.14 });
+    scrollBand(g, X, 3.33, 4.47, () => K.colTop + 0.72, () => yB1, { ...o, phase: 0.75, flowers: false, minH: 0.14 });
     // upper zone under the curved bargeboard
-    karakusaBand(g, X, 1.14, 2.27, () => yU0, top, { ...o, phase: 0.3 });
-    karakusaBand(g, X, 2.53, 4.9, () => yU0, top, { ...o, phase: 0.8, minH: 0.16 });
+    scrollBand(g, X, 1.14, 2.27, () => yU0, top, { ...o, phase: 0.3 });
+    scrollBand(g, X, 2.53, 4.9, () => yU0, top, { ...o, phase: 0.8, minH: 0.16 });
   }
 }
 
@@ -59,11 +59,11 @@ export function carveChidori(acc, mats, C, Q, zp, base) {
   const o = { maxRowH: 1.1, minH: 0.2, scale: 1.25 };
   const top = (x) => Q(x) - 0.58;
   for (const X of pair(xf([0, 0, zp]))) {
-    karakusaBand(g, X, 0.66, C.W - 0.3, () => base + 0.47, (x) => Math.min(base + 1.2, top(x)), { ...o, phase: 0.2 });
+    scrollBand(g, X, 0.66, C.W - 0.3, () => base + 0.47, (x) => Math.min(base + 1.2, top(x)), { ...o, phase: 0.2 });
   }
 }
 
-// Iri母屋 side gable (field plane x = xw, faces +sx). Carved bands between
+// 歇山 side gable (field plane x = xw, faces +sx). Carved bands between
 // the horizontal beams; struts at z = 0, +-zg*0.62.
 export function carveSideGable(acc, mats, xw, sx, zg, beamsY, topAt) {
   const g = goldOf(acc, mats);
@@ -74,16 +74,16 @@ export function carveSideGable(acc, mats, xw, sx, zg, beamsY, topAt) {
   for (const X of pair(X0)) {
     // between beam 0 and beam 1 (蛙股(已替换为荷叶墩) stand at 0 and +-0.31 zg)
     const lo1 = beamsY[0] + hb, hi1 = beamsY[1] - hb;
-    karakusaBand(g, X, zg * 0.62 + 0.18, zg - 0.4, () => lo1, (z) => Math.min(hi1, topAt(z)), { ...o, phase: 0.1 });
+    scrollBand(g, X, zg * 0.62 + 0.18, zg - 0.4, () => lo1, (z) => Math.min(hi1, topAt(z)), { ...o, phase: 0.1 });
     // between the 蛙股(已替换为荷叶墩) (at 0 and +-0.31 zg) and the strut at 0.62 zg
-    karakusaBand(g, X, 0.78, zg * 0.31 - 0.62, () => lo1 + 0.06, () => hi1 - 0.04, { ...o, phase: 0.45, flowers: false, minH: 0.2 });
-    karakusaBand(g, X, zg * 0.31 + 0.62, zg * 0.62 - 0.17, () => lo1 + 0.06, () => hi1 - 0.04, { ...o, phase: 0.15 });
+    scrollBand(g, X, 0.78, zg * 0.31 - 0.62, () => lo1 + 0.06, () => hi1 - 0.04, { ...o, phase: 0.45, flowers: false, minH: 0.2 });
+    scrollBand(g, X, zg * 0.31 + 0.62, zg * 0.62 - 0.17, () => lo1 + 0.06, () => hi1 - 0.04, { ...o, phase: 0.15 });
     // between beam 1 and beam 2
     const lo2 = beamsY[1] + hb, hi2 = beamsY[2] - hb;
-    karakusaBand(g, X, 0.18, zg * 0.62 - 0.18, () => lo2, (z) => Math.min(hi2, topAt(z)), { ...o, phase: 0.6 });
-    karakusaBand(g, X, zg * 0.62 + 0.18, zg - 0.4, () => lo2, (z) => Math.min(hi2, topAt(z)), { ...o, phase: 0.35, minH: 0.3 });
+    scrollBand(g, X, 0.18, zg * 0.62 - 0.18, () => lo2, (z) => Math.min(hi2, topAt(z)), { ...o, phase: 0.6 });
+    scrollBand(g, X, zg * 0.62 + 0.18, zg - 0.4, () => lo2, (z) => Math.min(hi2, topAt(z)), { ...o, phase: 0.35, minH: 0.3 });
     // above beam 2 (apex triangle)
-    karakusaBand(g, X, 0.18, zg * 0.62 - 0.18, () => beamsY[2] + hb, topAt, { ...o, phase: 0.85, minH: 0.3 });
+    scrollBand(g, X, 0.18, zg * 0.62 - 0.18, () => beamsY[2] + hb, topAt, { ...o, phase: 0.85, minH: 0.3 });
   }
 }
 
