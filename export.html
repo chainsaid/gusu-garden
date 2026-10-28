@@ -189,18 +189,30 @@
         return MAT_MAP.woodChestnut; // 拱券红木、桥面铺板、寻杖栏杆
       }
 
-      // 4. 水榭主厅构件
+      // 4. 水榭主厅构件 (姑苏古典园林风格)
       if (combined.includes('hall')) {
-        if (/plaster|hook_37169040|hook_36640648|intplaster/i.test(combined)) return MAT_MAP.plasterWhite;
+        if (/plaster|leak|white|intplaster|hook_37169040|hook_36640648/i.test(combined)) return MAT_MAP.plasterWhite;
         if (/intfloor/i.test(combined)) return MAT_MAP.woodFloor;
-        if (/podium|hook_24735478|台基|踏步/i.test(combined)) return MAT_MAP.stoneCyan;
+        if (/podium|terrace|stair|stone|granite|drumstone|hook_24735478|台基|踏步|月台/i.test(combined)) return MAT_MAP.stoneCyan;
         if (/tile|halltile/i.test(combined)) return MAT_MAP.tileCyan;
         if (/goldcarve|gold|carve/i.test(combined)) return MAT_MAP.pearlGold;
-        if (/hook_42614364|hook_23556852|iron|metal/i.test(combined)) return MAT_MAP.castIron;
-        if (/soffit|bracket|panel|beam|red|chestnut|wood|timber|intwall|intceil/i.test(combined)) return MAT_MAP.woodChestnut;
+        if (/hook_42614364|hook_23556852|iron|metal|ring|pullring/i.test(combined)) return MAT_MAP.castIron;
+        if (/meirenkao|sparrow|changchuang|window|door|soffit|bracket|panel|beam|red|chestnut|wood|timber|intwall|intceil/i.test(combined)) return MAT_MAP.woodChestnut;
       }
 
-      // 5. 通用类别匹配
+      // 5. 南大门构件 (苏式水磨砖雕门楼、黑漆大门、抱鼓石、马头墙)
+      if (combined.includes('gate')) {
+        if (/plaster|wall|照墙|马头墙/i.test(combined)) return MAT_MAP.plasterWhite;
+        if (/brick|brickcarve|plaque|relief|门楼|砖雕|额枋|题额/i.test(combined)) return MAT_MAP.stoneCyan;
+        if (/drumstone|stone|stair|podium|sill|抱鼓石|门枕石|台阶|门槛/i.test(combined)) return MAT_MAP.stoneCyan;
+        if (/tile|roof|瓦/i.test(combined)) return MAT_MAP.tileCyan;
+        if (/pushou|ring|metal|iron|铺首|门环|铁件/i.test(combined)) return MAT_MAP.castIron;
+        if (/menzan|gold|gilt|门簪/i.test(combined)) return MAT_MAP.pearlGold;
+        if (/black|dark|doorleaf|黑漆|门扇/i.test(combined)) return MAT_MAP.woodDark;
+        return MAT_MAP.woodChestnut;
+      }
+
+      // 6. 通用类别匹配
       if (/tile|瓦|noshi|disc|roof/i.test(combined)) return MAT_MAP.tileCyan;
       if (/plaster|white|墙|壁|粉/i.test(combined)) return MAT_MAP.plasterWhite;
       if (/taihu|rock|peak|pondrocks|湖石|峰|假山/i.test(combined)) return MAT_MAP.taihuRock;
@@ -353,16 +365,17 @@
       const sizeMB = (glbBuffer.byteLength / 1024 / 1024).toFixed(2);
       log(`[${targetName}] GLB 导出完成: ${sizeMB} MB`);
 
+      log(`正在上传 [${targetName}] 至本地中转服务 (http://localhost:5192)...`);
       try {
-        log(`正在上传 [${targetName}] 至本地中转服务...`);
         const resp = await fetch(`http://localhost:5192/upload?name=${targetName}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/octet-stream' },
-          body: glbBuffer
+          body: new Blob([glbBuffer])
         });
         const respText = await resp.text();
         if (resp.ok) {
           log(`✓ [${targetName}] 自动化上传成功！(${respText})`);
+        } else {
+          log(`✗ [${targetName}] 上传失败: HTTP ${resp.status} ${respText}`);
         }
       } catch (e) {
         log(`上传失败: ${e.message}`);

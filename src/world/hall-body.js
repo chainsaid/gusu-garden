@@ -151,121 +151,149 @@ export function buildStairs(acc, mats, R) {
     cbox(gm, xf([(x0 + x1) / 2, 0.235, zBot + 0.14]), S.sideW / 2 + 0.06, 0.235, 0.27, 0.04);
     cbox(gc, xf([(x0 + x1) / 2, 0.475, zBot + 0.14]), S.sideW / 2 + 0.1, 0.03, 0.31, 0.02);
   }
-  // wooden steps up to the veranda (台阶)
+  // 苏式青石台阶（直通大殿门庭，取代原日式木台阶）
   const F = HB.frontSteps;
-  const wood = acc.m(mats.woodX);
+  const stone = acc.m(mats.stone), granite = acc.m(mats.granite);
   for (let j = 1; j <= F.n; j++) {
     const y = HB.pod.h + ((HB.floorY - HB.pod.h) * j) / F.n;
     const zf = F.z0 + (F.n - j + 1) * F.run;
-    cbox(wood, xf([0, y - 0.04, zf - F.run / 2]), S.hw - 0.05, 0.04, F.run / 2 + 0.02, 0.01);
-    // risers
-    cbox(acc.m(mats.redDark), xf([0, (y - 0.08 + HB.pod.h) / 2, zf - 0.03]), S.hw - 0.08, (y - 0.08 - HB.pod.h) / 2 + 0.001, 0.025, 0.004);
+    // 整块青石踏步面
+    cbox(stone, xf([0, y - 0.05, zf - F.run / 2]), S.hw - 0.15, 0.05, F.run / 2 + 0.02, 0.015);
+    // 青石踢脚垂直立板
+    cbox(granite, xf([0, (y - 0.1 + HB.pod.h) / 2, zf - 0.01]), S.hw - 0.18, (y - 0.1 - HB.pod.h) / 2 + 0.001, 0.03, 0.01);
   }
-  // stringers
+  // 两侧青石垂带石与抱鼓石基础 (Stone plinths & balustrade runners)
   for (const sx of [-1, 1]) {
-    const x = sx * (S.hw - 0.02);
-    beam(acc.m(mats.red), [x, HB.floorY + 0.02, F.z0 - 0.02], [x, HB.pod.h + 0.08, F.z0 + F.n * F.run + 0.08], 0.14, 0.3, 0.015);
+    const x = sx * (S.hw - 0.08);
+    // 倾斜石质垂带
+    beam(stone, [x, HB.floorY + 0.04, F.z0 - 0.04], [x, HB.pod.h + 0.12, F.z0 + F.n * F.run + 0.12], 0.18, 0.28, 0.02);
+    // 垂带底端青石抱鼓石台座
+    cbox(granite, xf([x, HB.pod.h + 0.24, F.z0 + F.n * F.run + 0.22]), 0.14, 0.24, 0.22, 0.03);
+    lathe(stone, xf([x, HB.pod.h + 0.52, F.z0 + F.n * F.run + 0.22], 0, 0, Math.PI / 2), [[0, -0.06], [0.16, -0.06], [0.18, 0], [0.16, 0.06], [0, 0.06]], 16);
   }
 }
 
 // --------------------------------------------------------------- railings
-// generic railing (栏杆) between posts along a polyline of post positions
-// (each [x, yBase, z]); lotus post caps on posts flagged in `gibo` set (indices).
+// generic railing (苏式勾栏/寻杖栏杆) between posts along a polyline of post positions
+// (each [x, yBase, z]); 中式素方覆斗顶与仰覆莲柱头，无日式拟宝珠
 export function railing(acc, mats, posts, opts = {}) {
-  const red = acc.m(mats.red);
+  const red = acc.m(mats.red), redA = acc.m(mats.redA || mats.red);
   const H = opts.h || 0.85, pw = opts.postW || 0.14;
-  const gibo = opts.gibo || new Set();
   posts.forEach((p, i) => {
-    const top = p[1] + H + (gibo.has(i) ? 0.12 : 0.05);
+    const top = p[1] + H + 0.05;
+    // 望柱身
     cbox(red, xf([p[0], (p[1] + top) / 2, p[2]]), pw / 2, (top - p[1]) / 2, pw / 2, 0.012);
-    if (gibo.has(i)) {
-      cbox(red, xf([p[0], top + 0.015, p[2]]), pw / 2 + 0.016, 0.015, pw / 2 + 0.016, 0.005);
-      lotusFinial(red, xf([p[0], top + 0.03, p[2]]), pw * 0.62, pw * 2.6, 12);
-    } else {
-      cbox(red, xf([p[0], top + 0.006, p[2]]), pw / 2 + 0.006, 0.008, pw / 2 + 0.006, 0.003);
-    }
+    // 中式素平顶覆斗式柱头 (Square Lotus / Beveled Cap)
+    cbox(redA, xf([p[0], top + 0.015, p[2]]), pw / 2 + 0.015, 0.015, pw / 2 + 0.015, 0.005);
+    cbox(red, xf([p[0], top + 0.035, p[2]]), pw / 2 - 0.01, 0.012, pw / 2 - 0.01, 0.004);
   });
   for (let i = 0; i < posts.length - 1; i++) {
     const a = posts[i], b = posts[i + 1];
     const L = Math.hypot(b[0] - a[0], b[2] - a[2]);
     if (opts.skip && opts.skip.has(i)) continue;
-    // top rail (round), mid rail, bottom rail
-    bar(red, [a[0], a[1] + H, a[2]], [b[0], b[1] + H, b[2]], 0.048, 10, true);
-    beam(red, [a[0], a[1] + H * 0.5, a[2]], [b[0], b[1] + H * 0.5, b[2]], 0.07, 0.11, 0.01);
-    beam(red, [a[0], a[1] + 0.07, a[2]], [b[0], b[1] + 0.07, b[2]], 0.1, 0.1, 0.01);
+    // 寻杖（圆木扶手）、腰枋（中档）、地栿
+    bar(red, [a[0], a[1] + H, a[2]], [b[0], b[1] + H, b[2]], 0.046, 12, true);
+    beam(red, [a[0], a[1] + H * 0.5, a[2]], [b[0], b[1] + H * 0.5, b[2]], 0.065, 0.10, 0.01);
+    beam(red, [a[0], a[1] + 0.07, a[2]], [b[0], b[1] + 0.07, b[2]], 0.09, 0.09, 0.01);
     const dir = v3.norm(v3.sub(b, a));
-    // small struts between mid and top rails
-    const n = Math.max(1, Math.round(L / 0.62));
+    // 中式短枨与净瓶透空短棂
+    const n = Math.max(1, Math.round(L / 0.58));
     for (let k = 1; k < n; k++) {
       const t = k / n; const p = v3.lerp(a, b, t);
-      cbox(red, basis([p[0], p[1] + H * 0.75, p[2]], dir, [0, 1, 0], v3.cross(dir, [0, 1, 0])), 0.03, H * 0.25, 0.03, 0.006);
-      // lower struts
-      cbox(red, basis([p[0], p[1] + H * 0.285, p[2]], dir, [0, 1, 0], v3.cross(dir, [0, 1, 0])), 0.025, H * 0.17, 0.025, 0.005);
+      cbox(red, basis([p[0], p[1] + H * 0.75, p[2]], dir, [0, 1, 0], v3.cross(dir, [0, 1, 0])), 0.026, H * 0.25, 0.026, 0.005);
+      cbox(red, basis([p[0], p[1] + H * 0.285, p[2]], dir, [0, 1, 0], v3.cross(dir, [0, 1, 0])), 0.022, H * 0.17, 0.022, 0.004);
     }
   }
 }
 
-// ------------------------------------------------------- veranda (en)
+// ------------------------------------------------------- 苏式美人靠 (吴王靠 / 鹅颈靠)
+export function meirenkao(acc, mats, p0, p1, out, opts = {}) {
+  const red = acc.m(mats.red), redD = acc.m(mats.redDark), redA = acc.m(mats.redA || mats.red);
+  const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+  if (L < 0.4) return;
+  const ax = [(p1[0] - p0[0]) / L, 0, (p1[1] - p0[1]) / L];
+  const o = [out[0], 0, out[1]];
+  const midX = (p0[0] + p1[0]) / 2, midZ = (p0[1] + p1[1]) / 2;
+  const yBase = opts.yBase || 1.6;
+  const seatY = yBase + 0.44;
+  const seatW = 0.36;
+  const railH = 0.50;
+  const outCurve = 0.16;
+
+  const M = (u, y, w) => basis([midX + ax[0] * u + o[0] * w, y, midZ + ax[2] * u + o[2] * w], ax, [0, 1, 0], o);
+
+  // 1. 实木宽厚坐板 (熟漆栗壳色)
+  cbox(redD, M(0, seatY, seatW / 2 - 0.04), L / 2 - 0.02, 0.025, seatW / 2, 0.008);
+
+  // 2. 坐板下方地栿与木雕支托牛腿 (立于月台青石地面上)
+  cbox(redA, M(0, yBase + 0.04, seatW / 2 - 0.04), L / 2 - 0.02, 0.04, 0.05, 0.006);
+  const nLegs = Math.max(2, Math.round(L / 1.5));
+  for (let i = 0; i <= nLegs; i++) {
+    const u = -L / 2 + 0.08 + (i * (L - 0.16)) / nLegs;
+    cbox(red, M(u, (yBase + seatY - 0.025) / 2, seatW / 2 - 0.04), 0.04, (seatY - yBase - 0.025) / 2, 0.04, 0.005);
+    cbox(redA, M(u, yBase + 0.22, seatW * 0.65), 0.03, 0.10, 0.05, 0.004);
+  }
+
+  // 3. 鹅颈弧形靠背与圆木靠手 (Goose-neck curved rail)
+  const topP0 = [p0[0] + out[0] * (seatW + outCurve), seatY + railH, p0[1] + out[1] * (seatW + outCurve)];
+  const topP1 = [p1[0] + out[0] * (seatW + outCurve), seatY + railH, p1[1] + out[1] * (seatW + outCurve)];
+  bar(red, topP0, topP1, 0.042, 12, true);
+
+  // 靠背腰档中梁
+  const midP0 = [p0[0] + out[0] * (seatW + outCurve * 0.62), seatY + railH * 0.46, p0[1] + out[1] * (seatW + outCurve * 0.62)];
+  const midP1 = [p1[0] + out[0] * (seatW + outCurve * 0.62), seatY + railH * 0.46, p1[1] + out[1] * (seatW + outCurve * 0.62)];
+  beam(redA, midP0, midP1, 0.04, 0.055, 0.006);
+
+  // 靠背竖向透光木棂条
+  const nSlats = Math.max(3, Math.round(L / 0.18));
+  for (let k = 1; k < nSlats; k++) {
+    const t = k / nSlats;
+    const u = -L / 2 + t * L;
+    const y1 = seatY + 0.025, y2 = seatY + railH * 0.46;
+    const w1 = seatW - 0.02, w2 = seatW + outCurve * 0.62;
+    cbox(redA, M(u, (y1 + y2) / 2, (w1 + w2) / 2), 0.015, (y2 - y1) / 2, 0.015, 0.003);
+    const y3 = seatY + railH;
+    const w3 = seatW + outCurve;
+    cbox(redA, M(u, (y2 + y3) / 2, (w2 + w3) / 2), 0.015, (y3 - y2) / 2, 0.015, 0.003);
+  }
+
+  // 4. 开间端部抱框立柱
+  for (const s of [-1, 1]) {
+    const endU = s * (L / 2 - 0.04);
+    cbox(red, M(endU, (yBase + seatY + railH + 0.06) / 2, seatW / 2), 0.05, (seatY + railH + 0.06 - yBase) / 2, 0.05, 0.006);
+  }
+}
+
+// ------------------------------------------------------- 苏州园林月台与回廊 (实心青石月台 + 美人靠)
 export function buildVeranda(acc, mats, R) {
   const { x: vx, z: vz } = HB.ver;
-  const fy = HB.floorY;
-  const wx = acc.m(mats.woodX), wz = acc.m(mats.woodZ), red = acc.m(mats.red), redD = acc.m(mats.redDark), dark = acc.m(mats.woodDark);
-  const bw = 0.3;
-  // front & back boards run along x
-  for (const sz of [-1, 1]) {
-    for (let z = 8.5 + 0.0; z < vz - 0.01; z += bw) {
-      const z1 = Math.min(z + bw, vz);
-      let x = -vx + (Math.round(z / bw) % 2 ? 0 : -1.2);
-      while (x < vx - 0.01) {
-        const xe = Math.min(x + R.range(3.2, 4.4), vx); const xs = Math.max(x, -vx);
-        if (xe - xs > 0.2) {
-          const isStair = sz > 0 && z > 10.0 && Math.abs((xs + xe) / 2) < 5.0;
-          void isStair;
-          cbox(wx, xf([(xs + xe) / 2, fy - 0.05 + R.range(-0.003, 0.002), sz * (z + z1) / 2]), (xe - xs) / 2 - 0.003, 0.05, (z1 - z) / 2 - 0.004, 0.012);
-        }
-        x = xe;
-      }
-    }
-  }
-  // sides along z
+  const yPod = HB.pod.h; // 1.6m
+
+  // 注：月台顶面青石铺装统一由 buildPodium() 完成（已铺至 |x| ≤ 17.45 / |z| ≤ 12.95，
+  // 顶面 y = 1.60），此处不再重复铺设，避免重叠几何与共面 z-fighting。
+
+  // 江南古典园林美人靠（吴王靠）配置
+  const inset = 0.12;
+  const ex = vx - inset, ez = vz - inset;
+
+  // (A) 西檐廊与东檐廊：整排江南美人靠
   for (const sx of [-1, 1]) {
-    for (let x = 13.0; x < vx - 0.01; x += bw) {
-      const x1 = Math.min(x + bw, vx);
-      let z = -8.5 + (Math.round(x / bw) % 2 ? 0 : -1.4);
-      while (z < 8.5 - 0.01) {
-        const ze = Math.min(z + R.range(3.0, 4.2), 8.5); const zs = Math.max(z, -8.5);
-        if (ze - zs > 0.2) cbox(wz, xf([sx * (x + x1) / 2, fy - 0.05 + R.range(-0.003, 0.002), (zs + ze) / 2]), (x1 - x) / 2 - 0.004, 0.05, (ze - zs) / 2 - 0.003, 0.012);
-        z = ze;
-      }
-    }
+    const xPos = sx * ex;
+    meirenkao(acc, mats, [xPos, -8.4], [xPos, 8.4], [sx, 0], { yBase: yPod });
   }
-  // edge beams (檐甲) and posts (檐束)
-  const edge = [[-vx, vz], [vx, vz], [vx, -vz], [-vx, -vz], [-vx, vz]];
-  for (let i = 0; i < 4; i++) {
-    const a = edge[i], b = edge[i + 1];
-    beam(red, [a[0], fy - 0.22, a[1]], [b[0], fy - 0.22, b[1]], 0.18, 0.24, 0.015);
-    beam(red, [a[0] * 0.995, fy - 0.08, a[1] * 0.995], [b[0] * 0.995, fy - 0.08, b[1] * 0.995], 0.06, 0.06, 0.008);
-    const L = Math.hypot(b[0] - a[0], b[1] - a[1]); const n = Math.round(L / 1.857);
-    for (let k = 0; k <= n; k++) {
-      const t = k / n; const x = lerp(a[0], b[0], t) * 0.985, z = lerp(a[1], b[1], t) * 0.985;
-      cbox(dark, xf([x, (1.6 + fy - 0.34) / 2, z]), 0.08, (fy - 0.34 - 1.6) / 2 + 0.01, 0.08, 0.01);
-      lathe(acc.m(mats.granite), xf([x, 1.58, z]), [[0, 0], [0.16, 0], [0.15, 0.06], [0.1, 0.09], [0, 0.09]], 10);
-    }
-  }
-  // railing posts along the edge (inset 0.12), with stair opening at the front
-  const inset = 0.13; const ex = vx - inset, ez = vz - inset;
-  const frontL = [], frontR = [];
-  const xsFront = [-ex, ...HB.colX.filter((x) => Math.abs(x) <= 13 && Math.abs(x) > 5.2), ...HB.colX.slice(0, -1).map((x, i) => (x + HB.colX[i + 1]) / 2).filter((x) => Math.abs(x) > 5.2), ex].sort((a, b) => a - b);
-  for (const x of xsFront) { if (x < -5.2) frontL.push([x, fy, ez]); if (x > 5.2) frontR.push([x, fy, ez]); }
-  frontL.push([-5.15, fy, ez]); frontR.unshift([5.15, fy, ez]);
-  railing(acc, mats, frontL, { gibo: new Set([0, frontL.length - 1]) });
-  railing(acc, mats, frontR, { gibo: new Set([0, frontR.length - 1]) });
-  const back = xsFront.map((x) => [x, fy, -ez]);
-  railing(acc, mats, back, { gibo: new Set([0, back.length - 1]) });
-  const zsSide = [-ez, ...HB.colZ, ...HB.colZ.slice(0, -1).map((z, i) => (z + HB.colZ[i + 1]) / 2), ez].sort((a, b) => a - b);
-  for (const sx of [-1, 1]) {
-    const pts = zsSide.map((z) => [sx * ex, fy, z]);
-    railing(acc, mats, pts, { gibo: new Set([0, pts.length - 1]) });
+
+  // (B) 北檐廊（后檐）：两侧各设一段美人靠，中间明间留出后门通道
+  meirenkao(acc, mats, [-12.8, -ez], [-3.2, -ez], [0, -1], { yBase: yPod });
+  meirenkao(acc, mats, [3.2, -ez], [12.8, -ez], [0, -1], { yBase: yPod });
+
+  // (C) 南檐廊（前檐两侧）：次间与梢间前设美人靠/寻杖勾栏，中央对准石阶的大明间（-5.2 到 +5.2）完全开敞，展现江南高台大厅的开朗气度
+  meirenkao(acc, mats, [-ex, ez], [-5.25, ez], [0, 1], { yBase: yPod });
+  meirenkao(acc, mats, [5.25, ez], [ex, ez], [0, 1], { yBase: yPod });
+
+  // 转角处连接小望柱
+  const red = acc.m(mats.red);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    cbox(red, xf([sx * ex, yPod + 0.52, sz * ez]), 0.065, 0.52, 0.065, 0.008);
   }
 }
 
@@ -299,27 +327,35 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
   const M = (u, y, w) => basis(at(u, y, w), ax, [0, 1, 0], o);
   const panel = (ms, u0, u1, y0, y1, w0, w1, c = 0.01) => cbox(ms, M((u0 + u1) / 2, (y0 + y1) / 2, (w0 + w1) / 2), (u1 - u0) / 2, (y1 - y0) / 2, (w1 - w0) / 2, c);
   const Y = { sill0: fy, sill1: fy + 0.26, koshi: 2.95, kn1: 3.12, nag0: 5.9, nag1: 6.15, kn0: 7.35, kh1: 7.65, top: HB.colTop };
-  // --- structural beams (through columns)
-  panel(redA, -L / 2, L / 2, Y.kn0, Y.kh1, -0.11, 0.11, 0.015); // kashiranuki
-  panel(redA, -L / 2, L / 2, Y.top - 0.17, Y.top, -0.13, 0.13, 0.015); // daiwa (head plate)
-  if (type !== 'open') panel(redA, -half, half, Y.sill0, Y.sill1, -0.12, 0.12, 0.015); // sill
-  else panel(redA, -half, half, Y.sill0, Y.sill0 + 0.1, -0.12, 0.12, 0.01); // low threshold
-  // 腰枋 (proud on the exterior face, applied to the columns)
-  panel(redA, -L / 2 - 0.05, L / 2 + 0.05, Y.nag0, Y.nag1, r - 0.02, r + 0.09, 0.02);
-  panel(redA, -L / 2 - 0.05, L / 2 + 0.05, Y.sill1 - 0.02, Y.sill1 + 0.16, r - 0.02, r + 0.07, 0.015); // kirime nageshi (low)
-  // --- upper wall: plaster between kashira穿枋 and daiwa (both faces)
-  panel(white, -half, half, Y.kh1, Y.top - 0.17, 0.0, 0.07, 0.006);
-  panel(inP, -half, half, Y.kh1, HB.ceilY + 0.08, -0.07, 0.0, 0.006);
-  // band between 腰枋 and kashira穿枋
+  // --- structural beams (柱间额枋与穿枋，平接柱身，无凸出柱外的日式长押)
+  panel(redA, -half, half, Y.kn0, Y.kh1, -0.09, 0.09, 0.015); // 大额枋 (阑额)
+  panel(redA, -half, half, Y.top - 0.17, Y.top, -0.11, 0.11, 0.015); // 普拍枋
+  if (type !== 'open') panel(redA, -half, half, Y.sill0, Y.sill1, -0.10, 0.10, 0.015); // 下槛枋
+  else panel(redA, -half, half, Y.sill0, Y.sill0 + 0.1, -0.10, 0.10, 0.01); // 门槛木
+  // 中式穿枋 (穿插枋，平齐柱面)
+  panel(redA, -half, half, Y.nag0, Y.nag1, -0.07, 0.07, 0.012);
+  panel(redA, -half, half, Y.sill1 - 0.01, Y.sill1 + 0.12, -0.07, 0.07, 0.01);
+
+  // --- 中式木雕雀替 (Sparrow Braces / Consoles) — 柱头额枋交角倒三角木雕卷草雀替
+  const spW = Math.min(0.52, half * 0.42), spH = 0.35, spT = 0.065;
+  for (const sx of [-1, 1]) {
+    const spX = sx * (half - spW / 2);
+    panel(redD, spX - spW / 2, spX + spW / 2, Y.kn0 - spH, Y.kn0, -spT / 2, spT / 2, 0.008);
+  }
+
+  // --- upper wall: plaster between 额枋 and 普拍枋 (由额垫板与白粉抹灰)
+  panel(white, -half, half, Y.kh1, Y.top - 0.17, 0.0, 0.06, 0.006);
+  panel(inP, -half, half, Y.kh1, HB.ceilY + 0.08, -0.06, 0.0, 0.006);
+  // 额枋下中式花牙与棂条
   if (type === 'open') {
-    // lattice transom (栏间)
-    panel(red, -half, half, Y.nag1, Y.nag1 + 0.08, -0.08, 0.08, 0.008);
-    for (let u = -half + 0.12; u < half - 0.08; u += 0.16) panel(red, u - 0.025, u + 0.025, Y.nag1 + 0.08, Y.kn0, -0.035, 0.035, 0.006);
-    for (const y of [Y.nag1 + 0.42, Y.nag1 + 0.82]) panel(red, -half, half, y - 0.02, y + 0.02, -0.03, 0.03, 0.005);
-    panel(inP, -half, half, Y.kn0 - 0.02, Y.kh1, -0.07, -0.0, 0.004);
+    // 苏式挂落与棂子楣杆 (Lattice transom)
+    panel(red, -half, half, Y.nag1, Y.nag1 + 0.08, -0.06, 0.06, 0.008);
+    for (let u = -half + 0.12; u < half - 0.08; u += 0.16) panel(red, u - 0.02, u + 0.02, Y.nag1 + 0.08, Y.kn0, -0.025, 0.025, 0.005);
+    for (const y of [Y.nag1 + 0.42, Y.nag1 + 0.82]) panel(red, -half, half, y - 0.018, y + 0.018, -0.025, 0.025, 0.004);
+    panel(inP, -half, half, Y.kn0 - 0.02, Y.kh1, -0.06, -0.0, 0.004);
   } else {
-    panel(white, -half, half, Y.nag1, Y.kn0, 0.0, 0.07, 0.006);
-    panel(inP, -half, half, Y.nag1, Y.kn0, -0.07, 0.0, 0.006);
+    panel(white, -half, half, Y.nag1, Y.kn0, 0.0, 0.06, 0.006);
+    panel(inP, -half, half, Y.nag1, Y.kn0, -0.06, 0.0, 0.006);
   }
   // --- main zone
   if (type === 'panel') {
@@ -389,33 +425,64 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
         }
       }
     }
-  } else if (type === 'renji') {
-    // 苏式半窗：下为白粉矮墙，上为步步锦直棂花窗
-    panel(white, -half, half, Y.sill1, Y.koshi, 0.0, 0.07, 0.006);
-    panel(inW, -half, half, Y.sill0, Y.koshi, -0.08, 0.0, 0.006);
-    panel(redA, -half, half, Y.koshi, Y.kn1, -0.1, 0.1, 0.012); // koshi-nuki
-    const fw = 0.12;
-    panel(redA, -half, -half + fw, Y.kn1, Y.nag0, -0.08, 0.08, 0.01);
-    panel(redA, half - fw, half, Y.kn1, Y.nag0, -0.08, 0.08, 0.01);
-    panel(redA, -half, half, Y.nag0 - 0.08, Y.nag0, -0.08, 0.08, 0.01);
-    // 窗心竖向棂条
-    for (let u = -half + fw + 0.12; u < half - fw - 0.08; u += 0.18) {
-      panel(redA, u - 0.015, u + 0.015, Y.kn1 + 0.04, Y.nag0 - 0.08, -0.035, 0.035, 0.005);
+  } else if (type === 'renji' || type === 'window') {
+    // ---- 苏式半窗（白粉矮墙 + 步步锦花窗，彻底取代日式連子窓）----
+    panel(white, -half, half, Y.sill1, Y.koshi, 0.0, 0.06, 0.006);
+    panel(inP, -half, half, Y.sill0, Y.koshi, -0.06, 0.0, 0.006);
+    panel(redA, -half, half, Y.koshi, Y.kn1, -0.08, 0.08, 0.012);
+    const fw = 0.065;
+    panel(red, -half, -half + fw, Y.kn1, Y.nag0, -0.06, 0.06, 0.01);
+    panel(red, half - fw, half, Y.kn1, Y.nag0, -0.06, 0.06, 0.01);
+    panel(red, -half, half, Y.nag0 - 0.06, Y.nag0, -0.06, 0.06, 0.01);
+    panel(white, -half + fw, half - fw, Y.kn1 + 0.02, Y.nag0 - 0.06, 0.0, 0.02, 0.002);
+    const nLeaves = 4;
+    const lW = (2 * (half - fw)) / nLeaves;
+    for (let li = 0; li < nLeaves; li++) {
+      const u0 = -half + fw + li * lW + 0.006;
+      const u1 = -half + fw + (li + 1) * lW - 0.006;
+      panel(red, u0, u0 + 0.035, Y.kn1 + 0.02, Y.nag0 - 0.06, 0.02, 0.05, 0.005);
+      panel(red, u1 - 0.035, u1, Y.kn1 + 0.02, Y.nag0 - 0.06, 0.02, 0.05, 0.005);
+      panel(red, u0, u1, Y.kn1 + 0.02, Y.kn1 + 0.055, 0.02, 0.05, 0.005);
+      panel(red, u0, u1, Y.nag0 - 0.095, Y.nag0 - 0.06, 0.02, 0.05, 0.005);
+      const nV = 2;
+      for (let vi = 1; vi <= nV; vi++) {
+        const vx = u0 + (vi * (u1 - u0)) / (nV + 1);
+        panel(redA, vx - 0.01, vx + 0.01, Y.kn1 + 0.055, Y.nag0 - 0.095, 0.025, 0.045, 0.003);
+      }
+      for (let hi = 1; hi <= 5; hi++) {
+        const hy = Y.kn1 + 0.055 + (hi * (Y.nag0 - 0.15 - Y.kn1)) / 6;
+        panel(redA, u0 + 0.035, u1 - 0.035, hy - 0.01, hy + 0.01, 0.025, 0.045, 0.003);
+      }
     }
-    // 窗心横向棂条
-    for (const yy of [Y.kn1 + 0.8, Y.kn1 + 1.6, Y.kn1 + 2.2]) {
-      panel(redA, -half + fw, half - fw, yy - 0.015, yy + 0.015, -0.035, 0.035, 0.005);
+    panel(inW, -half, half, Y.nag0, Y.nag1, -0.06, 0.0, 0.004);
+  } else if (type === 'door') {
+    // ---- 苏式双开实木雕花大门（带中式黑铁铺首拉环）----
+    const jw = 0.08;
+    panel(red, -half, -half + jw, Y.sill1, Y.nag0, -0.06, 0.06, 0.01);
+    panel(red, half - jw, half, Y.sill1, Y.nag0, -0.06, 0.06, 0.01);
+    panel(red, -half, half, Y.nag0 - 0.08, Y.nag0, -0.06, 0.06, 0.01);
+    const dHalf = half - jw;
+    for (const sx of [-1, 1]) {
+      const du0 = sx > 0 ? 0.005 : -dHalf + 0.005;
+      const du1 = sx > 0 ? dHalf - 0.005 : -0.005;
+      panel(redD, du0, du1, Y.sill1 + 0.02, Y.nag0 - 0.08, 0.01, 0.06, 0.008);
+      panel(red, du0 + 0.02, du1 - 0.02, 3.2, 3.28, 0.062, 0.075, 0.004);
+      const ringX = sx * 0.18;
+      pullRing(black, M(ringX, (Y.sill1 + Y.nag0) / 2, 0.075), 0.042, 0.006);
     }
-    panel(inW, -half, half, Y.nag0, Y.nag1, -0.08, 0.0, 0.004);
-  } else if (type === 'board' || type === 'door') {
-    panel(redD, -half, half, Y.sill1, Y.nag0, 0.0, 0.07, 0.006);
-    panel(inW, -half, half, Y.sill1, Y.nag0, -0.08, 0.0, 0.006);
-    if (type === 'board') {
-      for (let u = -half + 0.5; u < half - 0.3; u += 0.6) panel(red, u - 0.035, u + 0.035, Y.sill1, Y.nag0, 0.0, 0.1, 0.01);
-      panel(red, -half, half, 3.9, 4.06, 0.0, 0.1, 0.012);
-    } else {
-      panel(red, -half, half, Y.sill1, Y.nag0, 0.07, 0.11, 0.01);
-      panel(red, -0.05, 0.05, Y.sill1, Y.nag0, 0.1, 0.14, 0.008);
+  } else if (type === 'board' || type === 'leak') {
+    // ---- 苏式白粉墙开漏窗（移步换景，取代原日式粗厚板墙）----
+    panel(white, -half, half, Y.sill1, Y.nag0, 0.0, 0.05, 0.006);
+    panel(inP, -half, half, Y.sill1, Y.nag0, -0.05, 0.0, 0.006);
+    const winW = Math.min(1.2, half * 1.2), winH = 1.35;
+    const winY = (Y.sill1 + Y.nag0) / 2 + 0.15;
+    panel(black, -winW / 2, winW / 2, winY - winH / 2, winY + winH / 2, 0.052, 0.072, 0.008);
+    panel(acc.m(mats.woodDark), -winW / 2 + 0.05, winW / 2 - 0.05, winY - winH / 2 + 0.05, winY + winH / 2 - 0.05, -0.02, 0.055, 0.004);
+    for (let u = -winW / 2 + 0.18; u <= winW / 2 - 0.18; u += 0.24) {
+      panel(redA, u - 0.012, u + 0.012, winY - winH / 2 + 0.05, winY + winH / 2 - 0.05, 0.056, 0.075, 0.003);
+    }
+    for (let yOff = -winH / 2 + 0.22; yOff <= winH / 2 - 0.22; yOff += 0.26) {
+      panel(redA, -winW / 2 + 0.05, winW / 2 - 0.05, winY + yOff - 0.012, winY + yOff + 0.012, 0.056, 0.075, 0.003);
     }
   }
   // interior skin top band above 腰枋 for open bays handled; for others continuous
@@ -540,10 +607,10 @@ export function buildUpper(acc, mats, R) {
   const xs = [-rx, ...U.xs, ...U.xs.slice(0, -1).map((x, i) => (x + U.xs[i + 1]) / 2), rx].sort((a, b) => a - b);
   const zs = [-rz, ...U.zs, ...U.zs.slice(0, -1).map((z, i) => (z + U.zs[i + 1]) / 2), rz].sort((a, b) => a - b);
   const yb = by + 0.06;
-  railing(acc, mats, xs.map((x) => [x, yb, rz]), { h: 0.72, postW: 0.12, gibo: new Set([0, xs.length - 1]) });
-  railing(acc, mats, xs.map((x) => [x, yb, -rz]), { h: 0.72, postW: 0.12, gibo: new Set([0, xs.length - 1]) });
-  railing(acc, mats, zs.map((z) => [rx, yb, z]), { h: 0.72, postW: 0.12, gibo: new Set([0, zs.length - 1]) });
-  railing(acc, mats, zs.map((z) => [-rx, yb, z]), { h: 0.72, postW: 0.12, gibo: new Set([0, zs.length - 1]) });
+  railing(acc, mats, xs.map((x) => [x, yb, rz]), { h: 0.72, postW: 0.12 });
+  railing(acc, mats, xs.map((x) => [x, yb, -rz]), { h: 0.72, postW: 0.12 });
+  railing(acc, mats, zs.map((z) => [rx, yb, z]), { h: 0.72, postW: 0.12 });
+  railing(acc, mats, zs.map((z) => [-rx, yb, z]), { h: 0.72, postW: 0.12 });
 }
 
 // ------------------------------------------------------- bracket placement

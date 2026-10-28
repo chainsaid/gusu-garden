@@ -245,9 +245,9 @@ export async function build(ctx) {
   buildVeranda(accB, mats, R);
   buildWalls(accB, mats, R,
     ['panel', 'panel', 'open', 'open', 'open', 'panel', 'panel'],
-    ['board', 'board', 'board', 'door', 'board', 'board', 'board'],
-    ['panel', 'renji', 'renji', 'renji', 'renji'],
-    ['board', 'renji', 'board', 'renji', 'board']);
+    ['leak', 'window', 'window', 'door', 'window', 'window', 'leak'],
+    ['panel', 'window', 'window', 'window', 'window'],
+    ['window', 'window', 'window', 'window', 'window']);
   buildInterior(accB, mats, R);
   // stair railings (bridge-like, following the slope, lotus-bud post caps)
   {
@@ -310,8 +310,8 @@ export async function build(ctx) {
       const wU = Math.max(ax - xi, az - zi);
       if (y > 12.85 && y < 14.9 && wU > -0.25 && wU < 1.6) ao *= 0.8;
     }
-    // veranda crawlspace
-    if (y > 1.45 && y < 1.97 && (ax > 12.8 || az > 8.3) && ax < 15.45 && az < 10.95) ao *= 0.3;
+    // 苏州园林青石月台地面接触 AO (取代日式架空缘侧假阴影)：只压外廊一圈
+    if (y > 1.55 && y < 1.85 && (ax > 12.8 || az > 8.3) && ax < 16.0 && az < 11.5) ao *= 0.85;
     // ground contact
     if (y < 0.45) ao *= 0.6 + 0.4 * (y / 0.45);
     return Math.max(0.12, Math.min(1, ao));

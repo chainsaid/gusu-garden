@@ -9,6 +9,16 @@ export default defineConfig({
   build: {
     outDir: '../dist-web',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/three')) {
+            return 'three-vendor';
+          }
+        },
+      },
+    },
   },
   optimizeDeps: {
     include: [

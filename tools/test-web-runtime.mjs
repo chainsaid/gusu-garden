@@ -6,6 +6,7 @@ import puppeteer from 'puppeteer-core';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { findChrome, gpuArgs } from './lib/chrome.mjs';
 
@@ -50,11 +51,13 @@ async function main() {
   }
 
   let browser;
+  const tmpUserDataDir = path.join(os.tmpdir(), 'gusu-test-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
   try {
     browser = await puppeteer.launch({
       executablePath: chromePath,
       headless: true,
-      args: [...gpuArgs(), '--window-size=1280,720'],
+      userDataDir: tmpUserDataDir,
+      args: [...gpuArgs(), '--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,720'],
       defaultViewport: { width: 1280, height: 720 }
     });
 
@@ -72,7 +75,7 @@ async function main() {
     });
 
     console.log(`[test] 访问交互页面: http://localhost:${PORT}/ ...`);
-    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'networkidle0', timeout: 30000 });
+    await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
     console.log('[test] 等待 Draco 模型解码与全套场景装配...');
     await page.waitForFunction(() => {
@@ -163,6 +166,7 @@ async function main() {
   } finally {
     if (browser) await browser.close();
     viteProc.kill();
+    try { fs.rmSync(tmpUserDataDir, { recursive: true, force: true }); } catch {}
   }
 }
 

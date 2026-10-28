@@ -9,6 +9,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { findChrome, gpuArgs } from './lib/chrome.mjs';
 
@@ -91,7 +92,14 @@ async function main() {
       const u = new URL(req.url, 'http://localhost');
       const assetType = u.searchParams.get('name') || 'core';
       const chunks = [];
-      req.on('data', (c) => chunks.push(c));
+      let receivedBytes = 0;
+      req.on('data', (c) => {
+        chunks.push(c);
+        receivedBytes += c.length;
+        if (receivedBytes % (50 * 1024 * 1024) < c.length) {
+          console.log(`[exporter] 上传进度: ${(receivedBytes / 1024 / 1024).toFixed(1)} MB...`);
+        }
+      });
       req.on('end', async () => {
         const buf = Buffer.concat(chunks);
         uploadedFiles[assetType] = buf;
@@ -151,11 +159,13 @@ async function main() {
   console.log(`[exporter] 资产上传中转服务运行于端口 ${EXPORT_PORT}...`);
 
   let browser;
+  const tmpUserDataDir = path.join(os.tmpdir(), 'gusu-export-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
   try {
     browser = await puppeteer.launch({
       executablePath: chromePath,
       headless: true,
-      args: [...gpuArgs(), '--window-size=1280,720'],
+      userDataDir: tmpUserDataDir,
+      args: [...gpuArgs(), '--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,720'],
       defaultViewport: { width: 1280, height: 720 }
     });
 
@@ -212,6 +222,7 @@ async function main() {
     if (browser) await browser.close();
     server.close();
     if (devServerProc) devServerProc.kill();
+    try { fs.rmSync(tmpUserDataDir, { recursive: true, force: true }); } catch {}
   }
 }
 

@@ -188,208 +188,369 @@ export function hallBuilding(lb, K, S) {
 }
 
 // ---------------------------------------------------------------------------
-// Gate door leaf (itatobira): framed vertical-plank leaf with gilt hinge straps
-// (cusped spear ends, domed nails), rows of domed studs, corner fittings and a
-// ring pull. Frame: hinge at x = 0, leaf toward -s*x, y up from the sill, z = 0 mid-plane.
+// SUZHOU CLASSICAL GARDEN SOUTH GATE (姑苏园林南大门 / 照壁砖雕门楼)
+// 形制：江南古典私家园林照壁式水磨砖雕门楼 + 单檐卷棚歇山门厅 + 世家黑漆大门
+// （青石须弥座抱鼓石、八角雕花木门簪、兽首衔环铜铺首、三叠苏式马头墙、海棠漏窗）
+// 彻底去除日本楼门（Rōmon）、八双金物板扉、外挑阳台、连子窗与乳金物泡钉。
 // ---------------------------------------------------------------------------
 const _dg = new Map();
 const dgc = (k, fn) => { let g = _dg.get(k); if (!g) { g = fn(); _dg.set(k, g); } return g; };
-function strapGeo(L, h) {
-  return dgc(`strap${L.toFixed(3)},${h}`, () => {
-    const s = new THREE.Shape();
-    const Ls = L - 0.2;
-    s.moveTo(0, -h / 2); s.lineTo(Ls, -h / 2);
-    s.quadraticCurveTo(Ls + 0.02, -h * 1.05, Ls + 0.07, -h * 0.85);
-    s.quadraticCurveTo(Ls + 0.1, -h * 0.55, Ls + 0.11, -h * 0.28);
-    s.quadraticCurveTo(Ls + 0.17, -h * 0.32, L, 0);
-    s.quadraticCurveTo(Ls + 0.17, h * 0.32, Ls + 0.11, h * 0.28);
-    s.quadraticCurveTo(Ls + 0.1, h * 0.55, Ls + 0.07, h * 0.85);
-    s.quadraticCurveTo(Ls + 0.02, h * 1.05, Ls, h / 2);
-    s.lineTo(0, h / 2); s.lineTo(0, -h / 2);
-    return extrude(s, 0.009, 0.0025, null, 5);
+
+// 中式八角兽面衔环铺首底座 (Pushou Base Plate & Beast Face)
+function pushouGeo() {
+  return dgc('chinese_pushou', () => {
+    // 八角形青铜/黄铜底板 (八角菊花座)
+    const basePlate = new THREE.CylinderGeometry(0.10, 0.11, 0.016, 8).rotateX(Math.PI / 2);
+    // 椒图兽首鼻梁与额顶凸起
+    const snout = new THREE.SphereGeometry(0.042, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2).scale(1, 0.85, 1.3).translate(0, 0, 0.016);
+    // 兽角与眉棱
+    const brow = new THREE.BoxGeometry(0.08, 0.024, 0.022).translate(0, 0.028, 0.018);
+    return mergeGeometries([ni(basePlate), ni(snout), ni(brow)]);
   });
 }
-// domed nail head on a thin washer, facing +z, origin on the back
-function domeGeo(r) {
-  return dgc(`dome${r}`, () => {
-    const d = new THREE.SphereGeometry(r, 12, 5, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(Math.PI / 2).scale(1, 1, 0.8).translate(0, 0, 0.004);
-    const w = new THREE.CylinderGeometry(r * 1.4, r * 1.5, 0.005, 14, 1).rotateX(Math.PI / 2).translate(0, 0, 0.0025);
-    return mergeGeometries([ni(d), ni(w)]);
+
+// 中式兽首衔口门环 (Bronze Door Pull Ring)
+function pushouRingGeo() {
+  return dgc('chinese_pushou_ring', () => {
+    return new THREE.TorusGeometry(0.068, 0.013, 10, 24).translate(0, -0.052, 0.022);
   });
 }
+
+// 苏式世家黑漆将军门实榻大门 (Jiangnan Black-Lacquer Solid Timber Door Leaves)
 function gateLeaf(dl, K, s, dw, dh) {
-  const core = 0.07, st = 0.13, lay = 0.022;
-  dl.box(K.redDark, dw, dh, core, [-s * dw / 2, dh / 2, 0], [0, 0, 0], 0.008);
+  const core = 0.08, st = 0.14, lay = 0.018;
+  // 厚实黑色大漆门芯基底
+  dl.box(K.black, dw, dh, core, [-s * dw / 2, dh / 2, 0], [0, 0, 0], 0.008);
   for (const f of [-1, 1]) {
     const zF = f * (core / 2 + lay / 2);
-    const zT = f * (core / 2 + lay);                 // outer face of the frame
-    const face = (x, y, z) => new THREE.Matrix4().makeBasis(new V3(-s, 0, 0), new V3(0, -s * f, 0), new V3(0, 0, f)).setPosition(x, y, z);
-    const nail = (x, y, z, r = 0.016) => dl.add(domeGeo(r), K.gold, m4([x, y, z], [0, f > 0 ? 0 : Math.PI, 0]));
-    // frame: stiles + rails
-    dl.box(K.red, st, dh, lay, [-s * st / 2, dh / 2, zF], [0, 0, 0], 0.006);
-    dl.box(K.red, st, dh, lay, [-s * (dw - st / 2), dh / 2, zF], [0, 0, 0], 0.006);
-    dl.box(K.red, dw - 2 * st, 0.16, lay, [-s * dw / 2, dh - 0.08, zF], [0, 0, 0], 0.006);
-    dl.box(K.red, dw - 2 * st, 0.22, lay, [-s * dw / 2, 0.11, zF], [0, 0, 0], 0.006);
-    // vertical planks (column-grain lacquer), slightly uneven, dark joints between them
-    const nP = 4, fw = dw - 2 * st, pw = fw / nP, ph = dh - 0.38;
-    for (let i = 0; i < nP; i++) {
-      const inset = 0.003 + 0.004 * hash3(i, f, s);
-      dl.box(K.col, pw - 0.009, ph, lay - 0.006, [-s * (st + pw * (i + 0.5)), 0.22 + ph / 2, f * (core / 2 + (lay - 0.006) / 2 - inset * 0.3)], [0, 0, 0], 0.003);
+    const zT = f * (core / 2 + lay); // 门框正面外表面
+    // 边梃与抹头框架 (Thick Stiles and Rails)
+    dl.box(K.black, st, dh, lay, [-s * st / 2, dh / 2, zF], [0, 0, 0], 0.006); // 吊樘梃 (Hinge stile)
+    dl.box(K.black, st, dh, lay, [-s * (dw - st / 2), dh / 2, zF], [0, 0, 0], 0.006); // 边梃 (Meeting stile)
+    dl.box(K.black, dw - 2 * st, 0.18, lay, [-s * dw / 2, dh - 0.09, zF], [0, 0, 0], 0.006); // 上抹头
+    dl.box(K.black, dw - 2 * st, 0.16, lay, [-s * dw / 2, dh * 0.46, zF], [0, 0, 0], 0.006); // 腰抹头
+    dl.box(K.black, dw - 2 * st, 0.24, lay, [-s * dw / 2, 0.12, zF], [0, 0, 0], 0.006); // 下抹头 (裙板抹头)
+
+    // 门心板 (Upper & Lower Flush Panels)
+    const pw = dw - 2 * st - 0.02;
+    const ph1 = (dh - 0.18) - (dh * 0.46 + 0.08) - 0.02; // 上门心高度
+    const ph2 = (dh * 0.46 - 0.08) - 0.24 - 0.02; // 裙板高度
+    dl.box(K.redDark, pw, ph1, lay * 0.6, [-s * dw / 2, dh * 0.46 + 0.08 + ph1 / 2, f * (core / 2 + lay * 0.3)], [0, 0, 0], 0.003);
+    dl.box(K.redDark, pw, ph2, lay * 0.6, [-s * dw / 2, 0.24 + ph2 / 2, f * (core / 2 + lay * 0.3)], [0, 0, 0], 0.003);
+
+    // 中式铜铺首衔环 (Pushou & Ring Pull)
+    const xr = -s * (dw - st / 2 - 0.02);
+    const yr = dh * 0.52; // 舒适推门黄金高度 (~1.62m)
+    if (f > 0) {
+      // 外立面：精工兽首与厚铜门环
+      dl.add(pushouGeo(), K.capPaint || K.cap, m4([xr, yr, zT + 0.008]));
+      dl.add(pushouRingGeo(), K.bronze || K.cap, m4([xr, yr, zT + 0.008]));
+    } else {
+      // 内立面：素面铜推板与内扣门环 + 门背后方木门栓
+      dl.box(K.cap, 0.12, 0.26, 0.012, [xr, yr, zT - 0.006], [0, 0, 0], 0.003);
+      dl.add(pushouRingGeo(), K.bronze || K.cap, m4([xr, yr, zT - 0.008]));
+      // 实木门栓木 (Door Bolt on the meeting stile)
+      dl.box(K.redDark, 0.48, 0.09, 0.065, [-s * (dw - 0.22), yr - 0.15, -core / 2 - 0.045], [0, 0, 0], 0.006);
     }
-    // hinge straps with domed nails
-    const L = dw * 0.8, sh = 0.12;
-    const yS = [0.46, dh * 0.5, dh - 0.42];
-    for (const yy of yS) {
-      dl.add(strapGeo(L, sh), K.black, face(0, yy, zT + f * 0.0045));
-      for (let k = 0; k < 5; k++) nail(-s * (0.08 + k * ((L - 0.36) / 4)), yy, zT + f * 0.008, 0.017);
-      nail(-s * (L - 0.1), yy, zT + f * 0.008, 0.019);
-    }
-    // rows of domed studs between the straps
-    for (const yy of [(yS[0] + yS[1]) / 2, (yS[1] + yS[2]) / 2]) {
-      for (let i = 0; i < nP; i++) nail(-s * (st + pw * (i + 0.5)), yy, f * (core / 2 + lay - 0.006), 0.026);
-    }
-    // corner plates (L plates) on the meeting stile + top/bottom of the hinge stile
-    for (const [cx, cy, sy] of [[dw, dh, -1], [dw, 0, 1], [0, dh, -1], [0, 0, 1]]) {
-      const xIn = cx > 0 ? 1 : -1;     // toward the leaf interior along local -s*x
-      const x0 = -s * cx, y0 = cy;
-      dl.box(K.black, 0.34, 0.085, 0.008, [x0 + s * xIn * 0.17, y0 + sy * 0.0425, zT + f * 0.004], [0, 0, 0], 0.002);
-      dl.box(K.black, 0.085, 0.3, 0.008, [x0 + s * xIn * 0.0425, y0 + sy * 0.15, zT + f * 0.004], [0, 0, 0], 0.002);
-      nail(x0 + s * xIn * 0.045, y0 + sy * 0.045, zT + f * 0.008, 0.015);
-      nail(x0 + s * xIn * 0.26, y0 + sy * 0.0425, zT + f * 0.008, 0.012);
-      nail(x0 + s * xIn * 0.0425, y0 + sy * 0.23, zT + f * 0.008, 0.012);
-    }
-    // plain ring pull on the meeting stile
-    const xr = -s * (dw - st / 2), yr = dh * 0.5 + 0.34;
-    dl.add(new THREE.TorusGeometry(0.062, 0.011, 8, 24), K.gold, m4([xr, yr - 0.07, zT + f * 0.014]));
+  }
+}
+
+// 江南古典园林青石雕花抱鼓石 (Sumeru Drum Stone / 门枕石)
+function drumStone(lb, K, x, y, z, s) {
+  // 1. 下部须弥座 (Sumeru Base)
+  lb.box(K.stoneClean, 0.38, 0.12, 0.74, [x, y + 0.06, z], [0, 0, 0], 0.015); // 圭脚
+  lb.box(K.stone, 0.32, 0.15, 0.66, [x, y + 0.195, z], [0, 0, 0], 0.01); // 束腰
+  lb.box(K.stoneClean, 0.40, 0.12, 0.76, [x, y + 0.33, z], [0, 0, 0], 0.015); // 仰覆莲上枋
+
+  // 2. 上部圆鼓 (Drum Body)
+  const drumR = 0.26, drumThick = 0.22;
+  const drumY = y + 0.39 + drumR;
+  const drumGeo = dgc('gate_drum_body', () => {
+    const d = new THREE.CylinderGeometry(drumR, drumR, drumThick, 28).rotateZ(Math.PI / 2);
+    // 外侧鼓面螺旋涡纹/回纹浮雕
+    const whorl = new THREE.CylinderGeometry(drumR * 0.8, drumR * 0.86, 0.02, 28).rotateZ(Math.PI / 2).translate(s * drumThick * 0.51, 0, 0);
+    return mergeGeometries([ni(d), ni(whorl)]);
+  });
+  lb.add(drumGeo, K.stoneClean, m4([x, drumY, z]));
+
+  // 3. 鼓顶卷云冠 / 卧兽 (Cloud Crest / Mythical Beast)
+  lb.box(K.stoneClean, 0.18, 0.14, 0.34, [x, drumY + drumR + 0.06, z + 0.02], [0, 0, 0], 0.02);
+  lb.box(K.stoneClean, 0.14, 0.09, 0.22, [x, drumY + drumR + 0.16, z + 0.06], [0, 0, 0], 0.02);
+
+  // 4. 后方锚固门枕石 (Anchor Block into Door Frame)
+  lb.box(K.stone, 0.32, 0.68, 0.30, [x, y + 0.36, z - 0.34], [0, 0, 0], 0.01);
+}
+
+// 八角形雕花木门簪 (Octagonal Carved Timber Door Pins / 门当)
+function menzan(lb, K, x, y, z) {
+  const pinGeo = dgc('gate_menzan_pin', () => {
+    // 八角柱身
+    const pin = new THREE.CylinderGeometry(0.075, 0.075, 0.16, 8).rotateX(Math.PI / 2);
+    // 八角端面雕花盖帽
+    const cap = new THREE.CylinderGeometry(0.082, 0.082, 0.025, 8).rotateX(Math.PI / 2).translate(0, 0, 0.085);
+    return mergeGeometries([ni(pin), ni(cap)]);
+  });
+  lb.add(pinGeo, K.capPaint || K.cap, m4([x, y, z]));
+}
+
+// 苏式水磨青砖砖雕门楼 (Water-Polished Brick-Carving Gate Tower / 字牌门罩)
+function brickGateTower(lb, K, y0) {
+  const z0 = 0.18; // 突出照墙表面
+
+  // 1. 下枋与垂花挂落 (Bottom Brick Lintel & Hanging Lotus Pendants)
+  lb.box(K.stoneClean, 4.5, 0.16, 0.24, [0, 3.82, z0 + 0.10], [0, 0, 0], 0.012);
+  // 左右一对水磨青砖垂莲柱 (Hanging Lotus Pendants)
+  for (const s of [-1, 1]) {
+    const px = s * 2.05;
+    // 八角悬柱柱身
+    lb.add(new THREE.CylinderGeometry(0.06, 0.065, 0.44, 8), K.stoneClean, m4([px, 3.48, z0 + 0.12]));
+    // 垂花莲瓣与莲珠 (Lotus Pod Finial)
+    const pod = lathe([[0, -0.14], [0.075, -0.11], [0.085, -0.04], [0.045, 0.02], [0, 0.04]], 16);
+    lb.add(pod, K.stoneClean, m4([px, 3.22, z0 + 0.12]));
+    // 砖雕倒三角镂空卷草雀替 (Carved Sparrow Braces)
+    lb.box(K.stoneClean, 0.38, 0.18, 0.09, [s * 1.82, 3.66, z0 + 0.10], [0, 0, 0], 0.01);
+  }
+  // 通长砖雕挂落花牙
+  lb.box(K.stoneClean, 3.2, 0.08, 0.06, [0, 3.68, z0 + 0.10], [0, 0, 0], 0.008);
+
+  // 2. 题额字牌 "紫气东来" (Calligraphy Plaque "Zi Qi Dong Lai")
+  // 外层万字锦纹水磨青砖边框
+  lb.box(K.stoneClean, 2.50, 0.78, 0.12, [0, 4.42, z0 + 0.10], [0, 0, 0], 0.015);
+  // 凹陷匾额心板
+  lb.box(K.stoneClean, 2.22, 0.56, 0.04, [0, 4.42, z0 + 0.16], [0, 0, 0], 0.006);
+  // 四字浮雕题额 "紫气东来"
+  for (let i = 0; i < 4; i++) {
+    const cx = -0.75 + i * 0.50;
+    // 题额字块浮雕
+    lb.box(K.cap, 0.34, 0.36, 0.016, [cx, 4.42, z0 + 0.185], [0, 0, 0], 0.004);
+  }
+  // 左右两侧砖雕博风贴面 (Flanking Brick Relief Panels)
+  lb.box(K.stoneClean, 0.75, 0.72, 0.10, [-1.75, 4.42, z0 + 0.09], [0, 0, 0], 0.012);
+  lb.box(K.stoneClean, 0.75, 0.72, 0.10, [ 1.75, 4.42, z0 + 0.09], [0, 0, 0], 0.012);
+
+  // 3. 仿木水磨砖雕牌科 (Brick Bracket Sets - 一斗三升)
+  lb.box(K.stoneClean, 4.6, 0.12, 0.26, [0, 4.88, z0 + 0.12], [0, 0, 0], 0.01);
+  const nBrackets = 7;
+  for (let i = 0; i < nBrackets; i++) {
+    const bx = -1.8 + i * (3.6 / (nBrackets - 1));
+    // 栌斗 (Lu Dou)
+    lb.box(K.stoneClean, 0.20, 0.08, 0.24, [bx, 4.98, z0 + 0.14], [0, 0, 0], 0.008);
+    // 卷草栱 (Gong Arm)
+    lb.box(K.stoneClean, 0.44, 0.065, 0.14, [bx, 5.05, z0 + 0.16], [0, 0, 0], 0.008);
+    // 三升 (Three Small Sheng Blocks)
+    lb.box(K.stoneClean, 0.08, 0.05, 0.12, [bx, 5.11, z0 + 0.16], [0, 0, 0], 0.005);
+    lb.box(K.stoneClean, 0.08, 0.05, 0.12, [bx - 0.16, 5.11, z0 + 0.16], [0, 0, 0], 0.005);
+    lb.box(K.stoneClean, 0.08, 0.05, 0.12, [bx + 0.16, 5.11, z0 + 0.16], [0, 0, 0], 0.005);
+  }
+
+  // 4. 水磨青砖牙砖叠涩出挑 (Corbelled Brick Eaves Courses)
+  lb.box(K.stoneClean, 4.7, 0.06, 0.34, [0, 5.18, z0 + 0.18], [0, 0, 0], 0.008);
+  lb.box(K.stoneClean, 4.8, 0.06, 0.42, [0, 5.24, z0 + 0.24], [0, 0, 0], 0.008);
+  lb.box(K.stoneClean, 4.9, 0.06, 0.50, [0, 5.30, z0 + 0.30], [0, 0, 0], 0.008);
+  lb.box(K.stoneClean, 5.0, 0.06, 0.58, [0, 5.36, z0 + 0.36], [0, 0, 0], 0.008);
+
+  // 5. 小青瓦小歇山飞檐门罩 (Little Gable-and-Hip Roof Hood with Flying Rafters)
+  // 坡面小青瓦 (Tiled Slope)
+  const hoodW = 5.2, hoodD = 0.95;
+  lb.box(K.tileVC || K.tile, hoodW, 0.08, hoodD, [0, 5.56, z0 + 0.40], [-0.32, 0, 0], 0.015);
+  // 檐口瓦当与滴水 (Eaves Drip Tiles)
+  lb.box(K.tile, hoodW + 0.08, 0.045, 0.08, [0, 5.38, z0 + 0.82], [0, 0, 0], 0.008);
+  // 两侧嫩戗飞檐起翘 (Upturned Flying Eaves Tips)
+  for (const s of [-1, 1]) {
+    lb.box(K.tile, 0.22, 0.06, 0.42, [s * (hoodW / 2 + 0.06), 5.46, z0 + 0.78], [-0.22, s * 0.15, s * 0.28], 0.01);
+  }
+  // 正脊甘草顶与两端鳌鱼吻 (Main Ridge & Chiwen Ends)
+  lb.box(K.tile, 4.6, 0.12, 0.15, [0, 5.76, z0 + 0.14], [0, 0, 0], 0.012);
+  for (const s of [-1, 1]) {
+    lb.box(K.tile, 0.15, 0.22, 0.18, [s * 2.35, 5.88, z0 + 0.14], [0, 0, s * 0.32], 0.015);
   }
 }
 
 // ---------------------------------------------------------------------------
-// SOUTH GATE (楼门): lower open storey with massive pillars, balcony on
-// bracket sets, upper storey (hallBuilding), 歇山 roof.
+// SOUTH GATE: 苏州古典私家园林大门
+// 规制：白粉封火山墙照壁 + 水磨青砖砖雕门楼 + 单檐卷棚歇山门厅 + 黑漆世家大门
+// （抱鼓石、八角门簪、兽首衔环铜铺首、海棠漏窗、三叠苏式马头墙）
 // ---------------------------------------------------------------------------
 export function buildGate(ctx, K, lb, anchors, toW) {
-  const xs = [-5.2, -2.0, 2.0, 5.2], zs = [-2.4, 0, 2.4];
-  const yP = 0.5;                  // platform top (5 cm above the corridor floor)
-  const yLT = 5.4;                 // lower column top
-  const R = 0.3;
-  // platform with steps on the passage (south and north)
-  lb.box(K.stone, 14.2, 0.5, 9.0, [0, yP - 0.25, 0], [0, 0, 0], 0.04);
-  lb.box(K.stoneClean, 14.4, 0.06, 9.2, [0, yP - 0.03, 0], [0, 0, 0], 0.02);
-  for (let i = 0; i < 5; i++) for (let j = 0; j < 3; j++) lb.box(K.stoneClean, 4.0 / 5 - 0.012, 0.03, 9.0 / 3 - 0.012, [-1.6 + i * 0.8, yP + 0.012, -3 + j * 3], [0, 0, 0], 0.006);
-  for (const s of [-1, 1]) {
-    lb.box(K.stoneClean, 4.6, 0.25, 0.42, [0, 0.125, s * 4.7], [0, 0, 0], 0.02);
-  }
-  // plain timber columns seated directly on drum-shaped stone bases
-  const lowCols = [];
-  for (const x of xs) for (const z of zs) lowCols.push([x, z]);
-  for (const [x, z] of lowCols) {
-    lb.add(lathe([[0, -0.1], [R * 1.75, -0.1], [R * 1.75, 0.03], [R * 1.55, 0.08], [R * 1.25, 0.12], [0, 0.12]], 32, 'gsos'), K.stoneClean, m4([x, yP, z]));
-    lb.add(new THREE.CylinderGeometry(R, R * 1.015, yLT - yP - 0.12, 36, 1), K.col, m4([x, (yLT + yP + 0.12) / 2, z]));
-  }
-  // beams: 穿枋 and 腰枋 with concealed timber pins
-  const knH = 0.32;
-  for (const z of zs) lb.box(K.red, 2 * 5.2 + 0.8, knH, 0.2, [0, yLT - knH / 2, z], [0, 0, 0], 0.016);
-  for (const x of xs) lb.box(K.red, 0.2, knH, 2 * 2.4 + 0.8, [x, yLT - knH / 2, 0], [0, 0, 0], 0.016);
-  for (const sx of [-1, 1]) for (const z of zs) lb.box(K.cap, 0.014, knH + 0.012, 0.21, [sx * 5.6, yLT - knH / 2, z], [0, 0, 0], 0.003);
-  for (const x of xs) for (const sz of [-1, 1]) lb.box(K.cap, 0.21, knH + 0.012, 0.014, [x, yLT - knH / 2, sz * 2.8], [0, 0, 0], 0.003);
-  const yN = 4.2, nH = 0.22;
-  for (const z of [-2.4, 2.4]) for (const f of [-1, 1]) {
-    lb.box(K.red, 2 * 5.2 + 0.2, nH, 0.09, [0, yN + nH / 2, z + f * (R + 0.04)], [0, 0, 0], 0.014);
-    for (const x of xs) {
-      lb.box(K.cap, 0.4, 0.26, 0.012, [x, yN + nH / 2, z + f * (R + 0.09)], [0, 0, 0], 0.004);
+  const yP = 0.48; // 台基顶面 (与游廊地面平齐)
+
+  // 1. 实心青石基座与方砖铺地 (Solid Granite Podium & Paved Passage)
+  lb.box(K.stone, 11.6, 0.48, 6.2, [0, yP - 0.24, 0], [0, 0, 0], 0.03); // 台基基座
+  lb.box(K.stoneClean, 11.8, 0.06, 6.4, [0, yP - 0.03, 0], [0, 0, 0], 0.02); // 压边条石
+  // 中央过道规整青石方砖铺地 (Paved Center Walkway)
+  for (let i = 0; i < 5; i++) {
+    for (let j = 0; j < 6; j++) {
+      lb.box(K.stoneClean, 3.6 / 5 - 0.012, 0.02, 5.8 / 6 - 0.012, [-1.8 + (i + 0.5) * (3.6 / 5), yP + 0.01, -2.9 + (j + 0.5) * (5.8 / 6)], [0, 0, 0], 0.005);
     }
   }
-  for (const x of [-5.2, 5.2]) for (const f of [-1, 1]) lb.box(K.red, 0.09, nH, 2 * 2.4 + 0.2, [x + f * (R + 0.04), yN + nH / 2, 0], [0, 0, 0], 0.014);
-  // side bays: lattice screens front/back, plaster back wall (z=0) and outer side walls
-  const Yl = { y0: yP, yN, yK: yLT - knH };
-  for (const yaw of [0, Math.PI]) {
-    const fr = lb.child(m4([0, 0, 0], [0, yaw, 0]));
-    for (const [a, b] of [[-5.2, -2.0], [2.0, 5.2]]) wallBay(fr, K, a + R, b - R, 2.4, 'lattice', Yl);
+
+  // 2. 南北青石条石台阶 (South & North Stone Steps)
+  for (const [s, zPos] of [[1, 3.1], [-1, -3.1]]) {
+    // 3级规整青石条石踏步
+    for (let step = 0; step < 3; step++) {
+      const stepW = 4.2 - step * 0.15;
+      const stepY = yP - 0.16 * (step + 1) + 0.08;
+      const stepZ = zPos + s * (0.35 * (step + 1));
+      lb.box(K.stoneClean, stepW, 0.16, 0.38, [0, stepY, stepZ], [0, 0, 0], 0.015);
+    }
+    // 台阶两侧青石垂带石 (Step Side Ramps)
+    for (const sx of [-1, 1]) {
+      lb.box(K.stoneClean, 0.24, 0.48, 1.25, [sx * 2.22, yP - 0.24, zPos + s * 0.70], [-s * 0.35, 0, 0], 0.02);
+    }
   }
-  for (const [a, b] of [[-5.2, -2.0], [2.0, 5.2]]) wallBay(lb, K, a + R, b - R, 0, 'plaster', Yl);
-  for (const yaw of [Math.PI / 2, -Math.PI / 2]) {
-    const fr = lb.child(m4([0, 0, 0], [0, yaw, 0]));
-    for (const [a, b] of [[-2.4, 0], [0, 2.4]]) wallBay(fr, K, a + R, b - R, 5.2, 'plaster', Yl);
-  }
-  // main doors (open, swung inward to the north) between the center pillars
+
+  // 3. 门洞与水磨青砖包框 + 青石门槛 (Gate Opening, Jambs & Threshold)
+  const doorW = 2.8, doorH = 3.25;
+  // 厚实青石门槛 (Solid Stone Threshold)
+  lb.box(K.stoneClean, doorW + 0.24, 0.22, 0.28, [0, yP + 0.11, 0], [0, 0, 0], 0.015);
+  // 门洞左右水磨青砖立颊框 (Door Jambs)
   for (const s of [-1, 1]) {
-    const hinge = [s * (2.0 - R - 0.02), 0.0];
-    const dw = 1.68, dh = yN - yP - 0.1;
-    const ang = s * Math.PI / 2; // open 90 deg, flush with the passage sides
-    const dl = lb.child(m4([hinge[0], yP + 0.05, hinge[1] - 0.08], [0, ang, 0]));
-    gateLeaf(dl, K, s, dw, dh);
+    lb.box(K.stoneClean, 0.28, doorH + 0.24, 0.38, [s * (doorW / 2 + 0.14), yP + (doorH + 0.24) / 2, 0], [0, 0, 0], 0.015);
   }
-  // threshold
-  lb.box(K.redDark, 4.0 - 2 * R, 0.16, 0.22, [0, yP + 0.08, 0], [0, 0, 0], 0.015);
-  // passage ceiling (coffered, under the balcony)
-  const yCL = yLT + 0.02;
-  {
-    const g = new THREE.PlaneGeometry(10.4, 4.8).rotateX(Math.PI / 2);
-    lb.add(g, K.ceilingGate, m4([0, yCL + 0.36, 0]));
-    for (let i = 0; i <= 20; i++) lb.box(K.black, 0.06, 0.07, 4.8, [-5.2 + i * 0.52, yCL + 0.325, 0], [0, 0, 0], 0.006);
-    for (let j = 0; j <= 10; j++) lb.box(K.black, 10.4, 0.07, 0.06, [0, yCL + 0.325, -2.4 + j * 0.48], [0, 0, 0], 0.006);
-  }
-  // 腰墙gumi: bracket sets supporting the balcony
-  const BSk = { tiers: 2, proj: [0.42, 0.8], armH: 0.15, armW: 0.13, blockH: 0.12, daito: [0.42, 0.22], mak: [0.21, 0.12], wall: [1.0, 1.25], inner: false, lo: true, K: { wood: K.red, gold: K.red } };
-  const kH = 0.22 + 2 * 0.27;
-  const cxL = 5.2, czL = 2.4;
-  const yKP = yLT + 0.02;
+  // 门楣上方红木大枋 (Main Lintel Beam)
+  lb.box(K.red, doorW + 0.8, 0.26, 0.28, [0, yP + doorH + 0.13, 0], [0, 0, 0], 0.014);
+
+  // 4. 青石雕花抱鼓石 (Drum Stones / 门枕石)
   for (const s of [-1, 1]) {
-    lb.box(K.red, 2 * cxL + 0.5, 0.16, 0.3, [0, yKP - 0.0 + 0.08 - 0.02, s * czL], [0, 0, 0], 0.014);
-    lb.box(K.red, 0.3, 0.16, 2 * czL + 0.5, [s * cxL, yKP + 0.06, 0], [0, 0, 0], 0.014);
+    drumStone(lb, K, s * (doorW / 2 + 0.22), yP, 0.36, s);
   }
-  const yKB = yKP + 0.14;
-  for (const x of xs) for (const s of [-1, 1]) bracketSet(lb, m4([x, yKB, s * czL], [0, s > 0 ? 0 : Math.PI, 0]), Math.abs(x) === cxL ? { ...BSk, corner: true } : BSk);
-  for (const s of [-1, 1]) bracketSet(lb, m4([s * cxL, yKB, 0], [0, s * Math.PI / 2, 0]), BSk);
-  for (const [sx, sz, yaw] of [[1, 1, 0], [-1, 1, -Math.PI / 2], [-1, -1, Math.PI], [1, -1, Math.PI / 2]]) bracketSet(lb, m4([sx * cxL, yKB, sz * czL], [0, yaw, 0]), { ...BSk, corner: true });
-  for (const x of [-3.6, 0, 3.6]) for (const s of [-1, 1]) bracketSet(lb, m4([x, yKB, s * czL], [0, s > 0 ? 0 : Math.PI, 0]), { ...BSk, goldDaito: false });
-  // balcony: edge beams on the bracket ends, floor, railing
-  const yBal = yKB + kH + 0.16;
-  const bx = cxL + 0.98, bz = czL + 0.98;
-  lb.add(sweep(loopPath(cxL + 0.8, czL + 0.8, () => yKB + kH, 0.6), rectProfile(0.16, 0.16), { closed: true, outward: true }), K.red);
-  lb.add(sweep(loopPath(bx - 0.08, bz - 0.08, () => yBal - 0.22, 0.6), rectProfile(0.16, 0.24), { closed: true, outward: true }), K.redDark);
-  lb.add(sweep(loopPath(bx, bz, () => yBal - 0.2, 0.6), rectProfile(0.014, 0.025, 0.12), { closed: true, outward: true }), K.red);
-  for (let i = 0; i < 20; i++) {
-    const z = -bz + 0.06 + (2 * bz - 0.12) * (i + 0.5) / 20;
-    lb.box(K.floorX, 2 * bx - 0.12, 0.05, (2 * bz - 0.12) / 20 - 0.008, [0, yBal - 0.025, z], [0, 0, 0], 0.004);
+
+  // 5. 门楣八角形雕花木门簪 (4 Carved Timber Door Pins / 门当)
+  for (const xPin of [-0.88, -0.30, 0.30, 0.88]) {
+    menzan(lb, K, xPin, yP + doorH + 0.13, 0.18);
   }
-  // under-balcony soffit (between bracket tips)
-  lb.box(K.soffit, 2 * bx, 0.03, 2 * bz, [0, yBal - 0.27, 0]);
-  railing(lb, [[-bx + 0.1, -bz + 0.1], [bx - 0.1, -bz + 0.1], [bx - 0.1, bz - 0.1], [-bx + 0.1, bz - 0.1], [-bx + 0.1, -bz + 0.1 + 0.001]], yBal, {
-    H: 0.8, post: 0.12, spacing: 1.6, midY: 0.45, gibSeg: 22, lo: true, K: { red: K.red, redDark: K.redDark, gold: K.red, gib: K.gib },
-  });
-  // upper storey
-  const up = hallBuilding(lb, K, {
-    xs, zs: [-2.4, 2.4], colR: 0.25, y0: yBal, yct: yBal + 2.5, knH: 0.28,
-    walls: (side, i, n) => {
-      if (side === 'front' || side === 'back') return i === 1 ? 'door' : 'window';
-      return 'window';
-    },
-    BS: { tiers: 3, proj: [0.45, 0.88], armH: 0.15, armW: 0.13, blockH: 0.12, daito: [0.38, 0.21], mak: [0.2, 0.12], wall: [0.95, 1.2, 1.4], inner: false, K: { wood: K.red, gold: K.red } },
-    ov: 2.5, sBase: 0.3, d1: 0.95, liftL: 0.55, roofRise: 2.6, gd: 2.3, ovG: 0.65, tileP: 0.3, tileDetail: 1, lo: true,
-    ridge: { w: 0.7, h: 0.66, layers: 7, capR: 0.12, drop: 0.5 }, hip: { w: 0.38, h: 0.38, layers: 4, capR: 0.085, drop: 0.24 }, chiwen: { s: 1.05 }, xuanyu: 0.8, hafuH: 0.44,
-    bands: [{ y: yBal, h: 0.16, studs: 10 }, { y: yBal + 2.5 - 0.28 - 0.12, h: 0.1 }], infill: true,
-  });
-  for (const h of up.E.hooks) anchors.bells.push({ pos: toW(h.local), scale: 1.2, rotY: 0 });
-  // hanging lantern in the passage (both sides of the doors) and under the front eave
-  // the south lantern hangs lower on a longer gilt rod so the telephoto view
-  // through the gate (shot 7) frames the whole lantern, not a cut-off roof
-  // One lantern in the passage (north of the doors) on a long iron rod: the
-  // telephoto view through the gate (shot 7) frames its whole body top-centre
-  // with only the rod leaving the frame (a south twin would show as a cut-off
-  // lantern bottom at the top edge of shot 7, so there is none).
+
+  // 6. 苏式黑漆世家大门 (Jiangnan Black-Lacquer Doors)
+  // 双扇大门呈迎客半启 75° 之势，既展现幽深中堂景深，又显露黑漆门面与铜兽首铺首
+  const leafW = doorW / 2 - 0.02; // 每扇约 1.38m
+  const leafH = doorH - 0.12;
+  for (const s of [-1, 1]) {
+    const hingeX = s * (doorW / 2);
+    const ang = s * Math.PI * 0.42; // ~75度迎客微开
+    const dl = lb.child(m4([hingeX, yP + 0.14, -0.06], [0, ang, 0]));
+    gateLeaf(dl, K, s, leafW, leafH);
+  }
+
+  // 7. 苏式水磨青砖砖雕门楼 (Brick-Carving Gate Tower above Door Opening)
+  brickGateTower(lb, K, yP);
+
+  // 8. 东西白粉照墙、海棠漏窗与三叠马头墙 (Whitewashed Firewalls & Matouqiang)
+  // 东西两侧照墙 (Plaster Firewall Wings)
+  for (const s of [-1, 1]) {
+    const wingX = s * (doorW / 2 + 0.28 + (5.2 - (doorW / 2 + 0.28)) / 2);
+    const wingW = 5.2 - (doorW / 2 + 0.28);
+    // 水磨青砖下碱 (Lower Brick Plinth)
+    lb.box(K.stoneClean, wingW, 0.72, 0.38, [wingX, yP + 0.36, 0], [0, 0, 0], 0.012);
+    // 白粉墙身 (Whitewashed Plaster Wall Body)
+    lb.box(K.plaster, wingW, 4.4, 0.36, [wingX, yP + 0.72 + 2.2, 0]);
+
+    // 次间苏式海棠砖雕透景漏窗 (Ornamental Leak Window)
+    const winX = s * 3.4;
+    const winY = yP + 2.35;
+    // 水磨青砖海棠花外框
+    lb.box(K.stoneClean, 1.15, 1.15, 0.40, [winX, winY, 0], [0, 0, 0], 0.02);
+    lb.box(K.plaster, 0.92, 0.92, 0.42, [winX, winY, 0]);
+    // 镂空万字/冰裂砖格 (Brick Open Lattice)
+    for (let k = -2; k <= 2; k++) {
+      if (k !== 0) {
+        lb.box(K.stoneClean, 0.05, 0.88, 0.05, [winX + k * 0.18, winY, 0]);
+        lb.box(K.stoneClean, 0.88, 0.05, 0.05, [winX, winY + k * 0.18, 0]);
+      }
+    }
+
+    // 东西两端三叠苏式马头墙 (Stepped Matouqiang on East & West Outer Flanks)
+    const endX = s * 5.22;
+    // 一叠 (Tier 1: y = 4.8m)
+    lb.box(K.plaster, 0.38, 4.8, 1.4, [endX, yP + 2.4, -0.6]);
+    lb.box(K.tile, 0.44, 0.10, 1.5, [endX, yP + 4.85, -0.6], [0, 0, 0], 0.015);
+    // 二叠 (Tier 2: y = 5.6m)
+    lb.box(K.plaster, 0.38, 5.6, 1.6, [endX, yP + 2.8, 0]);
+    lb.box(K.tile, 0.44, 0.10, 1.7, [endX, yP + 5.65, 0], [0, 0, 0], 0.015);
+    // 三叠 (Tier 3: y = 6.3m, 顶峰)
+    lb.box(K.plaster, 0.38, 6.3, 1.4, [endX, yP + 3.15, 0.6]);
+    lb.box(K.tile, 0.44, 0.10, 1.5, [endX, yP + 6.35, 0.6], [0, 0, 0], 0.015);
+    // 起翘马头印斗封头 (Upturned Matou Tips)
+    for (const [tz, ty] of [[-1.3, 4.9], [0.8, 5.7], [1.3, 6.4]]) {
+      lb.box(K.tile, 0.46, 0.12, 0.22, [endX, yP + ty, tz], [s * 0.25, 0, 0], 0.01);
+    }
+  }
+
+  // 9. 门厅内部承重圆柱、轩梁与船篷轩天花 (Interior Timber Columns, Arched Ceiling)
+  const colXs = [-1.8, 1.8], colZs = [-1.4, 1.4];
+  const colR = 0.15;
+  const yColTop = yP + 3.55;
+  for (const cx of colXs) {
+    for (const cz of colZs) {
+      // 覆盆青石柱础
+      lb.add(lathe([[0, -0.06], [0.28, -0.06], [0.28, 0.02], [0.24, 0.06], [0.18, 0.10], [0, 0.10]], 24), K.stoneClean, m4([cx, yP, cz]));
+      // 楠木立柱 (Round Timber Columns)
+      lb.add(new THREE.CylinderGeometry(colR, colR * 1.02, yColTop - yP - 0.10, 24), K.col, m4([cx, (yColTop + yP + 0.10) / 2, cz]));
+    }
+  }
+  // 柱间大木穿枋与进深梁 (Tie Beams and Cross Beams)
+  for (const cz of colZs) {
+    lb.box(K.red, 2 * 1.8 + 0.5, 0.24, 0.16, [0, yColTop - 0.12, cz], [0, 0, 0], 0.012);
+  }
+  for (const cx of colXs) {
+    lb.box(K.red, 0.16, 0.24, 2 * 1.4 + 0.5, [cx, yColTop - 0.12, 0], [0, 0, 0], 0.012);
+  }
+  // 梁柱交角雕花卷草雀替 (Sparrow Braces)
+  for (const cx of colXs) {
+    for (const cz of colZs) {
+      const sx = cx > 0 ? -1 : 1, sz = cz > 0 ? -1 : 1;
+      lb.box(K.red, 0.32, 0.16, 0.12, [cx + sx * 0.16, yColTop - 0.26, cz], [0, 0, 0], 0.008);
+      lb.box(K.red, 0.12, 0.16, 0.32, [cx, yColTop - 0.26, cz + sz * 0.16], [0, 0, 0], 0.008);
+    }
+  }
+
+  // 门厅过道传统船篷轩拱形木构天花 (Barrel-vaulted Boat-Deck Ceiling)
+  const yC = yColTop + 0.06;
+  const nRibs = 11;
+  for (let i = 0; i < nRibs; i++) {
+    const rz = -1.4 + (2.8 * i) / (nRibs - 1);
+    // 弯椽拱条 (Arched Ribs)
+    lb.box(K.redDark, 3.5, 0.07, 0.08, [0, yC + 0.15, rz], [0, 0, 0], 0.006);
+  }
+  lb.box(K.redDark, 3.6, 0.03, 2.9, [0, yC + 0.20, 0]);
+
+  // 10. 远摄中堂框景挂灯锚点 (Passage Hanging Lantern for Shot 7)
+  // 保持北侧 z = -1.3 处的挂灯锚点，与中堂轴线精确对齐
   {
-    const z = -1.3, rod = 0.66;
-    lb.add(new THREE.CylinderGeometry(0.014, 0.014, rod, 8), K.gold, m4([0, yCL + 0.34 - rod / 2, z]));
-    lb.add(new THREE.CylinderGeometry(0.026, 0.02, 0.035, 12), K.gold, m4([0, yCL + 0.34 - rod + 0.02, z]));
-    lb.box(K.gold, 0.14, 0.025, 0.14, [0, yCL + 0.32, z], [0, 0, 0], 0.004);
-    anchors.hangingLanterns.push({ pos: toW([0, yCL + 0.34 - rod, z]), scale: 1.15, rotY: 0 });
+    const z = -1.3, rod = 0.65;
+    const yHook = yC + 0.18;
+    lb.add(new THREE.CylinderGeometry(0.012, 0.012, rod, 8), K.capPaint || K.cap, m4([0, yHook - rod / 2, z]));
+    lb.add(new THREE.CylinderGeometry(0.024, 0.018, 0.03, 12), K.capPaint || K.cap, m4([0, yHook - rod + 0.015, z]));
+    lb.box(K.cap, 0.12, 0.02, 0.12, [0, yHook - 0.01, z], [0, 0, 0], 0.004);
+    anchors.hangingLanterns.push({ pos: toW([0, yHook - rod, z]), scale: 1.15, rotY: 0 });
   }
-  return { yRidge: up.roof ? up.roof.yRidge : 0 };
+
+  // 11. 门厅单檐歇山小青瓦屋顶 (Single-Eave Xieshan Roof)
+  const cx = 4.8, cz = 2.4, ov = 0.85;
+  const exT = cx + ov + 0.08, ezT = cz + ov + 0.08;
+  const lift = makeLift(exT, ezT, 0.38, 0.42, 2.2);
+  const yWall = yColTop + 0.45;
+  const E = eaves(lb, {
+    cx, cz, ov, yWall, sBase: 0.31, d1: 0.8, rB: [0.09, 0.10], kioiH: 0.08, sFly: 0.16, rF: [0.085, 0.095],
+    sp: 0.24, fasciaH: 0.10, proj: 0.80, lift, twoTier: true, capGold: false,
+    K: { rafter: K.rafter, soffit: K.soffit, cap: K.cap, beam: K.beam, rafterCap: K.capPaint },
+  });
+
+  const T = tileParams({ p: 0.26, c: 0.25, detail: 1 });
+  const ry0 = E.fasciaTop + T.lip + T.pd;
+  const a0 = 0.38;
+  const b2 = (2.1 - a0 * ezT) / (ezT * ezT);
+  const prof = (d) => a0 * d + b2 * d * d;
+  const roof = irimoyaRoof(lb, {
+    ex: exT, ez: ezT, y0: ry0, prof, gd: 2.1, ov: 0.55, lift, T,
+    K: { tileVC: K.tileVC, tile: K.tile, gold: K.red, red: K.red, soffit: K.soffit, plaster: K.plaster, lattice: K.lattice },
+    ridge: { w: 0.54, h: 0.50, layers: 5, capR: 0.10, drop: 0.38 },
+    hip: { w: 0.30, h: 0.30, layers: 4, capR: 0.075, drop: 0.20 },
+    chiwen: { s: 0.85 }, xuanyu: 0.55, hafuH: 0.32, capGoldMat: K.tile, gableLattice: false, lo: true,
+  });
+
+  return { yRidge: roof ? roof.yRidge : yWall + 2.1 };
 }
 
-// ---------------------------------------------------------------------------
 // 钟亭 (bell pavilion) with a Chinese bronze 钟 and its striker
 // (was: 钟楼 with a Japanese bonsho — dragon-hook loop, 袈裟襷 ribs and
 //  撞座 lotus striking medallions)
