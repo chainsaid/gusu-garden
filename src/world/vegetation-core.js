@@ -4,7 +4,7 @@
 // light leaks through and every card shades differently. Each crown cluster
 // therefore gets a closed, irregular ellipsoid just beneath the needles: it
 // supplies a dark interior, self-shadowing and a rounded silhouette without
-// introducing a clipped horizontal pad.
+// collapsing the foliage into flat, sheared pads.
 // ---------------------------------------------------------------------------
 const TAU = Math.PI * 2;
 

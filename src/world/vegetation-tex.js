@@ -2,8 +2,8 @@
 // Procedural foliage textures (drawn on canvases at load time — no assets).
 //   - maple leaf atlas   (data: R shade/veins, G base->tip gradient, B blotch, A coverage)
 //   - pine needle atlas  (data: R shade, G along-needle gradient, B per-needle tint, A coverage)
-//   - cherry blossom atlas (sRGB colour + alpha)
-//   - shrub atlas        (sRGB colour + alpha: azalea leaves, azalea in flower, boxwood, fern)
+//   - peach blossom atlas (sRGB colour + alpha)
+//   - shrub atlas        (sRGB colour + alpha: broadleaf spray, nandina, gardenia, fatsia, jasmine)
 // Each atlas gets colour dilation under transparent texels and a coverage-
 // preserving alpha mip chain so alpha-tested canopies keep their density at
 // distance (no thinning / disappearing trees).
@@ -776,7 +776,17 @@ export function makeBlossomAtlas(rng, size = 1024) {
 }
 
 // ===========================================================================
-// SHRUB atlas (sRGB) — 2x2: [azalea leaves, azalea + pink flowers ; boxwood, azalea + red flowers]
+// SHRUB atlas (sRGB) — 3 columns x 2 rows of square cells on a 1536x1024
+// sheet. Cell 0 keeps the generic broadleaf spray that the camphor canopy
+// samples; cells 1-5 carry the Jiangnan understory palette:
+//   0 broadleaf spray (generic evergreen, shared with the camphor canopy)
+//   1 nandina 南天竹      — pinnate sprays, summer green
+//   2 gardenia 栀子       — glossy opposite leaves, double white flowers
+//   3 fatsia 八角金盘     — large palmate leaves
+//   4 winter jasmine 迎春 — trifoliate leaves, early yellow flowers
+//   5 nandina 南天竹      — autumn red foliage with scarlet berries
+// Cells are loose masses of foliage: the canopy shader scatters them along
+// shoots, so no sheared-dome silhouette is baked in.
 // ===========================================================================
 function smallLeaf(g, x, y, ang, L, W, col, rnd) {
   g.save(); g.translate(x, y); g.rotate(ang);
@@ -797,49 +807,172 @@ function smallLeaf(g, x, y, ang, L, W, col, rnd) {
   g.restore();
 }
 
-function azaleaFlower(g, x, y, r, col, rnd) {
-  g.save(); g.translate(x, y); g.rotate(rnd() * TAU);
-  for (let k = 0; k < 5; k++) {
-    g.save(); g.rotate((k / 5) * TAU);
-    const grd = g.createRadialGradient(0, 0, 0, 0, 0, r);
-    grd.addColorStop(0, `rgb(${col[0] * 0.7 | 0},${col[1] * 0.6 | 0},${col[2] * 0.7 | 0})`);
-    grd.addColorStop(0.5, `rgb(${col[0]},${col[1]},${col[2]})`);
-    grd.addColorStop(1, `rgb(${Math.min(255, col[0] + 15)},${Math.min(255, col[1] + 20)},${Math.min(255, col[2] + 20)})`);
-    g.fillStyle = grd;
-    g.beginPath(); g.moveTo(0, 0);
-    g.bezierCurveTo(r * 0.55, r * 0.3, r * 0.6, r * 0.95, 0, r);
-    g.bezierCurveTo(-r * 0.6, r * 0.95, -r * 0.55, r * 0.3, 0, 0);
-    g.fill();
-    g.restore();
+// Pinnate compound spray (南天竹 / 迎春): a rachis carrying opposite leaflets.
+// Frame: rachis runs from the origin towards -Y, leaflets fan out either side
+// and rake slightly forward, and one terminal leaflet caps the tip.
+function pinnateSpray(g, x, y, ang, L, nPair, leafL, leafW, col, rnd, rachis = true) {
+  g.save(); g.translate(x, y); g.rotate(ang);
+  if (rachis) {
+    g.strokeStyle = `rgb(${col[0] * 0.8 | 0},${col[1] * 0.88 | 0},${col[2] * 0.7 | 0})`;
+    g.lineWidth = Math.max(1, leafW * 0.18);
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -L); g.stroke();
   }
-  // spots + stamens
-  g.fillStyle = `rgb(${col[0] * 0.55 | 0},${col[1] * 0.3 | 0},${col[2] * 0.45 | 0})`;
-  for (let k = 0; k < 6; k++) { g.beginPath(); g.arc((rnd() - 0.5) * r * 0.5, -r * 0.2 - rnd() * r * 0.3, r * 0.04, 0, TAU); g.fill(); }
-  g.strokeStyle = `rgb(${col[0]},${col[1] * 0.8 | 0},${col[2] * 0.8 | 0})`; g.lineWidth = r * 0.04;
-  for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + (rnd() - 0.5) * 1.2; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.cos(a) * r * 0.9, Math.sin(a) * r * 0.9); g.stroke(); }
+  for (let k = 0; k < nPair; k++) {
+    const t = (k + 0.6) / (nPair + 0.4);
+    const py = -L * t;
+    const sc = 1 - 0.42 * t;                       // leaflets taper towards the tip
+    for (const side of [-1, 1]) {
+      const la = side * (1.75 + rnd() * 0.32);
+      g.save(); g.translate(0, py); g.rotate(la);
+      smallLeaf(g, 0, 0, 0, leafL * sc, leafW * sc, col, rnd);
+      g.restore();
+    }
+  }
+  g.save(); g.translate(0, -L);
+  smallLeaf(g, 0, 0, (rnd() - 0.5) * 0.3, leafL * 0.62, leafW * 0.62, col, rnd);
+  g.restore();
   g.restore();
 }
 
-export function makeShrubAtlas(rng, size = 1024) {
-  const S = size / 2;
-  const cv = makeCanvas(size, size);
+// Scarlet berry cluster (南天竹 fruit): a short stalk bearing round glossy berries.
+function berryCluster(g, x, y, r, n, col, rnd) {
+  g.save(); g.translate(x, y);
+  g.strokeStyle = `rgb(${col[0] * 0.5 | 0},${col[1] * 0.44 | 0},${col[2] * 0.4 | 0})`;
+  g.lineWidth = Math.max(1, r * 0.18);
+  for (let k = 0; k < n; k++) {
+    const a = -Math.PI / 2 + (rnd() - 0.5) * 2.1, d = r * (0.5 + rnd() * 1.5);
+    const bx = Math.cos(a) * d * 0.62, by = Math.sin(a) * d;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(bx, by); g.stroke();
+    const grd = g.createRadialGradient(bx - r * 0.26, by - r * 0.3, r * 0.05, bx, by, r);
+    grd.addColorStop(0, `rgb(${Math.min(255, col[0] * 1.5) | 0},${Math.min(255, col[1] * 1.4) | 0},${Math.min(255, col[2] * 1.35) | 0})`);
+    grd.addColorStop(0.55, `rgb(${col[0]},${col[1]},${col[2]})`);
+    grd.addColorStop(1, `rgb(${col[0] * 0.55 | 0},${col[1] * 0.3 | 0},${col[2] * 0.32 | 0})`);
+    g.fillStyle = grd;
+    g.beginPath(); g.arc(bx, by, r * (0.78 + rnd() * 0.34), 0, TAU); g.fill();
+  }
+  g.restore();
+}
+
+// Glossy elliptic leaf (栀子): broad blade with a bright midrib highlight.
+function ellipticLeaf(g, x, y, ang, L, W, col, rnd) {
+  g.save(); g.translate(x, y); g.rotate(ang);
+  const grd = g.createLinearGradient(-W, 0, W, 0);
+  grd.addColorStop(0, `rgb(${col[0] * 0.7 | 0},${col[1] * 0.74 | 0},${col[2] * 0.66 | 0})`);
+  grd.addColorStop(0.45, `rgb(${col[0]},${col[1]},${col[2]})`);
+  grd.addColorStop(1, `rgb(${col[0] * 0.78 | 0},${col[1] * 0.82 | 0},${col[2] * 0.72 | 0})`);
+  g.fillStyle = grd;
+  g.beginPath();
+  g.moveTo(0, 0);
+  g.bezierCurveTo(W, L * 0.28, W * 0.82, L * 0.86, 0, L);
+  g.bezierCurveTo(-W * 0.82, L * 0.86, -W, L * 0.28, 0, 0);
+  g.fill();
+  g.strokeStyle = `rgba(${Math.min(255, col[0] * 1.55) | 0},${Math.min(255, col[1] * 1.5) | 0},${Math.min(255, col[2] * 1.3) | 0},0.8)`;
+  g.lineWidth = Math.max(1, W * 0.1);
+  g.beginPath(); g.moveTo(0, L * 0.04); g.lineTo(0, L * 0.9); g.stroke();
+  g.restore();
+}
+
+// Double white gardenia flower (栀子): layered petals around a creamy core.
+function gardeniaFlower(g, x, y, r, rnd) {
+  g.save(); g.translate(x, y); g.rotate(rnd() * TAU);
+  for (let L = 0; L < 3; L++) {
+    const rr = r * (1 - L * 0.24);
+    const np = 6 + L;
+    const tone = 234 + Math.floor(rnd() * 18);
+    for (let k = 0; k < np; k++) {
+      g.save(); g.rotate((k / np) * TAU + L * 0.4);
+      const grd = g.createRadialGradient(0, 0, 0, 0, 0, rr);
+      grd.addColorStop(0, `rgb(${tone - 28},${tone - 22},${tone - 42})`);
+      grd.addColorStop(0.6, `rgb(${tone},${tone},${tone - 12})`);
+      grd.addColorStop(1, 'rgb(255,255,252)');
+      g.fillStyle = grd;
+      g.beginPath(); g.moveTo(0, 0);
+      g.bezierCurveTo(rr * 0.62, rr * 0.22, rr * 0.68, rr * 0.86, 0, rr);
+      g.bezierCurveTo(-rr * 0.68, rr * 0.86, -rr * 0.62, rr * 0.22, 0, 0);
+      g.fill();
+      g.restore();
+    }
+  }
+  g.fillStyle = 'rgb(226,212,148)';
+  g.beginPath(); g.arc(0, 0, r * 0.15, 0, TAU); g.fill();
+  g.restore();
+}
+
+// Palmate lobed leaf (八角金盘): radiating lanceolate lobes from a petiole tip.
+function fatsiaPalmate(g, x, y, ang, R, nLobe, col, rnd) {
+  g.save(); g.translate(x, y); g.rotate(ang);
+  g.strokeStyle = `rgb(${col[0] * 0.72 | 0},${col[1] * 0.78 | 0},${col[2] * 0.62 | 0})`;
+  g.lineWidth = Math.max(1, R * 0.05);
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -R * 0.16); g.stroke();
+  const cy = -R * 0.16;
+  for (let k = 0; k < nLobe; k++) {
+    const a = -Math.PI / 2 + ((k + 0.5) / nLobe - 0.5) * 2.25 + (rnd() - 0.5) * 0.12;
+    const lr = R * (0.62 + rnd() * 0.38);
+    g.save(); g.translate(0, cy); g.rotate(a + Math.PI / 2);
+    const grd = g.createLinearGradient(-R * 0.1, 0, R * 0.1, 0);
+    grd.addColorStop(0, `rgb(${col[0] * 0.72 | 0},${col[1] * 0.76 | 0},${col[2] * 0.7 | 0})`);
+    grd.addColorStop(0.5, `rgb(${col[0]},${col[1]},${col[2]})`);
+    grd.addColorStop(1, `rgb(${col[0] * 0.8 | 0},${col[1] * 0.85 | 0},${col[2] * 0.8 | 0})`);
+    g.fillStyle = grd;
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.bezierCurveTo(R * 0.1, lr * 0.3, R * 0.09, lr * 0.72, 0, lr);
+    g.bezierCurveTo(-R * 0.09, lr * 0.72, -R * 0.1, lr * 0.3, 0, 0);
+    g.fill();
+    g.strokeStyle = `rgba(${Math.min(255, col[0] * 1.35) | 0},${Math.min(255, col[1] * 1.3) | 0},${Math.min(255, col[2] * 1.2) | 0},0.75)`;
+    g.lineWidth = Math.max(1, R * 0.012);
+    g.beginPath(); g.moveTo(0, lr * 0.06); g.lineTo(0, lr * 0.92); g.stroke();
+    g.restore();
+  }
+  g.restore();
+}
+
+// Winter jasmine flower (迎春): six-lobed yellow corolla on a slender tube.
+function jasmineFlower(g, x, y, r, col, rnd) {
+  g.save(); g.translate(x, y); g.rotate(rnd() * TAU);
+  for (let k = 0; k < 6; k++) {
+    g.save(); g.rotate((k / 6) * TAU + (rnd() - 0.5) * 0.15);
+    const grd = g.createRadialGradient(0, 0, 0, 0, 0, r);
+    grd.addColorStop(0, `rgb(${col[0] * 0.82 | 0},${col[1] * 0.7 | 0},${col[2] * 0.4 | 0})`);
+    grd.addColorStop(0.55, `rgb(${col[0]},${col[1]},${col[2]})`);
+    grd.addColorStop(1, `rgb(${Math.min(255, col[0] * 1.2) | 0},${Math.min(255, col[1] * 1.15) | 0},${Math.min(255, col[2] * 0.9) | 0})`);
+    g.fillStyle = grd;
+    g.beginPath(); g.moveTo(0, 0);
+    g.bezierCurveTo(r * 0.4, r * 0.3, r * 0.42, r * 0.95, 0, r);
+    g.bezierCurveTo(-r * 0.42, r * 0.95, -r * 0.4, r * 0.3, 0, 0);
+    g.fill();
+    g.restore();
+  }
+  g.fillStyle = `rgb(${col[0] * 0.55 | 0},${col[1] * 0.42 | 0},60)`;
+  g.beginPath(); g.arc(0, 0, r * 0.2, 0, TAU); g.fill();
+  g.restore();
+}
+
+// `cell` is the width/height of one square atlas cell in px; the sheet is
+// laid out COLS x ROWS of them so every cell stays square and leaves are not
+// stretched when a card samples it.
+export const SHRUB_ATLAS = { COLS: 3, ROWS: 2, CELLS: 6 };
+
+export function makeShrubAtlas(rng, cell = 512) {
+  const { COLS, ROWS, CELLS } = SHRUB_ATLAS;
+  const W = cell * COLS, H = cell * ROWS;
+  const cv = makeCanvas(W, H);
   const g = cv.getContext('2d');
-  g.clearRect(0, 0, size, size);
+  g.clearRect(0, 0, W, H);
   const rnd = rng.next;
-  const greens = [[54, 86, 31], [64, 100, 36], [47, 77, 29], [76, 108, 40], [86, 102, 38]];
-  for (let v = 0; v < 4; v++) {
-    const x0 = (v % 2) * S, y0 = Math.floor(v / 2) * S;
+  const broadleaf = [[54, 86, 31], [64, 100, 36], [47, 77, 29], [76, 108, 40], [86, 102, 38]];
+  const nandinaGreen = [[52, 96, 44], [64, 112, 50], [44, 84, 38], [78, 126, 56], [88, 118, 52]];
+  const nandinaRed = [[146, 52, 40], [172, 68, 44], [118, 44, 34], [190, 92, 52], [96, 58, 34]];
+  const gardeniaGreen = [[38, 78, 40], [46, 92, 46], [32, 68, 34], [54, 100, 52]];
+  const fatsiaGreen = [[34, 74, 38], [42, 88, 44], [28, 64, 32], [50, 96, 50]];
+  const jasmineGreen = [[58, 96, 40], [70, 112, 46], [48, 84, 34], [82, 122, 54]];
+  const S = cell;
+  for (let v = 0; v < CELLS; v++) {
+    const x0 = (v % COLS) * S, y0 = Math.floor(v / COLS) * S;
     const cx = x0 + S / 2, cy = y0 + S / 2;
     g.save(); g.beginPath(); g.rect(x0, y0, S, S); g.clip();
-    if (v === 2) {
-      // boxwood: tiny rounded leaves, dense, yellow-green
-      for (let i = 0; i < 420; i++) {
-        const a = rnd() * TAU, r = Math.sqrt(rnd()) * S * 0.46;
-        const col = [[78, 98, 34], [92, 110, 38], [66, 88, 30], [104, 116, 44]][Math.floor(rnd() * 4)];
-        smallLeaf(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r, rnd() * TAU, S * (0.05 + rnd() * 0.02), S * (0.022 + rnd() * 0.008), col, rnd);
-      }
-    } else {
-      // azalea: rosettes of small elliptic leaves
+    if (v === 0) {
+      // generic broadleaf spray — kept as-is, the camphor canopy samples this cell
       const nRos = 16;
       for (let k = 0; k < nRos; k++) {
         const a = rnd() * TAU, r = Math.sqrt(rnd()) * S * 0.36;
@@ -848,25 +981,72 @@ export function makeShrubAtlas(rng, size = 1024) {
         const a0 = rnd() * TAU;
         for (let j = 0; j < nL; j++) {
           const la = a0 + (j / nL) * TAU + (rnd() - 0.5) * 0.4;
-          const col = greens[Math.floor(rnd() * greens.length)];
+          const col = broadleaf[Math.floor(rnd() * broadleaf.length)];
           const c2 = rnd() < 0.08 ? [120, 82, 34] : col;
           smallLeaf(g, rx, ry, la, S * (0.1 + rnd() * 0.05), S * (0.032 + rnd() * 0.01), c2, rnd);
         }
       }
-      if (v === 1 || v === 3) {
-        const col = v === 1 ? [236, 92, 150] : [226, 52, 74];
-        const nf = 13;
-        for (let k = 0; k < nf; k++) {
+    } else if (v === 1 || v === 5) {
+      // 南天竹 nandina: two- to three-pinnate sprays; v=5 is the autumn fruiting form
+      const autumn = v === 5;
+      const tones = autumn ? nandinaRed : nandinaGreen;
+      for (let k = 0; k < 13; k++) {
+        const a = rnd() * TAU, r = Math.sqrt(rnd()) * S * 0.40;
+        pinnateSpray(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r,
+          a + Math.PI / 2 + (rnd() - 0.5) * 0.7, S * (0.30 + rnd() * 0.14),
+          7 + Math.floor(rnd() * 4), S * 0.062, S * 0.021, tones[Math.floor(rnd() * tones.length)], rnd);
+      }
+      if (autumn) {
+        for (let k = 0; k < 5; k++) {
           const a = rnd() * TAU, r = Math.sqrt(rnd()) * S * 0.34;
-          azaleaFlower(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r, S * (0.07 + rnd() * 0.025), col.map((c) => Math.min(255, c + Math.floor((rnd() - 0.5) * 20))), rnd);
+          berryCluster(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r, S * 0.026, 5 + Math.floor(rnd() * 4), [206, 46, 44], rnd);
         }
+      }
+    } else if (v === 2) {
+      // 栀子 gardenia: glossy opposite leaves with a few double white flowers
+      for (let k = 0; k < 34; k++) {
+        const a = rnd() * TAU, r = Math.sqrt(rnd()) * S * 0.42;
+        const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+        const base = rnd() * TAU;
+        for (const side of [-1, 1]) {
+          ellipticLeaf(g, px, py, base + side * (0.42 + rnd() * 0.2), S * (0.11 + rnd() * 0.05),
+            S * (0.042 + rnd() * 0.012), gardeniaGreen[Math.floor(rnd() * gardeniaGreen.length)], rnd);
+        }
+      }
+      for (let k = 0; k < 6; k++) {
+        const a = rnd() * TAU, r = Math.sqrt(rnd()) * S * 0.33;
+        gardeniaFlower(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r, S * (0.075 + rnd() * 0.03), rnd);
+      }
+    } else if (v === 3) {
+      // 八角金盘 fatsia: a few large palmate leaves fill the tile
+      const n = 4;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * TAU + rnd() * 0.6, r = S * (0.10 + rnd() * 0.20);
+        fatsiaPalmate(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r, a + Math.PI / 2 + (rnd() - 0.5) * 0.5,
+          S * (0.34 + rnd() * 0.10), 7 + Math.floor(rnd() * 3), fatsiaGreen[Math.floor(rnd() * fatsiaGreen.length)], rnd);
+      }
+    } else {
+      // 迎春 winter jasmine: trifoliate leaves on arching shoots, early yellow flowers
+      for (let k = 0; k < 26; k++) {
+        const a = rnd() * TAU, r = Math.sqrt(rnd()) * S * 0.40;
+        const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+        const base = rnd() * TAU;
+        for (let t = 0; t < 3; t++) {
+          pinnateSpray(g, px, py, base + (t - 1) * (0.5 + rnd() * 0.2), S * (0.13 + rnd() * 0.05),
+            2 + Math.floor(rnd() * 2), S * 0.058, S * 0.026, jasmineGreen[Math.floor(rnd() * jasmineGreen.length)], rnd, false);
+        }
+      }
+      const yellow = [246, 198, 46];
+      for (let k = 0; k < 9; k++) {
+        const a = rnd() * TAU, r = Math.sqrt(rnd()) * S * 0.38;
+        jasmineFlower(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r, S * (0.05 + rnd() * 0.02), yellow, rnd);
       }
     }
     g.restore();
   }
   const src = readCanvas(cv);
   const data = new Uint8Array(src.length); data.set(src);
-  return finalizeTexture(data, size, size, { srgb: true });
+  return finalizeTexture(data, W, H, { srgb: true });
 }
 
 // ===========================================================================

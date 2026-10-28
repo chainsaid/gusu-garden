@@ -31,7 +31,7 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 const add = (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2] * s];
 const mixv = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
-// card: centre-anchored (broadleaf) or base-anchored (sugi spray) quad
+// card: centre-anchored (broadleaf) or base-anchored (conifer spray) quad
 function card(T, base, axisU, axisV, w, h, rect, bendTo, bend, cvals, baseAnchored) {
   const [u0, v0, u1, v1] = rect;
   const corners = baseAnchored
@@ -353,7 +353,7 @@ export function buildForest(ctx, F) {
       tryTree(px, pz, 'shrub');
     }
   }
-  // low evergreen belt (azalea / sasa / pieris clumps) along the outside of the corridor, just
+  // low evergreen belt (柃木 eurya / 山矾 symplocos / 矮油茶 camellia clumps) along the outside of the corridor, just
   // beyond the gravel walk: gives the ground round the cloister texture and relief from the air
   {
     const S3 = gap(1.7), gx = F.L.gate.center[0];
@@ -456,10 +456,10 @@ export function buildForest(ctx, F) {
       } else if (t.bamboo) {
         col.setRGB(lerp(0.052, 0.075, h), lerp(0.11, 0.145, h), lerp(0.025, 0.036, h));
       } else if (t.belt) {
-        // clipped azalea (green), enkianthus / dodan-tsutsuji turning scarlet, a few amber
+        // 江南下木常绿团块：柃木、山矾的沉稳深绿，新梢偶带黄绿，不作秋色
         const k = F.noise.f1(t.x * 0.09 + 4.0, t.z * 0.09, 2) + (h - 0.5) * 0.6;
-        if (k > 0.22) col.setRGB(lerp(0.30, 0.42, h), lerp(0.035, 0.06, h), 0.018);
-        else if (k > 0.12) col.setRGB(lerp(0.32, 0.40, h), lerp(0.12, 0.17, h), 0.02);
+        if (k > 0.22) col.setRGB(lerp(0.10, 0.14, h), lerp(0.13, 0.17, h), 0.022);
+        else if (k > 0.12) col.setRGB(lerp(0.05, 0.08, h), lerp(0.09, 0.13, h), 0.02);
         else col.setRGB(lerp(0.034, 0.055, h), lerp(0.060, 0.085, h), 0.018);
       } else if (t.kind === 'shrub') {
         col.setRGB(lerp(0.030, 0.050, h), lerp(0.050, 0.068, h), 0.016);

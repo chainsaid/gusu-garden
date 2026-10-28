@@ -9,7 +9,7 @@ import { makeMapleAtlas, makeMapleHeroAtlas, makeSamaraTexture, makePineAtlas, m
 import { heroLeafGeo, samaraGeo, buildHeroSpray } from './vegetation-hero.js';
 import { CushionAccum, naturalCrownPoint } from './vegetation-core.js';
 import { SHOTS } from '../shots.js';
-import { genMaple, genCherry, genPine, genTiered, genCamphor, genMagnolia, genCrabapple, padLocal, padNormal, padTopF, BarkAccum, trunkDisp, sampleBranch, envRho, envNormal, randUnit, perpOf, vnoise3 } from './vegetation-tree.js';
+import { genMaple, genPeach, genPine, genTiered, genCamphor, genMagnolia, genCrabapple, padLocal, padNormal, padTopF, BarkAccum, trunkDisp, sampleBranch, envRho, envNormal, randUnit, perpOf, vnoise3 } from './vegetation-tree.js';
 import { buildBamboo } from './vegetation-bamboo.js';
 import { buildBananas } from './vegetation-banana.js';
 import { buildWillows } from './vegetation-willow.js';
@@ -169,7 +169,7 @@ const BARK_COLOR = {
     g_h = stri * 0.35 + mott * 0.35 + lich * 0.3 + moss * 0.3;
     g_r = 0.72 - lich * 0.05 + moss * 0.2;
   }`,
-  cherry: /* glsl */ `
+  peach: /* glsl */ `
   {
     float k = vBarkB.x, cw = vBarkB.z, r = vBarkA.z;
     vec2 p = vec2(vBarkA.x, vBarkA.y / (cw * 0.26));
@@ -284,7 +284,7 @@ function depthMat(ctx, hooks, params = {}) {
 
 function barkMaterial(ctx, kind) {
   const { THREE } = ctx;
-  const uBump = { value: kind === 'pine' ? 0.03 : kind === 'cherry' ? 0.008 : 0.005 };
+  const uBump = { value: kind === 'pine' ? 0.03 : kind === 'peach' ? 0.008 : 0.005 };
   const vHooks = {
     vertexHead: VEG_WIND + /* glsl */ `attribute vec4 aBarkA; attribute vec3 aBarkB; varying vec4 vBarkA; varying vec3 vBarkB;`,
     vertexWorld: /* glsl */ `vBarkA = aBarkA; vBarkB = aBarkB; wPos4.xyz += vegWind(wPos4.xyz, aBarkA.w);`,
@@ -347,7 +347,8 @@ function foliageMaterial(ctx, kind, map, P = {}) {
       vFol = aFol; vBendW = aBend;
       ${hero ? 'vRest = wPos4.xyz; vInstId = float(gl_InstanceID);' : ''}
       #ifdef USE_MAP
-        vMapUv += vec2(mod(aFol.w, 2.0), floor(aFol.w * 0.5 + 0.01)) * 0.5;
+        // shrub atlas is COLS x ROWS square cells; see SHRUB_ATLAS in vegetation-tex.js
+        vMapUv += vec2(mod(aFol.w, 3.0) / 3.0, floor(aFol.w / 3.0 + 0.01) / 2.0);
       #endif
       ${P.vertexWorld || ''}
       if (${P.vertexWorld ? 'false' : 'true'}) {
@@ -608,7 +609,8 @@ function shrubCardGeo(THREE) {
   }
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
-  g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0.5, 0.5, 0.5, 0.5, 0, 0, 0], 2));
+  // uv spans one atlas cell: 1/3 wide x 1/2 tall for the 3x2 shrub sheet
+  g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0.5, 1 / 3, 0.5, 1 / 3, 0, 0, 0], 2));
   g.setIndex([0, 1, 2, 0, 2, 3]);
   return g;
 }
@@ -794,7 +796,7 @@ export async function build(ctx) {
   const samaraTex = makeSamaraTexture(ctx.rng('veg-samara-tex'), 512);
   const pineTex = makePineAtlas(ctx.rng('veg-pine-tex'), 1024);
   const blossomTex = makeBlossomAtlas(ctx.rng('veg-blossom-tex'), 1024);
-  const shrubTex = makeShrubAtlas(ctx.rng('veg-shrub-tex'), 1024);
+  const shrubTex = makeShrubAtlas(ctx.rng('veg-shrub-tex'));
   const fernTex = makeFernTexture(ctx.rng('veg-fern-tex'));
   const aniso = Math.min(8, ctx.renderer.capabilities.getMaxAnisotropy ? ctx.renderer.capabilities.getMaxAnisotropy() : 4);
   for (const t of [mapleTex, samaraTex, pineTex, blossomTex, shrubTex, fernTex]) t.anisotropy = aniso;
@@ -802,7 +804,7 @@ export async function build(ctx) {
   const tTex = performance.now();
 
   // --------------------------------------------------------------- materials
-  const bark = { pine: barkMaterial(ctx, 'pine'), maple: barkMaterial(ctx, 'maple'), cherry: barkMaterial(ctx, 'cherry') };
+  const bark = { pine: barkMaterial(ctx, 'pine'), maple: barkMaterial(ctx, 'maple'), peach: barkMaterial(ctx, 'peach') };
   const folMaple = foliageMaterial(ctx, 'maple', mapleTex, { transTint: [1.9, 1.9, 0.75], transBack: 1.0, transFwd: 2.2, bend: 0.4, roughness: 0.55, accent: [0.55, 0.2, 0.025], petiole: [0.2, 0.05, 0.025], flutter: 0.03, fatten: 0.38, spec: 0.6 });
   // close-up hero canopies (shot 1 veranda): shallower light leak -> leaves behind leaves stay dark,
   // the sunward layer glows gold-green; little waxy glare
@@ -820,7 +822,7 @@ export async function build(ctx) {
   // fern texture is not an atlas: neutralise the cell offset by using cell 0 and full-uv geometry
   // (frond uvs are 0..1 so we scale them into the 0..0.5 cell and keep aFol.w = 0)
 
-  // mound base (inner leaf mass of clipped shrubs)
+  // shrub core (dark inner leaf mass beneath the loose clump of shoots)
   const moundMat = ctx.mat.std({ color: 0xffffff, roughness: 0.75, metalness: 0 }, {
     vertexHead: /* glsl */ `attribute vec3 aTint; varying vec3 vTint;`,
     vertexWorld: /* glsl */ `vTint = aTint;`,
@@ -865,7 +867,7 @@ export async function build(ctx) {
   const NO_CORE = typeof location !== 'undefined' && /vegcore=0/.test(location.search);
 
   // -------------------------------------------------------------- accumulators
-  const acc = { pine: new BarkAccum(), maple: new BarkAccum(), cherry: new BarkAccum() };
+  const acc = { pine: new BarkAccum(), maple: new BarkAccum(), peach: new BarkAccum() };
   const cores = new CushionAccum();
   const fol = { maple: new InstAccum(), mapleHero: new InstAccum(), mapleFar: new InstAccum(), camphor: new InstAccum(), pine: new InstAccum(), blossom: new InstAccum(), shrub: new InstAccum(), fern: new InstAccum() };
   const stats = { trees: 0 };
@@ -890,13 +892,13 @@ export async function build(ctx) {
     const maxPd = maxPdOf(branches);
     const flexOf = flexFn(maxPd, opt.flexK ?? 1.0);
     const sgn = opt.red ? -1 : 1;
-    const cellW = kind === 'pine' ? 0.075 : kind === 'cherry' ? 0.05 : 0.06;
+    const cellW = kind === 'pine' ? 0.075 : kind === 'peach' ? 0.05 : 0.06;
     for (let i = 0; i < branches.length; i++) {
       const b = branches[i];
       if (b.rads[0] < 0.0018) continue;
       if (b.level >= 4 && b.rads[0] < (isRealtime() ? 0.0058 : opt.hero ? 0 : 0.0046)) continue; // fine twigs are hidden by foliage
       const isTrunk = b.level === 0;
-      const disp = isTrunk ? trunkDisp({ seed: seed % 97, bump: kind === 'pine' ? 0.07 : 0.05, flare: kind === 'pine' ? 0.5 : kind === 'cherry' ? 0.45 : 0.35, roots: 5, flareH: 0.45, flute: kind === 'maple' ? 0.05 : 0.025, fluteN: kind === 'maple' ? 4 : 7 })
+      const disp = isTrunk ? trunkDisp({ seed: seed % 97, bump: kind === 'pine' ? 0.07 : 0.05, flare: kind === 'pine' ? 0.5 : kind === 'peach' ? 0.45 : 0.35, roots: 5, flareH: 0.45, flute: kind === 'maple' ? 0.05 : 0.025, fluteN: kind === 'maple' ? 4 : 7 })
         : b.rads[0] > 0.05 ? trunkDisp({ seed: (seed + i) % 97, bump: 0.05, flare: 0, flute: kind === 'maple' ? 0.035 : 0.01, fluteN: 3 }) : null;
       acc[kind].addBranch(b, {
         flexOf, seed: sgn * (1 + ((seed * 13 + i * 7) % 89)), cellW, disp,
@@ -1096,7 +1098,7 @@ export async function build(ctx) {
   }
 
   // ---- Jiangnan spring flowering trees ----
-  function buildCherry(spec) {
+  function buildPeach(spec) {
     const species = spec.type;
     const magnolia = species === 'magnolia';
     const crabapple = species === 'crabapple';
@@ -1106,9 +1108,9 @@ export async function build(ctx) {
     const tiered = spec.style !== 'shell';
     const flowerOpt = { h: spec.h, base, lean: leanV, spread: spec.spread, detail: spec.detail ?? lod(1), leaders: spec.leaders, padR: spec.padR, gaps: spec.gaps, twigDens: spec.twigDens ?? 3.2, keepOut: KEEP };
     const tree = tiered
-      ? magnolia ? genMagnolia(rng, flowerOpt) : crabapple ? genCrabapple(rng, flowerOpt) : genTiered(rng, { ...flowerOpt, species: 'cherry', spread: spec.spread ?? 0.8, gaps: spec.gaps ?? 0.36 })
-      : genCherry(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? 0.88, detail: spec.detail ?? lod(1), keepOut: KEEP });
-    const flexOf = addBark('cherry', tree.branches, tree.rT, spec.id * 17 + 3, { hero: spec.hero });
+      ? magnolia ? genMagnolia(rng, flowerOpt) : crabapple ? genCrabapple(rng, flowerOpt) : genTiered(rng, { ...flowerOpt, species: 'peach', spread: spec.spread ?? 0.8, gaps: spec.gaps ?? 0.36 })
+      : genPeach(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? 0.88, detail: spec.detail ?? lod(1), keepOut: KEEP });
+    const flexOf = addBark('peach', tree.branches, tree.rT, spec.id * 17 + 3, { hero: spec.hero });
     const env = tree.env;
     const cs = spec.clusterSize ?? (magnolia ? 0.46 : crabapple ? 0.34 : 0.36);
     const sp = spec.clusterSpacing ?? (magnolia ? 0.095 : 0.075);
@@ -1291,11 +1293,11 @@ export async function build(ctx) {
   let heroTree = null;
   const buildTree = (spec) => {
     try {
-      const n0 = fol.maple.n + fol.mapleHero.n + fol.mapleFar.n + fol.camphor.n + fol.pine.n + fol.blossom.n, b0 = acc.pine.triCount + acc.maple.triCount + acc.cherry.triCount;
-      const flowering = spec.type === 'cherry' || spec.type === 'magnolia' || spec.type === 'crabapple';
-      const r = spec.type === 'pine' ? buildPine(spec) : flowering ? buildCherry(spec) : buildMaple(spec);
+      const n0 = fol.maple.n + fol.mapleHero.n + fol.mapleFar.n + fol.camphor.n + fol.pine.n + fol.blossom.n, b0 = acc.pine.triCount + acc.maple.triCount + acc.peach.triCount;
+      const flowering = spec.type === 'peach' || spec.type === 'magnolia' || spec.type === 'crabapple';
+      const r = spec.type === 'pine' ? buildPine(spec) : flowering ? buildPeach(spec) : buildMaple(spec);
       if (spec.heroTree) heroTree = r;
-      perTree.push(spec.type + '@' + spec.x.toFixed(0) + ',' + spec.z.toFixed(0) + ' h' + spec.h.toFixed(1) + ' fol=' + (fol.maple.n + fol.mapleHero.n + fol.mapleFar.n + fol.camphor.n + fol.pine.n + fol.blossom.n - n0) + ' bark=' + (acc.pine.triCount + acc.maple.triCount + acc.cherry.triCount - b0));
+      perTree.push(spec.type + '@' + spec.x.toFixed(0) + ',' + spec.z.toFixed(0) + ' h' + spec.h.toFixed(1) + ' fol=' + (fol.maple.n + fol.mapleHero.n + fol.mapleFar.n + fol.camphor.n + fol.pine.n + fol.blossom.n - n0) + ' bark=' + (acc.pine.triCount + acc.maple.triCount + acc.peach.triCount - b0));
       return r;
     } catch (e) { console.error('[vegetation] tree failed', spec, e.stack || e); return null; }
   };
@@ -1332,7 +1334,7 @@ export async function build(ctx) {
   for (const t of L.trees) {
     const s = { id: id++, type: t.type, x: t.at[0], z: t.at[1], h: t.h, hero: true };
     // trees only ever seen from afar (aerials, backgrounds): no hair-fine twigs, coarser sprays
-    if ((t.type === 'maple' && t.h >= 9) || (t.type === 'cherry' && t.at[0] !== -46)) Object.assign(s, { hero: false, detail: 0.7, leafSize: 0.21, nodeSpacing: 0.07, twigDens: 3.0 });
+    if ((t.type === 'maple' && t.h >= 9) || (t.type === 'peach' && t.at[0] !== -46)) Object.assign(s, { hero: false, detail: 0.7, leafSize: 0.21, nodeSpacing: 0.07, twigDens: 3.0 });
     if (t.type === 'maple' && t.at[0] === 52 && t.at[1] === 26) { s.lean = [-0.8, 0.8]; s.spread = 0.58; } // beside the pavilion (keep its roof visible from the finale crane)
     if (t.type === 'pine' && t.h >= 11) { s.reach = 1.1; s.nBranches = 10; }
     // this pine stood on the finale's crane path: moved to the south lawn near the corridor
@@ -1543,24 +1545,44 @@ export async function build(ctx) {
   const moundGeoBase = new THREE.IcosahedronGeometry(1, cnt(2));
   const mounds = [];
   const SR = ctx.rng('veg-shrubs');
-  const addMound = (x, z, r, kind = 'azalea', hRatio = 0.62) => {
+  // A Jiangnan shrub is an asymmetric clump of shoots, not a sheared ball:
+  // `shoots` radiating stems, `spread` their outward reach, `lean` a bias that
+  // breaks any vertical axis of symmetry, `hRatio` height/radius, `ragged` how
+  // far leaf cards stray from their shoot.
+  const addMound = (x, z, r, kind = 'nandina', opt = {}) => {
     if (soloM) return false;
     if (site.clearance(x, z, { pondMargin: 0.4, pathMargin: 0.25, standR: 0.5 }) < r * 0.6) return false;
     if (inKeep({ x, y: groundY(x, z) + 0.3, z }, r)) return false;
     if (mounds.some((m) => Math.hypot(m.x - x, m.z - z) < (m.r + r) * 0.72)) return false;
-    mounds.push({ x, z, r, kind, hRatio: hRatio * SR.range(0.72, 1.08), y: groundY(x, z) });
+    mounds.push({
+      x, z, r, kind, y: groundY(x, z),
+      hRatio: opt.hRatio ?? SR.range(0.45, 0.85),
+      shoots: opt.shoots ?? (r > 0.7 ? SR.int(4, 6) : SR.int(3, 5)),
+      spread: opt.spread ?? SR.range(0.78, 1.22),
+      lean: opt.lean ?? SR.range(0, TAU),
+      ragged: opt.ragged ?? SR.range(0.82, 1.18),
+    });
     return true;
   };
-  // hall front planting strip (both sides of the stair)
+  // Hall forecourt: a 月台 wants open space, not a clipped hedge. Keep the axis
+  // straight off the stair clear, hold one loose group on the west flank and a
+  // couple of sparse clumps on the east so the two sides never mirror.
   const hz = L.hall.stairs.frontZ + 1.4;
-  for (const [x0, x1] of [[-6.5, 2.2], [17.8, 26.5]]) {
-    for (let x = x0; x <= x1; x += SR.range(1.3, 1.9)) addMound(x, hz + SR.range(-0.4, 0.5), SR.range(0.55, 0.9), SR.chance(0.4) ? 'azaleaPink' : 'azalea');
+  for (let x = -7.5; x < -0.5; x += SR.range(1.5, 2.4)) {
+    addMound(x, hz + SR.range(-0.9, 0.8), SR.range(0.5, 0.85), SR.chance(0.35) ? 'gardenia' : 'nandina');
   }
-  // pagoda platform corners
+  for (let k = 0; k < 3; k++) {
+    addMound(SR.range(20.5, 27.5), hz + SR.range(-1.2, 1.0), SR.range(0.45, 0.75), SR.pick(['nandina', 'nandina', 'nandinaAutumn']));
+  }
+  // Pagoda terrace: scattered around the platform edge rather than pinned as a
+  // mirrored clump on each of the four corners.
   {
     const P = L.pagoda, hw = P.platform.w / 2 + 1.6;
-    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      for (let k = 0; k < 3; k++) addMound(P.center[0] + sx * hw + SR.range(-1.2, 1.2), P.center[2] + sz * hw + SR.range(-1.2, 1.2), SR.range(0.5, 0.9), SR.pick(['azalea', 'azalea', 'boxwood', 'azaleaPink']));
+    const n = 11;
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * TAU + SR.range(-0.35, 0.35);
+      const rad = hw * SR.range(0.92, 1.22);
+      addMound(P.center[0] + Math.cos(a) * rad, P.center[2] + Math.sin(a) * rad, SR.range(0.5, 0.9), SR.pick(['nandina', 'nandina', 'nandinaAutumn', 'gardenia']));
     }
   }
   // pond shore groups
@@ -1581,7 +1603,8 @@ export async function build(ctx) {
       let nx = px - cx, nz = pz - cz; const nl = Math.hypot(nx, nz); nx /= nl; nz /= nl;
       const off = SR.range(1.6, 3.4);
       const r = SR.range(0.45, 1.0);
-      const kind = SR.pick(['azalea', 'azalea', 'azaleaPink', 'boxwood', 'azaleaRed', 'azalea']);
+      // 迎春 spills over the embankment; nandina and fatsia fill in behind it
+      const kind = SR.pick(['jasmine', 'jasmine', 'nandina', 'fatsia', 'jasmine', 'nandina']);
       addMound(px + nx * off, pz + nz * off, r, kind);
       if (SR.chance(0.5)) addMound(px + nx * (off + r * 1.3) + SR.range(-0.8, 0.8), pz + nz * (off + r * 1.3) + SR.range(-0.8, 0.8), r * 0.7, kind);
     }
@@ -1589,7 +1612,7 @@ export async function build(ctx) {
   // beside the stone stands (石笋 / 石鼓墩 / 散置湖石)
   for (const l of L.stoneStands) {
     const a = SR.range(0, TAU);
-    addMound(l[0] + Math.cos(a) * 1.5, l[1] + Math.sin(a) * 1.5, SR.range(0.45, 0.75), SR.pick(['azalea', 'boxwood', 'azaleaPink']));
+    addMound(l[0] + Math.cos(a) * 1.5, l[1] + Math.sin(a) * 1.5, SR.range(0.45, 0.75), SR.pick(['nandina', 'fatsia', 'gardenia']));
   }
   // island
   for (let k = 0; k < 4; k++) {
@@ -1597,88 +1620,99 @@ export async function build(ctx) {
     const c = isl[k % isl.length];
     const x = c[0] * 0.6 + -2 * 0.4 + SR.range(-0.5, 0.5), z = c[1] * 0.6 + 20 * 0.4 + SR.range(-0.5, 0.5);
     // (the east tip stays bare: the low sun crosses it on the way to the lotus bed)
-    if (site.onIsland(x, z) && !inKeep({ x, y: 0.5, z }, 0.7)) mounds.push({ x, z, r: SR.range(0.4, 0.65), kind: SR.pick(['azalea', 'azaleaPink']), hRatio: 0.6, y: groundY(x, z) });
+    if (site.onIsland(x, z) && !inKeep({ x, y: 0.5, z }, 0.7)) {
+      mounds.push({
+        x, z, r: SR.range(0.4, 0.65), kind: SR.pick(['nandina', 'fatsia']), y: groundY(x, z),
+        hRatio: 0.6, shoots: SR.int(3, 5), spread: SR.range(0.78, 1.22), lean: SR.range(0, TAU), ragged: SR.range(0.82, 1.18),
+      });
+    }
   }
   // garden (south) and corridor edges
   for (let k = 0; k < 40; k++) {
     const x = SR.range(inner.x0 + 1.5, inner.x1 - 1.5);
     const z = SR.chance(0.5) ? SR.range(inner.z1 - 7, inner.z1 - 1) : SR.range(inner.z0 + 1, inner.z0 + 6);
-    addMound(x, z, SR.range(0.5, 1.1), SR.pick(['azalea', 'azalea', 'boxwood', 'azaleaPink', 'azaleaRed']));
+    addMound(x, z, SR.range(0.5, 1.1), SR.pick(['nandina', 'nandina', 'gardenia', 'nandinaAutumn', 'fatsia']));
   }
   for (let k = 0; k < 24; k++) {
     const x = SR.chance(0.5) ? SR.range(inner.x0 + 1, inner.x0 + 5) : SR.range(inner.x1 - 5, inner.x1 - 1);
     const z = SR.range(inner.z0 + 2, inner.z1 - 2);
-    addMound(x, z, SR.range(0.5, 1.0), SR.pick(['azalea', 'boxwood', 'azaleaPink']));
+    addMound(x, z, SR.range(0.5, 1.0), SR.pick(['nandina', 'jasmine', 'gardenia']));
   }
 
-  // build mound base meshes + leaf cards
+  // build shrub core meshes + leaf cards
   const mpos = [], mnrm = [], mtint = [], midx = [];
   const bp = moundGeoBase.attributes.position;
   const bIdx = moundGeoBase.index ? moundGeoBase.index.array : null;
-  const tints = {
-    azalea: [0.04, 0.066, 0.018], azaleaPink: [0.04, 0.066, 0.018], azaleaRed: [0.04, 0.063, 0.018], boxwood: [0.058, 0.08, 0.02],
+  // Jiangnan understory: `tint` feeds the opaque core, `cell` indexes the 3x2
+  // atlas in vegetation-tex.js — cell 0 is the camphor broadleaf, so shrubs
+  // deliberately start at 1.
+  const SHRUB_KIND = {
+    nandina: { tint: [0.036, 0.070, 0.026], cell: 1, card: 0.20, dens: 210 },
+    nandinaAutumn: { tint: [0.075, 0.045, 0.022], cell: 5, card: 0.20, dens: 200 },
+    gardenia: { tint: [0.030, 0.062, 0.026], cell: 2, card: 0.21, dens: 200 },
+    fatsia: { tint: [0.026, 0.056, 0.024], cell: 3, card: 0.26, dens: 150 },
+    jasmine: { tint: [0.040, 0.072, 0.024], cell: 4, card: 0.17, dens: 220 },
   };
   let mvc = 0;
   for (const m of mounds) {
     const seed = Math.floor(SR.range(0, 999));
-    const tint = tints[m.kind];
-    // a clipped mound is a cluster of overlapping domes (karikomi)
-    const lobes = [{ x: m.x, z: m.z, r: m.r, ry: m.r * m.hRatio }];
-    const nl = m.r > 0.6 ? SR.int(2, 4) : SR.int(1, 3);
-    for (let k = 0; k < nl; k++) {
-      const a = SR.range(0, TAU), d = m.r * SR.range(0.5, 0.95);
-      const rr = m.r * SR.range(0.5, 0.75);
-      lobes.push({ x: m.x + Math.cos(a) * d, z: m.z + Math.sin(a) * d, r: rr, ry: rr * m.hRatio * SR.range(0.85, 1.15) });
+    const K = SHRUB_KIND[m.kind] || SHRUB_KIND.nandina;
+    // shoots fan out from the base; `lean` rotates the whole fan so the clump
+    // never reads as a solid of revolution
+    const shoots = [];
+    for (let s = 0; s < m.shoots; s++) {
+      const a = (s / m.shoots) * TAU + SR.range(-0.42, 0.42) * (TAU / m.shoots) + m.lean;
+      shoots.push({ cx: Math.cos(a), cz: Math.sin(a), L: m.r * m.spread * SR.range(0.70, 1.10) });
     }
-    const flowering = m.kind === 'azaleaPink' || m.kind === 'azaleaRed';
-    const card = m.kind === 'boxwood' ? 0.15 : 0.2;
-    const dens = m.kind === 'boxwood' ? 230 : 190;
+    // point along a shoot: t 0 = base, 1 = tip. The rise peaks just past the
+    // tip and the outward reach accelerates, so each shoot arcs over.
+    const at = (sh, t) => V3(
+      m.x + sh.cx * sh.L * t * (0.6 + 0.55 * t),
+      m.y + sh.L * m.hRatio * (1.6 * t - 0.53 * t * t),
+      m.z + sh.cz * sh.L * t * (0.6 + 0.55 * t),
+    );
     const shapeN = (lx, ly, lz) => 1 + 0.2 * (vnoise3(lx * 1.6 + seed, ly * 1.6, lz * 1.6, seed) - 0.5) * 2 + 0.06 * (vnoise3(lx * 4 + seed, ly * 4, lz * 4, seed + 3) - 0.5) * 2;
-    for (const lb of lobes) {
-      const ry = lb.ry;
-      const vStart = mvc;
-      for (let i = 0; i < bp.count; i++) {
-        const vx = bp.getX(i), vy = bp.getY(i), vz = bp.getZ(i);
-        const nse = shapeN(vx, vy, vz);
-        let x = vx * lb.r * nse, y = vy * ry * nse, z = vz * lb.r * nse;
-        if (y < -ry * 0.25) y = -ry * 0.25 + (y + ry * 0.25) * 0.15;
-        mpos.push(lb.x + x, m.y + y + ry * 0.22, lb.z + z);
-        mtint.push(tint[0], tint[1], tint[2]);
-        mnrm.push(0, 1, 0);
-      }
-      if (bIdx) for (let i = 0; i < bIdx.length; i++) midx.push(vStart + bIdx[i]);
-      mvc += bp.count;
 
-      // leaf cards on the surface
-      const area = 2 * Math.PI * lb.r * lb.r * 0.8;
-      const N = Math.round(area * dens);
-      for (let i = 0; i < N; i++) {
-        const th = Math.acos(1 - SR.next() * (1 - Math.cos(1.95)));
-        const ph = SR.range(0, TAU);
-        const f = SR.range(0.95, 1.06);
-        const lx = Math.sin(th) * Math.cos(ph), ly = Math.cos(th), lz = Math.sin(th) * Math.sin(ph);
-        const nse = shapeN(lx, ly, lz);
-        let py = ly * ry * nse * f;
-        if (py < -ry * 0.25) py = -ry * 0.25 + (py + ry * 0.25) * 0.15;
-        const p = V3(lb.x + lx * lb.r * nse * f, m.y + py + ry * 0.22, lb.z + lz * lb.r * nse * f);
-        // skip cards buried inside a neighbouring lobe
-        let buried = false;
-        for (const o of lobes) {
-          if (o === lb) continue;
-          const q = ((p.x - o.x) / o.r) ** 2 + ((p.y - m.y - o.ry * 0.22) / o.ry) ** 2 + ((p.z - o.z) / o.r) ** 2;
-          if (q < 0.7) { buried = true; break; }
+    for (let s = 0; s < shoots.length; s++) {
+      const sh = shoots[s];
+      // One small opaque core per shoot: keeps the dark interior and a rounded
+      // silhouette without collapsing the clump into a single sheared dome.
+      {
+        const t = shoots.length > 1 ? 0.5 + (s / (shoots.length - 1)) * 0.35 : 0.65;
+        const p = at(sh, t);
+        const rr = m.r * SR.range(0.32, 0.50);
+        const ry = rr * m.hRatio * SR.range(1.0, 1.5);
+        const vStart = mvc;
+        for (let i = 0; i < bp.count; i++) {
+          const vx = bp.getX(i), vy = bp.getY(i), vz = bp.getZ(i);
+          const nse = shapeN(vx, vy, vz);
+          let x = vx * rr * nse, y = vy * ry * nse, z = vz * rr * nse;
+          if (y < -ry * 0.25) y = -ry * 0.25 + (y + ry * 0.25) * 0.15;
+          mpos.push(p.x + x, p.y + y + ry * 0.18, p.z + z);
+          mtint.push(K.tint[0], K.tint[1], K.tint[2]);
+          mnrm.push(0, 1, 0);
         }
-        if (buried) continue;
-        const n = V3(lx / lb.r, ly / ry, lz / lb.r).normalize();
-        const Z = n.clone().add(randUnit(SR).multiplyScalar(0.38)).normalize();
+        if (bIdx) for (let i = 0; i < bIdx.length; i++) midx.push(vStart + bIdx[i]);
+        mvc += bp.count;
+      }
+
+      // Leaf cards ride along the shoot: they thin towards the base and stray
+      // further the higher they sit, giving a ragged edge instead of a trim.
+      const nCard = Math.max(6, Math.round(sh.L * m.r * K.dens * 3.2));
+      for (let i = 0; i < nCard; i++) {
+        const t = 0.22 + Math.sqrt(SR.next()) * 0.78;
+        const p = at(sh, t);
+        const wob = m.r * (0.10 + 0.34 * t) * m.ragged;
+        p.x += SR.range(-1, 1) * wob;
+        p.y += SR.range(-1, 1) * wob * 0.7;
+        p.z += SR.range(-1, 1) * wob;
+        const n = V3(sh.cx * 0.55 + SR.range(-1, 1), 0.75 + SR.range(-0.2, 0.6), sh.cz * 0.55 + SR.range(-1, 1)).normalize();
+        const Z = n.clone().add(randUnit(SR).multiplyScalar(0.34 * m.ragged)).normalize();
         const [X, Y, Zb] = orthoBasis(perpOf(Z).applyAxisAngle(Z, SR.range(0, TAU)), Z);
-        const sc = card * SR.range(0.8, 1.2);
-        let cell = 0;
-        if (m.kind === 'boxwood') cell = 2;
-        else if (flowering && SR.chance(th < 1.3 ? 0.72 : 0.4)) cell = m.kind === 'azaleaPink' ? 1 : 3;
-        const ao = Math.min(1, (0.3 + 0.7 * Math.max(0, ly * 0.6 + 0.4)) * (0.7 + 0.3 * (f - 0.95) / 0.11));
+        const sc = K.card * SR.range(0.72, 1.28);
+        const ao = Math.min(1, (0.32 + 0.68 * t) * SR.range(0.85, 1.05));
         const v = SR.range(0.82, 1.15);
-        fol.shrub.push(X.multiplyScalar(sc), Y.multiplyScalar(sc), Zb.multiplyScalar(sc), p, [0.12, ao, 0, cell], n, [v, v, v * SR.range(0.92, 1.05)]);
+        fol.shrub.push(X.multiplyScalar(sc), Y.multiplyScalar(sc), Zb.multiplyScalar(sc), p, [0.12, ao, 0, K.cell], n, [v, v, v * SR.range(0.92, 1.05)]);
       }
     }
   }
@@ -1727,7 +1761,7 @@ export async function build(ctx) {
   // ------------------------------------------------------------ assemble
   const group = new THREE.Group();
   group.name = 'vegetation';
-  for (const k of ['pine', 'maple', 'cherry']) {
+  for (const k of ['pine', 'maple', 'peach']) {
     if (!acc[k].vc) continue;
     const g = acc[k].toGeometry();
     const mesh = new THREE.Mesh(g, bark[k].m);
@@ -1797,7 +1831,7 @@ export async function build(ctx) {
     });
   }
 
-  const tris = acc.pine.triCount + acc.maple.triCount + acc.cherry.triCount;
+  const tris = acc.pine.triCount + acc.maple.triCount + acc.peach.triCount;
   if (typeof location !== 'undefined' && /vegstats=1/.test(location.search)) console.warn('[vegetation] per tree: ' + perTree.join(' | '));
   console.warn(`[vegetation] trees=${stats.trees} barkTris=${tris} leaves=${fol.maple.n}+${fol.mapleHero.n}+${fol.mapleFar.n} tufts=${fol.pine.n} blossoms=${fol.blossom.n} shrubCards=${fol.shrub.n} mounds=${mounds.length} coreTris=${cores.tris} fronds=${fol.fern.n} ${stats.hero || ""} | tex ${(tTex - t0).toFixed(0)}ms trees ${(tTrees - tTex).toFixed(0)}ms shrubs ${(tShrubs - tTrees).toFixed(0)}ms total ${(performance.now() - t0).toFixed(0)}ms`);
 
