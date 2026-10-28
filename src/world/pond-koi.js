@@ -2,7 +2,7 @@
 // Koi (Nishikigoi) swimming slowly just under the surface — deterministic in
 // time (closed loops, body undulation in the vertex shader), procedural
 // varieties (红白, sanke, 昭和三色, 黄金, 茶鲤, orange, 浅黄) with scales.
-// Floating debris: red/orange maple leaves and a few cherry petals.
+// Floating debris: red/orange maple leaves and a few peach petals.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { POND_GLSL, UW_FRAGEND } from './pond-water.js';
@@ -418,7 +418,7 @@ export function buildKoi(ctx, site, U, plan) {
 }
 
 // ---------------------------------------------------------------------------
-// Floating maple leaves and cherry petals
+// Floating maple leaves and peach petals
 // ---------------------------------------------------------------------------
 function mapleLeafGeometry() {
   // Acer palmatum: 7 deeply cut, finely serrated lobes; a short petiole; the
@@ -480,10 +480,10 @@ export function buildDebris(ctx, site, U) {
   // anchor spots: near red maples / shore corners
   const spots = [];
   for (const t of L.trees || []) {
-    if (t.type !== 'mapleRed' && t.type !== 'maple' && t.type !== 'cherry') continue;
+    if (t.type !== 'mapleRed' && t.type !== 'maple' && t.type !== 'peach') continue;
     const d = -site.sd(t.at[0], t.at[1]);
     if (d > 12) continue;
-    spots.push({ x: t.at[0], z: t.at[1], kind: t.type === 'cherry' ? 'petal' : 'leaf', n: t.type === 'cherry' ? 90 : 55 });
+    spots.push({ x: t.at[0], z: t.at[1], kind: t.type === 'peach' ? 'petal' : 'leaf', n: t.type === 'peach' ? 90 : 55 });
   }
   spots.push({ x: 41, z: 29, kind: 'leaf', n: 30 }, { x: -24, z: 24, kind: 'leaf', n: 25 }, { x: 18, z: 31.5, kind: 'leaf', n: 20 }, { x: 6, z: 9, kind: 'petal', n: 60 }, { x: 20, z: 10, kind: 'leaf', n: 20 });
   const leaves = [], petals = [];
@@ -559,6 +559,6 @@ export function buildDebris(ctx, site, U) {
   `, 'mapleLeaves');
   mk(petalGeometry(), petals, /* glsl */ `
     diffuseColor.rgb = mix(vec3(0.92, 0.70, 0.74), vec3(0.95, 0.88, 0.86), vInst.x);
-  `, 'cherryPetals');
+  `, 'peachPetals');
   return { object: group };
 }

@@ -3,7 +3,7 @@
 // Channels (premultiplied against black): R = leaf brightness, G = coverage
 // (alpha), B = "outerness" (0 inner .. 1 outer / tip). A = 255.
 // Cells (2x2 of 512px):  0 broadleaf A | 1 broadleaf B
-//                        2 sugi spray A | 3 sugi spray B
+//                        2 conifer spray A | 3 conifer spray B
 // ---------------------------------------------------------------------------
 
 let _atlas = null;
@@ -83,8 +83,8 @@ export function leafAtlas(ctx) {
     }
   }
 
-  // ---- cryptomeria (sugi) spray: rope-like needle cords on a branching twig ----
-  function sugi(ox, oy, seed) {
+  // ---- native conifer (松柏) spray: rope-like needle cords on a branching twig ----
+  function conifer(ox, oy, seed) {
     const r = ctx.rng('sg' + seed);
     g.lineCap = 'round';
     const segs = [];
@@ -139,8 +139,8 @@ export function leafAtlas(ctx) {
 
   broadleaf(0, 0, 1);
   broadleaf(S, 0, 2);
-  sugi(0, S, 3);
-  sugi(S, S, 4);
+  conifer(0, S, 3);
+  conifer(S, S, 4);
 
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.NoColorSpace;

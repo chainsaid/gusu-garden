@@ -335,7 +335,7 @@ function landHooks() {
       float farW = smoothstep(380.0, 900.0, vLand.w);
       float cavR = smoothstep(-0.75, 0.75, vFar.y); // 0 gully .. 1 ridge / spur
       {
-        // stands: cryptomeria plantations (dark, crisp-edged patches on the slopes), mixed
+        // stands: native pine-cypress groves (dark, crisp-edged patches on the slopes), mixed
         // broadleaf (warmer, lighter), pale young growth along ridges, a few early-turning trees
         float st1 = n_fbm(p * 0.0042 + 11.0, 3);
         float st2 = n_fbm(p * 0.016 - 4.0, 2);

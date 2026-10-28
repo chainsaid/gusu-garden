@@ -148,18 +148,18 @@ vec3 tg_forestFloor(vec2 p, float y, float fw, out float hOut){
   tg_moss(p, y, fw, fm, fmh, fmr);
   float mossP = smoothstep(-0.1, 0.4, n_fbm(p * 0.21 + 5.0, 3));
   vec3 c = mix(needles, fm * 1.05, mossP);
-  // undergrowth (sasa / ferns) as darker green patches with bright sunfleck-catching tops
-  float sasa = smoothstep(0.0, 0.5, n_fbm(p * 0.09 + 1.0, 3));
-  vec3 sasaC = mix(vec3(0.035, 0.06, 0.018), vec3(0.07, 0.10, 0.03), smoothstep(-0.4, 0.6, n_snoise(p * 0.8)));
-  c = mix(c, sasaC, sasa * 0.6);
+  // undergrowth (ferns / dwarf bamboo) as darker green patches with bright sunfleck-catching tops
+  float under = smoothstep(0.0, 0.5, n_fbm(p * 0.09 + 1.0, 3));
+  vec3 underC = mix(vec3(0.035, 0.06, 0.018), vec3(0.07, 0.10, 0.03), smoothstep(-0.4, 0.6, n_snoise(p * 0.8)));
+  c = mix(c, underC, under * 0.6);
   // last autumn's broadleaf litter in drifts (resolved leaves close up, mean tone beyond)
-  tg_leafDrift(p, fw, smoothstep(0.2, 0.6, n_fbm(p * 0.11 - 23.0, 3)) * 0.55 * (1.0 - sasa), c);
+  tg_leafDrift(p, fw, smoothstep(0.2, 0.6, n_fbm(p * 0.11 - 23.0, 3)) * 0.55 * (1.0 - under), c);
   // root flares / old stumps: low dark-ringed mounds at the tree spacing
   vec2 rid; float rf2;
   vec3 rw = tg_worley(p * 0.19 + 3.7, rid, rf2);
   float root = smoothstep(0.35, 0.0, rw.x) * step(0.55, n_hash12(rid));
   c = mix(c, c * vec3(0.8, 0.85, 0.7), root * 0.4);
-  hOut = fmh * 0.5 + root * 0.04 + sasa * 0.03;
+  hOut = fmh * 0.5 + root * 0.04 + under * 0.03;
   return c * 1.3;
 }
 #endif

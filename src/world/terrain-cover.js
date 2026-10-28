@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // Ground cover: moss cushions along bed edges and stones, fern rosettes,
-// sedge / grass tufts, pebbles spilling from the gravel, fallen cherry petals
+// sedge / grass tufts, pebbles spilling from the gravel, fallen peach petals
 // and maple leaves. All instanced, all placed from the terrain fields.
 // ---------------------------------------------------------------------------
 import { MOSS_GLSL, TG_GLSL } from './terrain-glsl.js';
@@ -33,7 +33,7 @@ export function buildCover(ctx, F, stones) {
     return built;
   };
   const trees = F.trees;
-  const cherries = trees.filter((t) => t.type === 'cherry');
+  const cherries = trees.filter((t) => t.type === 'peach');
   const maples = trees.filter((t) => t.type === 'mapleRed');
   const nearTree = (x, z, list, r) => { let d = 1e9; for (const t of list) d = Math.min(d, Math.hypot(x - t.x, z - t.z) - r); return d; };
   const inPond = (x, z, m = 0.25) => F.sdPondEff(x, z) < m;
@@ -513,7 +513,7 @@ export function buildCover(ctx, F, stones) {
   }
 
   // =========================================================================
-  // 5. fallen cherry petals and maple leaves
+  // 5. fallen peach petals and maple leaves
   // =========================================================================
   const petals = [], leaves = [];
   const v3 = new THREE.Vector3();

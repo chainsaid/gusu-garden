@@ -197,7 +197,7 @@ export function createField(L) {
     m = Math.min(m, sdBox(x, z, C[0], 40.5, HX + 2, 6.5) + e1);
     // east garden around the pavilion and the big maple
     m = Math.min(m, sdBox(x, z, 56, 25, 12, 21) + e1);
-    // west garden (big pine, cherry)
+    // west garden (big pine, peach)
     m = Math.min(m, sdBox(x, z, -45, 26, 9, 21) + e1);
     // north strip behind the hall
     m = Math.min(m, sdBox(x, z, C[0], -45.5, HX + 2, 3.6) + 1.2 * f2(x * 0.08 + 4, z * 0.08, 3));

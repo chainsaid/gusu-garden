@@ -6,7 +6,7 @@
 //   'B' 石鼓墩 drum     — a low waisted stone stool (garden seat / plinth)
 //   'C' 散置湖石 rock   — a small standing lake rock of two or three lobes
 //
-// These replace the kasuga-doro stone lanterns (春日灯笼): a Suzhou garden has none.
+// 石景小品（石笋 / 石鼓墩 / 散置湖石）：苏州园林不设石灯笼。
 // lanterns, it has stone spurs, drum stools and scattered Taihu rocks.
 // Vertex tag = [pattern, glowRecv, mossBias, fireY]; pattern 0 = plain stone,
 // there is no fire box any more, so glowRecv and fireY stay 0.

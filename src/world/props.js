@@ -98,7 +98,7 @@ function instanced(geo, mat, matrices, { cast = true, receive = true, depth = nu
 
 // ---------------------------------------------------------------------------
 // 江南石景小品 — 石笋 / 石鼓墩 / 散置湖石 (Jiangnan stone stands)
-// Replaces the kasuga-doro (春日灯笼) stone lanterns: no stone lantern in a Suzhou garden.
+// 石景小品布点：苏州园林不设石灯笼。
 // ---------------------------------------------------------------------------
 // target height per kind: the spur takes the plan height, the stool is always
 // knee high, a lake rock sits between the two

@@ -135,7 +135,7 @@ export function buildGutterBed(ctx, F) {
   geo.computeBoundingSphere(); geo.computeBoundingBox();
 
   const NT = 20;
-  const KIND = { pine: 0, maple: 1, mapleRed: 2, cherry: 3 };
+  const KIND = { pine: 0, maple: 1, mapleRed: 2, peach: 3 };
   const trees = [];
   for (let i = 0; i < NT; i++) {
     const t = F.trees[i];

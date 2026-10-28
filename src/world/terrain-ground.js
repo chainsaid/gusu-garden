@@ -93,7 +93,7 @@ export function buildGround(ctx, F) {
   }
   // hero trees -> leaf / petal / needle litter on gravel and moss (x, z, crown radius, kind)
   const NT = 20;
-  const KIND = { pine: 0, maple: 1, mapleRed: 2, cherry: 3 };
+  const KIND = { pine: 0, maple: 1, mapleRed: 2, peach: 3 };
   const trees = [];
   for (let i = 0; i < NT; i++) {
     const t = F.trees[i];
@@ -141,7 +141,7 @@ function groundHooks(uniforms, NL, NT) {
         vec2 uv = ((p - uMaskX.xy) * uMaskX.zw + 0.5) / uMaskN;
         return texture2D(tMask, uv);
       }
-      // fallen maple leaves / cherry petals / pine needles under the hero trees, drifted a little
+      // fallen maple leaves / peach petals / pine needles under the hero trees, drifted a little
       // downwind (east). Returns coverage (filtered by the pixel footprint) and the litter colour.
       float tg_litter(vec2 p, float fw, out vec3 lc){
         float acc = 0.0; vec3 cacc = vec3(0.0);

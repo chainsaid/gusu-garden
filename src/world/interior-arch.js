@@ -230,7 +230,7 @@ export function buildSideScreen(B, M, S, { x, z0, z1, y0, y1, facing = 1 }) {
     // 明瓦 backing: it only faintly transmits daylight, it does not glow
     const lh = (y1 - 1.05) - (y0 + 0.95) - 0.1;
     const lc = (y1 - 1.05 + y0 + 0.95) / 2;
-    B.add(new THREE.PlaneGeometry(pw, lh), M.mingwa || M.shoji, mat4(P(uc, lc, -0.02), [0, facing > 0 ? Math.PI / 2 : -Math.PI / 2, 0]));
+    B.add(new THREE.PlaneGeometry(pw, lh), M.mingwa, mat4(P(uc, lc, -0.02), [0, facing > 0 ? Math.PI / 2 : -Math.PI / 2, 0]));
     // 步步锦 (bubu-jin) stepping lattice: horizontal rails at every row line,
     // and vertical stiles whose short members step half a cell across in every
     // other row, so the grid reads as nested rectangles rather than a square mesh

@@ -534,7 +534,6 @@ export function makeInteriorMaterials(ctx) {
   // does not glow on its own.
   M.mingwa = ctx.mat.std({ color: 0xffffff, roughness: 0.85, metalness: 0, transparent: true, opacity: 0.62, side: THREE.DoubleSide }, {});
   M.mingwa.name = 'i_mingwa';
-  M.shoji = M.mingwa;   // kept as an alias so old call sites compile
   envList.push(M.whiteWax);
 
   for (const k of Object.keys(M)) if (M[k] && M[k].isMaterial) M[k].name = 'i_' + k;

@@ -414,10 +414,10 @@ function growMapleSub(rng, parent, ctx, branches, twigs, level, tStart = 0.15) {
 }
 
 // ===========================================================================
-// Species: cherry (樱花) — short thick trunk, vase of scaffold limbs,
+// Species: peach (樱花) — short thick trunk, vase of scaffold limbs,
 // spreading umbrella crown with drooping tips
 // ===========================================================================
-export function genCherry(rng, o) {
+export function genPeach(rng, o) {
   const h = o.h, base = o.base;
   const spread = (o.spread || 0.88) * h;
   const lean = o.lean || V3();
@@ -572,7 +572,7 @@ export function arcCurve(rng, a, b, r0, r1, P = {}) {
 // returns { branches, twigs:[{br,t0,pad}], pads, env, rT }
 // ===========================================================================
 export function genTiered(rng, o) {
-  const flowering = o.species === 'cherry' || o.species === 'magnolia' || o.species === 'crabapple';
+  const flowering = o.species === 'peach' || o.species === 'magnolia' || o.species === 'crabapple';
   const h = o.h, base = o.base;
   const lean = o.lean || V3();
   const R = (o.spread ?? (flowering ? 0.8 : 0.6)) * h;
