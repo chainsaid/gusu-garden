@@ -354,7 +354,7 @@ export function buildForest(ctx, F) {
     }
   }
   // low evergreen belt (柃木 eurya / 山矾 symplocos / 矮油茶 camellia clumps) along the outside of the corridor, just
-  // beyond the gravel walk: gives the ground round the cloister texture and relief from the air
+  // beyond the paving: gives the ground round the cloister texture and relief from the air
   {
     const S3 = gap(1.7), gx = F.L.gate.center[0];
     for (let x = F.R.minX - 11; x <= F.R.maxX + 11; x += S3) {

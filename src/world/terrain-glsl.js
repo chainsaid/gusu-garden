@@ -97,18 +97,35 @@ void tg_leafDrift(vec2 p, float fw, float dens, inout vec3 c){
   float cov = mix(dens * 0.42, shape, fade);
   c = mix(c, mix(lavg, lc, fade), cov);
 }
-// raked gravel shoulders along the 参道 south of the gate
+// 甬道两侧:仄砖镶边 + 青灰碎石散铺 (a soldier course of grey bricks against the slab,
+// then a shoulder of crushed blue-grey stone spilling into the woodland)
 void tg_yongdao(vec2 p, float fw, inout vec3 c, inout float hOut){
-  float sx = abs(p.x - 10.0);
-  float sh = smoothstep(3.05, 2.85, sx + 0.05 * n_snoise(p * 1.3)) * step(46.0, p.y) * smoothstep(92.8, 92.0, p.y);
-  if (sh > 0.001) {
-    float gF = 1.0 - smoothstep(0.02, 0.08, fw);
-    float gr = n_snoise(p * 40.0) * gF;
-    float ln = (0.5 + 0.5 * cos(6.2831853 * sx / 0.12)) * (1.0 - smoothstep(0.25, 0.5, fw / 0.12));
-    vec3 gc = vec3(0.56, 0.54, 0.50) * (0.92 + 0.08 * gr) * (0.9 + 0.12 * ln) * (0.9 + 0.1 * n_fbm(p * 0.5, 2));
-    c = mix(c, gc, sh);
-    hOut = mix(hOut, ln * 0.008, sh);
+  float bd = abs(p.x - 10.0) + 0.05 * n_snoise(p * 1.3);
+  float sh = smoothstep(3.05, 2.85, bd) * step(46.0, p.y) * smoothstep(92.8, 92.0, p.y);
+  if (sh < 0.001) return;
+  // ---- 青灰碎石: crushed stone, chips 3~5 cm across bedded in fine grey grit ----
+  vec2 cid; float cf2;
+  vec3 cw = tg_worley(p * 15.0 + 2.3, cid, cf2);
+  vec3 chh = n_hash33(vec3(cid, 7.7));
+  float chipF = 1.0 - smoothstep(0.014, 0.05, fw);
+  float chip = smoothstep(0.62, 0.26, cw.x + 0.14 * (chh.y - 0.5));
+  vec3 chipC = mix(vec3(0.135, 0.150, 0.156), vec3(0.300, 0.315, 0.318), chh.x * chh.x);
+  chipC *= 0.80 + 0.36 * chh.y;
+  vec3 gritC = vec3(0.105, 0.115, 0.120) * (0.82 + 0.3 * n_snoise(p * 26.0));
+  vec3 sc = mix(gritC, chipC, chip * chipF);
+  float hs = -0.0035 * chip * chipF;
+  // ---- 仄砖镶边: one narrow course of grey bricks laid against the slab ----
+  float bm = smoothstep(1.70, 1.75, bd) * smoothstep(2.06, 2.01, bd);
+  if (bm > 0.001) {
+    float bz = fract(p.y / 0.245);
+    float bj = max(1.0 - smoothstep(0.0, 0.014, bz), smoothstep(0.986, 1.0, bz));
+    float bh = n_hash12(vec2(floor(p.y / 0.245), 11.0));
+    vec3 bc = mix(vec3(0.180, 0.196, 0.198), vec3(0.248, 0.262, 0.262), bh) * (0.88 + 0.24 * n_snoise(p * 34.0));
+    sc = mix(sc, mix(bc, vec3(0.072, 0.078, 0.076), bj), bm);
+    hs = mix(hs, mix(0.0035, -0.005, bj), bm);
   }
+  c = mix(c, sc, sh);
+  hOut = mix(hOut, hs, sh);
 }
 vec3 tg_meadow(vec2 p, float y, float fw, out float hOut){
   // rough grass, bracken and low scrub, mossy hollows and bare needle-strewn patches
@@ -161,6 +178,81 @@ vec3 tg_forestFloor(vec2 p, float y, float fw, out float hOut){
   c = mix(c, c * vec3(0.8, 0.85, 0.7), root * 0.4);
   hOut = fmh * 0.5 + root * 0.04 + under * 0.03;
   return c * 1.3;
+}
+// ---- 花街铺地 (pebble mosaic paving) -----------------------------------------
+// Pebbles 3~5 cm bedded in grey mortar, with the pattern drawn over them in thin
+// courses of brick and broken tile: 万字锦 border, 鱼鳞 band, 冰裂纹 field with
+// 海棠 medallions. dEdge = metres from the plaza edge (the bands follow it).
+float hj_seg(vec2 p, vec2 a, vec2 b){
+  vec2 pa = p - a, ba = b - a;
+  float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+  return length(pa - ba * h);
+}
+// 万字锦: 卍 fret lattice — continuous cross bars with four wound hooks per cell
+float hj_wanzi(vec2 q, float T, float w){
+  vec2 r = mod(q, T) - 0.5 * T;
+  float a = 0.33 * T;
+  float d = min(abs(r.x), abs(r.y));
+  for (int k = 0; k < 4; k++){
+    d = min(d, hj_seg(r, vec2(a, 0.0), vec2(a, a * 0.55)));
+    r = vec2(r.y, -r.x);
+  }
+  return d - w;
+}
+// 鱼鳞: staggered rows of round scale arcs
+float hj_yulin(vec2 q, float S, float w){
+  float row = floor(q.y / S);
+  vec2 g = vec2(mod(q.x + 0.5 * S * mod(row, 2.0), S) - 0.5 * S, fract(q.y / S) * S);
+  return abs(length(vec2(g.x, g.y + 0.34 * S)) - 0.66 * S) - w;
+}
+// 冰裂: the borders of a Worley tessellation, i.e. irregular broken-ice polygons
+float hj_binglie(vec2 p, float sc, float w){
+  vec2 cid; float f2;
+  vec3 cw = tg_worley(p * sc, cid, f2);
+  return 0.5 * (f2 - cw.x) - w;
+}
+// 海棠: a four-lobed rosette (quatrefoil) outline
+float hj_haitang(vec2 q, float T, float R, float w){
+  vec2 g = mod(q, T) - 0.5 * T;
+  float d = 1e9;
+  for (int k = 0; k < 4; k++){
+    float an = 1.5707963 * float(k);
+    d = min(d, length(g - vec2(cos(an), sin(an)) * R * 0.60) - R * 0.55);
+  }
+  return abs(d) - w;
+}
+// dBand = metres from the edge of the nearest walk (the bands frame every walk)
+void tg_huajie(vec2 p, float fw, float dBand, out vec3 col, out float hOut, out float rough){
+  // 卵石: pebble field, each stone its own tint (青灰 / 赭红 / 米黄 / 墨)
+  vec2 cid; float cf2;
+  vec3 cw = tg_worley(p * 16.0 + 1.7, cid, cf2);
+  vec3 chh = n_hash33(vec3(cid, 3.1));
+  float pebF = 1.0 - smoothstep(0.010, 0.030, fw);
+  float peb = smoothstep(0.60, 0.46, cw.x + 0.10 * (chh.y - 0.5));
+  vec3 pc;
+  if (chh.x < 0.56) pc = vec3(0.200, 0.218, 0.226);
+  else if (chh.x < 0.74) pc = vec3(0.330, 0.305, 0.245);
+  else if (chh.x < 0.86) pc = vec3(0.245, 0.130, 0.085);
+  else pc = vec3(0.068, 0.070, 0.068);
+  pc *= 0.84 + 0.30 * chh.z;
+  vec3 mortar = vec3(0.105, 0.110, 0.107) * (0.85 + 0.25 * n_snoise(p * 40.0));
+  // beyond the resolved scale the field must average to the pebbles, not to the mortar
+  vec3 c = mix(mix(mortar, vec3(0.235, 0.240, 0.232), 0.85), mix(mortar, pc, peb), pebF);
+  float hh = 0.0038 * peb * pebF;
+  // 砖瓦 lines: 万字锦 along the edge, then a 鱼鳞 band, then the 冰裂纹 field with
+  // 海棠 medallions; straight brick courses frame the bands
+  float line;
+  if (dBand < 0.55) line = hj_wanzi(p, 0.50, 0.014);
+  else if (dBand < 1.15) line = hj_yulin(p, 0.34, 0.012);
+  else line = min(hj_binglie(p, 1.5, 0.010), hj_haitang(p, 1.35, 0.38, 0.012));
+  line = min(line, min(abs(dBand - 0.55), abs(dBand - 1.15)) - 0.022);
+  float lw = 0.010 + fwidth(line) * 1.5;
+  float ln = 1.0 - smoothstep(0.0, lw, line);
+  vec3 lineC = vec3(0.082, 0.082, 0.076) * (0.85 + 0.3 * n_snoise(p * 22.0));
+  c = mix(c, lineC, ln * 0.88);
+  hOut = mix(hh, 0.0011, ln) - 0.0006 * ln;
+  rough = mix(0.80, 0.62, ln);
+  col = c;
 }
 #endif
 `;

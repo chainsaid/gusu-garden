@@ -227,31 +227,44 @@ export function makeInteriorMaterials(ctx) {
   envList.push(M.black, M.redColumn, M.red, M.woodNanmu);
 
   // ---- floors
-  M.woodFloor = phys({ color: 0xffffff, roughness: 0.22, metalness: 0, clearcoat: 0.9, clearcoatRoughness: 0.07 }, {
-    fragHead: `float g_h;`,
+  // 苏州御窑金砖地坪 (kiln-fired "gold brick" floor): 0.58 m squares laid 对缝 (straight grid,
+  // no bond), cool blue-grey, dry-matt with a soft wax sheen — not a lacquered plank floor.
+  M.floorBrick = phys({ color: 0xffffff, roughness: 0.38, metalness: 0, clearcoat: 0.40, clearcoatRoughness: 0.25 }, {
+    fragHead: `float g_h; float g_j; float g_p;`,
     fragColor: /* glsl */ `
       {
         vec3 wp = vWPos;
-        // planks along X, 0.30 m wide, staggered butt joints
-        float row = floor(wp.z / 0.30);
-        float off = n_hash12(vec2(row, 3.0)) * 4.0;
-        float pl = floor((wp.x + off) / 1.8);
-        vec2 id = vec2(row, pl);
-        float fz = fract(wp.z / 0.30), fx = fract((wp.x + off) / 1.8);
-        float seam = max(1.0 - smoothstep(0.0, 0.012, fz) * smoothstep(1.0, 0.988, fz), 1.0 - smoothstep(0.0, 0.002, fx) * smoothstep(1.0, 0.998, fx));
-        float g = n_fbm3(vec3(wp.x * 0.5, wp.z * 22.0, n_hash12(id) * 40.0), 4);
-        float rings = sin(g * 14.0 + wp.z * 30.0) * 0.5 + 0.5;
-        vec3 base = mix(vec3(0.085, 0.035, 0.016), vec3(0.15, 0.07, 0.032), n_hash12(id + 1.7));
-        vec3 col = base * (0.75 + 0.4 * rings);
-        col *= 1.0 - seam * 0.7;
+        float S = 0.58;                        // 见方 0.58 m
+        vec2 q = wp.xz / S;
+        vec2 id = floor(q);
+        vec2 uv = (fract(q) - 0.5) * S;        // metres from the brick centre
+        float edge = min(0.5 * S - abs(uv.x), 0.5 * S - abs(uv.y));
+        float aj = 0.0018 + fwidth(edge) * 1.5;
+        float joint = 1.0 - smoothstep(0.0, aj, edge);
+        vec2 h2 = n_hash22(id);
+        // the fired clay: cool blue-grey, faintly mottled, each brick a little different
+        float mot = n_fbm3(vec3(wp.x * 1.7, wp.z * 1.7, h2.x * 40.0), 3);
+        vec3 col = vec3(0.30, 0.325, 0.335) * (0.86 + 0.14 * h2.y) * (0.88 + 0.18 * mot);
+        // 金星: micaceous gold dust in the clay (filtered away before it can sparkle)
+        float fine = 1.0 - smoothstep(0.0015, 0.007, max(fwidth(wp.x), fwidth(wp.z)));
+        float spk = smoothstep(0.74, 0.93, n_snoise(wp.xz * 210.0 + h2 * 55.0));
+        col += vec3(0.40, 0.33, 0.19) * spk * fine * 0.45;
+        // 踩踏包浆: the centre burnished pale and smooth by feet, the arrises grimed dark
+        float cen = smoothstep(0.27, 0.03, max(abs(uv.x), abs(uv.y)));
+        float pat = cen * (0.45 + 0.55 * smoothstep(-0.35, 0.4, n_fbm(wp.xz * 0.75 + 4.0, 2)));
+        col *= 1.0 + 0.16 * pat;
+        col *= 1.0 - 0.28 * smoothstep(0.055, 0.0, edge);
+        col = mix(col, vec3(0.048, 0.050, 0.049), joint);
         diffuseColor.rgb = col;
-        g_h = rings * 0.4 - seam;
+        g_j = joint; g_p = pat;
+        // relief: arrises chamfered (磨圆), joints recessed, a hair of hollow wear in the middle
+        g_h = 0.0007 * smoothstep(0.0, 0.022, edge) - 0.0012 * joint - 0.00025 * pat + 0.00004 * spk * fine;
       }
     `,
-    fragRough: `roughnessFactor = clamp(roughnessFactor + g_h * 0.05, 0.04, 1.0);`,
-    fragNormal: `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0015);`,
+    fragRough: `roughnessFactor = clamp(roughnessFactor + 0.30 * g_j - 0.12 * g_p, 0.22, 1.0);`,
+    fragNormal: `normal = n_bumpView(-vViewPosition, normal, g_h, 1.0);`,
   });
-  envList.push(M.woodFloor);
+  envList.push(M.floorBrick);
 
 
   // ---- carved gold ornament on black lacquer (altar panels, banners...)
@@ -538,7 +551,7 @@ export function makeInteriorMaterials(ctx) {
 
   for (const k of Object.keys(M)) if (M[k] && M[k].isMaterial) M[k].name = 'i_' + k;
   // relative strength of the local interior env per material (x envBoost)
-  M.black.userData.envK = 0.45; M.panel.userData.envK = 0.7; M.woodFloor.userData.envK = 0.75;
+  M.black.userData.envK = 0.45; M.panel.userData.envK = 0.7; M.floorBrick.userData.envK = 0.45;
   M.redColumn.userData.envK = 0.8; M.red.userData.envK = 0.8; M.brocade.userData.envK = 0.7;
   M.envList = envList;
   return M;

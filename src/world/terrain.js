@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// TERRAIN — courtyard ground (raked gravel, moss, pond bed), stone paving,
+// TERRAIN — courtyard ground (铺地, moss, pond bed), stone paving,
 // landscape (forest floor, wooded hills, valley, mountain ridges), backdrop
 // forest and ground cover. Everything procedural.
 // ---------------------------------------------------------------------------

@@ -141,7 +141,7 @@ export function createField(L) {
     for (const l of stands) d = Math.min(d, Math.hypot(x - l.x, z - l.z) - l.r);
     return d;
   }
-  // building pads (where other modules put platforms): gravel stays clean around them
+  // building pads (where other modules put platforms): the paving stays clean around them
   const pads = [
     { cx: hallP.cx, cz: hallP.cz, hx: hallP.hx, hz: hallP.hz },
     { cx: pagP.cx, cz: pagP.cz, hx: pagP.h, hz: pagP.h },
@@ -201,7 +201,7 @@ export function createField(L) {
     m = Math.min(m, sdBox(x, z, -45, 26, 9, 21) + e1);
     // north strip behind the hall
     m = Math.min(m, sdBox(x, z, C[0], -45.5, HX + 2, 3.6) + 1.2 * f2(x * 0.08 + 4, z * 0.08, 3));
-    // 枯山水 islands: low moss hillocks with set rocks in the open gravel fields of the north half
+    // 石景岛: low moss hillocks with set rocks in the open paved fields of the north half
     for (const I of ISLES) {
       const dx = (x - I.x) / I.ax, dz = (z - I.z) / I.az;
       if (Math.abs(dx) > 3 || Math.abs(dz) > 3) continue;
@@ -212,7 +212,7 @@ export function createField(L) {
     // island & peninsula tops
     m = Math.min(m, sdPoly(island, x, z) + 0.25);
     m = Math.min(m, sdPen(x, z) + 0.15);
-    // gravel zones carve the moss out
+    // paved zones carve the moss out
     const gz = Math.min(
       sdBox(x, z, (plaza.minX + plaza.maxX) / 2, (plaza.minZ + plaza.maxZ) / 2 - 0.5, (plaza.maxX - plaza.minX) / 2, (plaza.maxZ - plaza.minZ) / 2 + 0.5),
       sdBox(x, z, pagP.cx, pagP.cz, pagP.h + 5.2, pagP.h + 5.2, 2.5),
@@ -220,7 +220,7 @@ export function createField(L) {
       sdPads(x, z) - 3.0,
     );
     m = Math.max(m, -gz);
-    // ...except for the narrow shore band and tree islands inside gravel zones
+    // ...except for the narrow shore band and tree islands inside paved zones
     m = Math.min(m, Math.max(sp - bw, sp - 1.4));
     m = Math.min(m, sdTreeMoss(x, z));
     return m;
@@ -229,7 +229,7 @@ export function createField(L) {
     const sp = spIn === undefined ? sdPondEff(x, z) : spIn;
     let s = sp - 0.32 - 0.12 * f3(x * 0.6, z * 0.6, 2);
     s = Math.max(s, -(sdPoly(island, x, z) + 0.35)); // island top is moss
-    // forest floor outside the corridor, beyond a raked gravel walk along the outer drip gutter
+    // forest floor outside the corridor, beyond a band of paving along the outer drip gutter
     s = Math.min(s, 5.4 + 0.45 * f3(x * 0.22 + 3.3, z * 0.22, 2) - sdRect(x, z));
     s = Math.min(s, sdPaths(x, z) - 0.035); // bedding soil + joints under the paving
     return s;
@@ -242,7 +242,7 @@ export function createField(L) {
     m = Math.max(m, sdRect(x, z) - 0.2); // inside corridor only
     return m;
   }
-  // ---- drip-line gutters (檐口滴水-mizo) --------------------------------------
+  // ---- 檐口滴水 drip-line gutters --------------------------------------
   // a granite curb on each side of a bed of dark river cobbles, running round the hall podium,
   // the pagoda podium and both faces of the corridor plinth (eave drip lines). A ring hugs a
   // rectangular face (half sizes X, Z) and extends outward (dir +1) or inward (dir -1).
@@ -434,7 +434,7 @@ export function createField(L) {
     // clearings
     const cl = f3(x / 140 + 3.3, z / 140 - 1.1, 3);
     f *= smoothstep(-0.42, -0.18, cl);
-    // gate approach (参道) lane kept open for the telephoto through the gate; wooded on both sides
+    // gate approach (甬道) lane kept open for the telephoto through the gate; wooded on both sides
     const gate = L.gate.center;
     f *= smoothstep(1.5, 7, sdBox(x, z, gate[0], R.maxZ + 45, 7, 45));
     // SE camera clearing (tree tops are additionally capped under the crane path)

@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
-// Courtyard ground: one high resolution height-field mesh (gravel / moss /
-// soil / pond bed) with a single procedural material driven by a signed
+// Courtyard ground: one high resolution height-field mesh (石板铺地 / 苔 /
+// 土 / 池底) with a single procedural material driven by a signed
 // distance mask texture (moss edge, soil edge, rake obstacle distance).
 // ---------------------------------------------------------------------------
 import { TG_GLSL, MOSS_GLSL, NEAR_GLSL } from './terrain-glsl.js';
@@ -91,7 +91,7 @@ export function buildGround(ctx, F) {
     const s = F.stands[i];
     standPts.push(s ? new THREE.Vector3(s.x, s.z, s.r) : new THREE.Vector3(1e4, 1e4, 0));
   }
-  // hero trees -> leaf / petal / needle litter on gravel and moss (x, z, crown radius, kind)
+  // hero trees -> leaf / petal / needle litter on the paving and moss (x, z, crown radius, kind)
   const NT = 20;
   const KIND = { pine: 0, maple: 1, mapleRed: 2, peach: 3 };
   const trees = [];
@@ -107,6 +107,7 @@ export function buildGround(ctx, F) {
     uStands: { value: standPts },
     uPag: { value: new THREE.Vector3(F.pagP.cx, F.pagP.cz, F.pagP.h) },
     uRect: { value: new THREE.Vector4(F.R.minX, F.R.minZ, F.R.maxX, F.R.maxZ) },
+    uPlaza: { value: new THREE.Vector4(F.L.plaza.minX, F.L.plaza.minZ, F.L.plaza.maxX, F.L.plaza.maxZ) },
   };
 
   const mat = ctx.mat.std({ color: 0xffffff, roughness: 0.9, metalness: 0 }, groundHooks(uniforms, NS, NT));
@@ -133,7 +134,8 @@ function groundHooks(uniforms, NL, NT) {
       uniform vec3 uStands[NSTAND];
       uniform vec3 uPag;
       uniform vec4 uRect;
-      float g_landShade; float g_landAmb; float g_h; float g_wM; float g_wS; float g_wG; float g_rough; float g_dirMul; vec3 g_nW; float g_sheen; float g_ao;
+      uniform vec4 uPlaza;
+      float g_landShade; float g_landAmb; float g_h; float g_wM; float g_wS; float g_wP; float g_rough; float g_dirMul; vec3 g_nW; float g_sheen; float g_ao;
       ${TG_GLSL}
       ${MOSS_GLSL}
       ${NEAR_GLSL}
@@ -189,14 +191,14 @@ function groundHooks(uniforms, NL, NT) {
       float aaM = max(fw * 1.2, 0.01);
       g_wM = smoothstep(aaM, -aaM, sM);
       g_wS = smoothstep(aaM, -aaM, sS) * (1.0 - g_wM);
-      g_wG = max(1.0 - g_wM - g_wS, 0.0);
+      g_wP = max(1.0 - g_wM - g_wS, 0.0);
       vec3 col = vec3(0.0);
       vec2 grad = vec2(0.0);
       g_landShade = 1.0; g_landAmb = 1.0; g_h = 0.0; g_dirMul = 1.0; g_rough = 0.0; g_sheen = 0.0; g_ao = 1.0;
       vec3 L = normalize(uSunDir);
 
       // ---------------- 江南青石板与花街铺地 (bluestone flags & courtyard paving) ----------------
-      if (g_wG > 0.001) {
+      if (g_wP > 0.001) {
         // Bluestone flag layout: staggered slabs (~0.85m x 0.52m)
         vec2 sp = p * vec2(1.18, 1.92);
         float row = floor(sp.y);
@@ -226,20 +228,35 @@ function groundHooks(uniforms, NL, NT) {
         float nearMoss = smoothstep(0.8, 0.0, mk.r) * smoothstep(-0.2, 0.3, n_fbm(p * 2.5, 2));
         finalPave = mix(finalPave, vec3(0.26, 0.32, 0.18), nearMoss * 0.65 * joint);
 
+        // ---- 花街铺地 in the paved plaza: pebble mosaic, clear of the slab paths;
+        // its 万字/鱼鳞 bands frame every walk (dBand = metres from the walk kerb) ----
+        vec2 pq = min(p - uPlaza.xy, uPlaza.zw - p);
+        float hjEdge = min(pq.x, pq.y);
+        float hjM = smoothstep(0.30, 0.62, hjEdge) * smoothstep(-0.05, 0.04, mk.a);
+        float hjBand = max(-mk.a, 0.0);
+
         // Relief and normal modification
         float slabBevel = -0.006 * smoothstep(0.0, -0.06, edgeDist);
-        g_h += g_wG * slabBevel;
+        float paveH = slabBevel;
+        // Roughness: honed bluestone with damp sheen, matte pebbles where the mosaic runs
+        float paveR = mix(0.75, 0.92, joint);
+        paveR = mix(paveR, 0.58, damp * 0.5);
+        if (hjM > 0.001) {
+          vec3 hjc; float hjh; float hjr;
+          tg_huajie(p, fw, hjBand, hjc, hjh, hjr);
+          finalPave = mix(finalPave, hjc, hjM);
+          paveH = mix(paveH, hjh, hjM);
+          paveR = mix(paveR, hjr, hjM);
+        }
+        g_h += g_wP * paveH;
 
         // Ambient occlusion in joints
         float aoPave = mix(1.0, 0.72, joint);
-        g_ao = mix(1.0, aoPave, g_wG);
+        g_ao = mix(1.0, aoPave, g_wP);
 
-        // Roughness: honed bluestone with damp sheen
-        float roughPave = mix(0.75, 0.92, joint);
-        roughPave = mix(roughPave, 0.58, damp * 0.5);
-        g_rough += g_wG * roughPave;
+        g_rough += g_wP * paveR;
 
-        col += g_wG * finalPave;
+        col += g_wP * finalPave;
       }
       // ---------------- moss ----------------
       if (g_wM > 0.001) {
@@ -259,7 +276,7 @@ function groundHooks(uniforms, NL, NT) {
         mcol = mix(mcol, mcol * vec3(1.25, 1.12, 0.7), smoothstep(0.25, 0.6, n_fbm(p * 1.1 - 33.0, 2)) * 0.45);
         mh += 0.010 * mm;
         // edge of the carpet: just inside it the moss thins and browns; the trimmed rim stands a few
-        // cm proud of the gravel and its cut, stemmy flank reads as a dark line
+        // cm proud of the paving and its cut, stemmy flank reads as a dark line
         float rim = smoothstep(-0.5, 0.0, sM);
         mcol = mix(mcol, mcol * vec3(1.12, 0.92, 0.6), rim * 0.3);
         float lip = smoothstep(-0.12, -0.015, sM);
@@ -272,10 +289,10 @@ function groundHooks(uniforms, NL, NT) {
       }
 
       // ---------------- fallen leaves / petals / needles ----------------
-      if (g_wG + g_wM > 0.01) {
+      if (g_wP + g_wM > 0.01) {
         vec3 lc;
         float lt = tg_litter(p, fw, lc);
-        float wGM = g_wG + g_wM;
+        float wGM = g_wP + g_wM;
         col = col * (1.0 - lt) + lc * lt * wGM;
         g_rough = mix(g_rough, 0.8 * wGM, lt);
         g_dirMul = mix(g_dirMul, 1.0, lt * 0.7);

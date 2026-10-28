@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
-// Stone paving: cut granite slabs in running bond with kerbs along every path
-// (gate -> bridge, bridge -> hall stairs, branches to pagoda & pavilion),
-// natural stepping stones through the moss, and the cut-stone revetment of the
-// bridgehead peninsula. Every stone is its own bevelled, slightly worn block;
-// all merged into one mesh with per-stone attributes for the shader.
+// 石板甬道 (stone paths): cut blue-grey flagstones in running bond with kerbs
+// along every path (gate -> bridge, bridge -> hall stairs, branches to pagoda &
+// pavilion), 苔径汀步 (stepping stones) through the moss, and the cut-stone
+// revetment of the bridgehead peninsula. Every stone is its own bevelled,
+// slightly worn block; all merged into one mesh with per-stone attributes.
 // ---------------------------------------------------------------------------
 import { TG_GLSL } from './terrain-glsl.js';
 import { sdSegBox, segInfo, clamp, lerp, smoothstep } from './terrain-field.js';
@@ -78,8 +78,8 @@ export function buildPaving(ctx, F) {
       return false;
     };
     const L_bridgeS = F.L.bridge.south[2] - 0.05;
-    // uchimizu: the processional paths have just been sprinkled (hero path wettest), branches drier
-    const wetBase = pi === 1 ? 0.66 : pi === 0 ? 0.55 : outside ? 0.08 : walk ? 0.05 : 0.22;
+    // 雨后潮气: only shaded, badly drained stretches keep a little damp — no sprinkled water
+    const wetBase = pi === 1 ? 0.17 : pi === 0 ? 0.14 : outside ? 0.02 : walk ? 0.02 : 0.06;
     const wetOf = () => clamp(wetBase + R.range(-0.16, 0.12), 0, 1);
     const jMax = isBranch ? 0.034 : 0.044, jMin = isBranch ? 0.014 : 0.02;
     // kerbs on both sides
@@ -125,7 +125,7 @@ export function buildPaving(ctx, F) {
     }
   });
 
-  // ---- stepping stones through the moss gardens ----
+  // ---- 苔径汀步: stepping stones through the moss gardens ----
   const trails = [
     [[7.6, 40.5], [3.5, 38.8], [-1, 37.3], [-4.5, 37.6], [-9, 39.5], [-13.5, 39.8]],
     [[12.4, 38.5], [17, 39.6], [21.5, 38.3], [26, 38.6], [31, 40.2], [35.5, 39.5]],
@@ -250,17 +250,16 @@ function pavingMaterial(ctx) {
       vec3 wn = normalize(vWNrm);
       float up = smoothstep(0.5, 0.95, wn.y);
       vec3 h3 = n_hash33(vec3(id * 113.0, id * 71.0, 3.0));
-      // granite family: cool grey -> warm beige, light/dark members
-      vec3 base = mix(vec3(0.345, 0.352, 0.352), vec3(0.44, 0.425, 0.39), h3.x * h3.x);
-      base *= 0.74 + 0.42 * h3.y;
-      if (h3.z > 0.92) base *= vec3(1.05, 0.98, 0.9);           // iron-stained
-      else if (h3.z > 0.7) base *= vec3(1.07, 0.985, 0.94);     // pink feldspar granite
-      else if (h3.z < 0.12) base *= vec3(0.9, 0.94, 0.98);      // blue-grey, finer grained
-      if (kind > 1.5 && kind < 2.5) base = mix(vec3(0.30, 0.295, 0.28), vec3(0.42, 0.39, 0.35), h3.x); // river stone
+      // 江南青石/花岗石条石: cool blue-grey family, light/dark members, nothing warm
+      vec3 base = mix(vec3(0.315, 0.335, 0.345), vec3(0.400, 0.412, 0.418), h3.x * h3.x);
+      base *= 0.80 + 0.34 * h3.y;
+      if (h3.z > 0.9) base *= 0.94;                             // darker, denser member
+      else if (h3.z < 0.12) base *= vec3(0.96, 1.0, 1.03);      // finer grained, a touch bluer
+      if (kind > 1.5 && kind < 2.5) base = mix(vec3(0.245, 0.265, 0.265), vec3(0.345, 0.355, 0.350), h3.x); // river stone
       if (kind > 2.5 && kind < 3.5) base *= 0.88;
-      if (gutterK) base = mix(base, vec3(0.40, 0.395, 0.38), 0.4) * 1.05;
-      if (stepG) base = mix(vec3(0.43, 0.42, 0.40), vec3(0.55, 0.52, 0.475), h3.x) * (0.9 + 0.2 * h3.y);
-      if (walkK) base = mix(base, vec3(0.47, 0.455, 0.425), 0.35) * 1.08;
+      if (gutterK) base = mix(base, vec3(0.335, 0.350, 0.355), 0.4) * 1.03;
+      if (stepG) base = mix(vec3(0.360, 0.375, 0.380), vec3(0.460, 0.468, 0.468), h3.x) * (0.92 + 0.16 * h3.y);
+      if (walkK) base = mix(base, vec3(0.395, 0.410, 0.415), 0.35) * 1.05;
       float fineF = 1.0 - smoothstep(0.0025, 0.012, fw);
       float fineF2 = 1.0 - smoothstep(0.0012, 0.006, fw);
       float mot = n_fbm3(wp * 2.2 + id * 7.0, 4);
@@ -319,25 +318,21 @@ function pavingMaterial(ctx) {
       // shallow damp dishes -> darker, glossy
       float damp = smoothstep(0.3, 0.72, n_fbm3(wp * 0.6 + 3.0 + id, 3) * 0.5 + 0.5) * up * (1.0 - moss) * (1.0 - rim * 0.5);
       col *= 1.0 - damp * 0.3;
-      // sprinkled water (uchimizu): wet patches darken the granite and turn it glossy, thin films
-      // stand in the worn dishes and along the joints; moss soaks up and stays matte-ish
+      // 雨后潮气: shaded, badly drained stretches stay a shade darker and glossier; no water film
       float wn1 = n_fbm3(vec3(wp.xz * 0.75, id * 3.0), 3);
       float wn2 = n_fbm3(vec3(wp.xz * 2.6 + 7.0, id * 5.0), 2);
-      float wetM = smoothstep(0.38, 0.7, wetA + 0.6 * wn1 + 0.15 * wn2) * up;
-      wetM = max(wetM, (1.0 - smoothstep(0.0, 0.05, dEdge)) * wetA * up * 0.8);
-      float film = smoothstep(0.7, 0.9, wetA * 0.75 + 0.5 * wn1 + 0.35 * wn2 + 0.12 * smoothstep(0.08, 0.3, dEdge)) * up * (1.0 - moss);
-      col *= mix(1.0, mix(0.68, 0.85, moss), wetM);
-      col = mix(col, col * vec3(0.82, 0.84, 0.86), film);
+      float wetM = smoothstep(0.42, 0.78, wetA + 0.6 * wn1 + 0.15 * wn2) * up;
+      wetM = max(wetM, (1.0 - smoothstep(0.0, 0.05, dEdge)) * wetA * up * 0.6);
+      col *= mix(1.0, mix(0.80, 0.92, moss), wetM);
       diffuseColor.rgb = col;
       float worn = (1.0 - rim) * up * (kind < 0.5 ? 1.0 : 0.5);
       p_rough = mix(0.66, 0.42, worn * (0.5 + 0.5 * h3.y));
       p_rough = mix(p_rough, 0.14, damp * 0.85);
       p_rough = mix(p_rough, 0.95, moss);
       p_rough = mix(p_rough, 0.3, wet);
-      p_rough = mix(p_rough, mix(0.24, 0.55, moss), wetM);
-      p_rough = mix(p_rough, 0.035, film);
+      p_rough = mix(p_rough, mix(0.50, 0.62, moss), wetM);
       p_h = (mot2 * 0.0018 + mot * 0.0015 + n_snoise3(wp * 34.0) * 0.0005 * fineF + s1 * 0.00025 * fineF) + moss * 0.0025 + lich * 0.0004 - crack * 0.0012 - pit * 0.00012;
-      p_h *= 1.0 - 0.3 * wetM - 0.65 * film;
+      p_h *= 1.0 - 0.2 * wetM;
       p_ao = 1.0 - rim * 0.3;
     }
     `,

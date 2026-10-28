@@ -44,7 +44,7 @@ export async function build(ctx) {
   S.probe = [cx, 4.6, cz - 0.5];
   // parallax-corrected reflections on the polished floor and lacquer
   const bpBox = { min: [cx - 12.5, Y0 - 0.05, cz - 8.0], max: [cx + 12.5, 9.2, cz + 8.0], probe: S.probe };
-  boxProject(THREE, M.woodFloor, bpBox);
+  boxProject(THREE, M.floorBrick, bpBox);
   boxProject(THREE, M.black, bpBox);
   const B = new geom.Builder();
   const K = makeStrandKit();
@@ -57,7 +57,7 @@ export async function build(ctx) {
   buildFloor(ctx, B, M, S);
 
   // ---------------------------------------------------------------- 中堂格局 (Central Reception)
-  const woodMat = M.woodNanmu || M.woodFloor;
+  const woodMat = M.woodNanmu || M.red;
 
   // 1. Central Ink Landscape Hanging Scroll (水墨中堂大轴)
   const scrollTex = createZhongtangTexture();
@@ -238,8 +238,8 @@ function addLights(ctx, root, S, lights, flames) {
 // ============================================================================
 function buildFloor(ctx, B, M, S) {
   const { cx, cz, Y0 } = S;
-  // Polished dark water-ground bluestone floor (水磨金砖地面)
-  B.box(M.woodFloor, 25.0, 0.04, 16.0, [cx, Y0 - 0.02, cz], [0, 0, 0], 0);
+  // 御窑金砖地坪 (Suzhou kiln-fired gold brick), laid 对缝 under the whole hall
+  B.box(M.floorBrick, 25.0, 0.04, 16.0, [cx, Y0 - 0.02, cz], [0, 0, 0], 0);
 }
 
 // ============================================================================

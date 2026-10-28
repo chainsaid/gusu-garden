@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // Ground cover: moss cushions along bed edges and stones, fern rosettes,
-// sedge / grass tufts, pebbles spilling from the gravel, fallen peach petals
+// sedge / grass tufts, pebbles spilling off the paving, fallen peach petals
 // and maple leaves. All instanced, all placed from the terrain fields.
 // ---------------------------------------------------------------------------
 import { MOSS_GLSL, TG_GLSL } from './terrain-glsl.js';
@@ -33,7 +33,7 @@ export function buildCover(ctx, F, stones) {
     return built;
   };
   const trees = F.trees;
-  const cherries = trees.filter((t) => t.type === 'peach');
+  const peaches = trees.filter((t) => t.type === 'peach');
   const maples = trees.filter((t) => t.type === 'mapleRed');
   const nearTree = (x, z, list, r) => { let d = 1e9; for (const t of list) d = Math.min(d, Math.hypot(x - t.x, z - t.z) - r); return d; };
   const inPond = (x, z, m = 0.25) => F.sdPondEff(x, z) < m;
@@ -142,7 +142,7 @@ export function buildCover(ctx, F, stones) {
     const x = rx(), z = rz();
     const d = F.sdRect(x, z);
     let p = 0;
-    if (d > 5.6) p = 0.6 * smoothstep(5.6, 7.5, d) * (0.4 + 0.6 * smoothstep(-0.2, 0.3, F.noise.f2(x * 0.15, z * 0.15, 2))); // forest edge beyond the gravel walk
+    if (d > 5.6) p = 0.6 * smoothstep(5.6, 7.5, d) * (0.4 + 0.6 * smoothstep(-0.2, 0.3, F.noise.f2(x * 0.15, z * 0.15, 2))); // forest edge beyond the paving
     else if (d > -0.5) continue;
     else {
       const m = F.mossAt(x, z);
@@ -236,7 +236,7 @@ export function buildCover(ctx, F, stones) {
     if (m < 0 && m > -0.35) p = Math.max(p, 0.12);
     if (d > 5.5) p = Math.max(p, 0.16 * (0.3 + 0.7 * smoothstep(-0.3, 0.4, F.noise.f3(x * 0.2 + 7.0, z * 0.2, 2))));
     else if (d > -0.3 && d < 4) continue;
-    // tufts lining the edge of the gravel walk outside
+    // tufts lining the outer edge of the paving
     const so = F.soilAt(x, z);
     if (d > 4 && so < 0.15 && so > -0.35) p = Math.max(p, 0.5);
     if (R.next() > p) continue;
@@ -309,7 +309,7 @@ export function buildCover(ctx, F, stones) {
   }
 
   // =========================================================================
-  // 4. pebbles (gravel spill at bed edges, along kerbs, on the shore)
+  // 4. pebbles (spill at bed edges, along kerbs, on the shore)
   // =========================================================================
   const peb = [];
   const addPeb = (x, z, s, dark) => {
@@ -356,7 +356,7 @@ export function buildCover(ctx, F, stones) {
   }
 
   // =========================================================================
-  // 4b. garden rocks: set in groups (ishigumi) in the moss gardens, single
+  // 4b. garden rocks: set in groups (叠石) in the moss gardens, single
   //     mossy boulders on the forest floor outside the corridor
   // =========================================================================
   const rocks = [];
@@ -496,7 +496,7 @@ export function buildCover(ctx, F, stones) {
         float mn = n_fbm3(wp * 1.5 + 2.0, 4) * 0.5 + 0.5;
         float mb = smoothstep(0.9, 0.7, vc.g);
         rk_moss = smoothstep(0.58 - 0.38 * up - 0.25 * mb, 0.72 - 0.22 * up - 0.2 * mb, mn + 0.16 * up);
-        // set stones in the gravel gardens are kept clean: moss only in the hollows near the foot
+        // set stones in the paved gardens are kept clean: moss only in the hollows near the foot
         rk_moss *= mix(1.0, 0.35 * smoothstep(0.35, 0.0, vRy) + 0.12 * smoothstep(0.7, 0.85, mn), dry);
         vec3 mc; float mh; float mr;
         tg_moss(wp.xz + wp.y * 2.0, wp.y, fw, mc, mh, mr);
@@ -524,17 +524,17 @@ export function buildCover(ctx, F, stones) {
     return v3;
   };
   const petalCol = () => { const t = R.next(); return [lerp(0.80, 0.62, t), lerp(0.62, 0.42, t), lerp(0.66, 0.46, t)]; };
-  // petals on paving (a light dusting everywhere, heavier downwind of cherries)
+  // petals on paving (a light dusting everywhere, heavier downwind of the peach trees)
   for (let i = 0; i < 4200; i++) {
     const s = pathStones[R.int(0, pathStones.length - 1)];
     if (!s) break;
-    const dc = nearTree(s.x, s.z, cherries, 0);
+    const dc = nearTree(s.x, s.z, peaches, 0);
     if (R.next() > 0.35 + 0.65 * smoothstep(22, 6, dc)) continue;
     const p = onStone(s);
     const sc = R.range(0.02, 0.03);
     petals.push({ x: p.x, y: p.y, z: p.z, ry: R.range(0, 6.28), rx: R.range(-0.15, 0.15), rz: R.range(-0.15, 0.15), sx: sc, sy: sc, sz: sc, c: petalCol() });
   }
-  // petal drift on the processional paths: blown in from the cherries, lodged against the joints
+  // petal drift on the processional paths: blown in from the peach trees, lodged against the joints
   // and kerbs of the wet slabs
   const heroStones = pathStones.filter((s) => s.path === 0 || s.path === 1);
   for (let i = 0; i < 2600 && heroStones.length; i++) {
@@ -545,8 +545,8 @@ export function buildCover(ctx, F, stones) {
     const sc = R.range(0.022, 0.034);
     petals.push({ x: v3.x, y: v3.y, z: v3.z, ry: R.range(0, 6.28), rx: R.range(-0.12, 0.12), rz: R.range(-0.12, 0.12), sx: sc, sy: sc, sz: sc, c: petalCol() });
   }
-  // petals on gravel / moss under & downwind of the cherries
-  for (const t of cherries) {
+  // petals on the paving / moss under & downwind of the peaches
+  for (const t of peaches) {
     for (let i = 0; i < cnt(700); i++) {
       const a = R.range(0, 6.28), rr = Math.abs(R.gauss(0, 4.2));
       const x = t.x + Math.cos(a) * rr + 1.5, z = t.z + Math.sin(a) * rr + 0.8;
