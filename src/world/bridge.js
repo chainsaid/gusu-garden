@@ -483,7 +483,7 @@ export async function build(ctx) {
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.40, 0.40, 0.33), lich * 0.55);
         float sideS = 1.0 - abs(wnS.y);
         float vs = n_fbm3(vec3((wpS.x + wpS.z) * 7.0, wpS.y * 0.7, 3.0), 3);
-        diffuseColor.rgb *= 1.0 - sideS * smoothstep(0.0, 0.45, vs) * 0.16;
+        diffuseColor.rgb *= 1.0 - sideS * smoothstep(0.0, 0.45, vs) * 0.09;
         // ---- spandrel masonry at real scale (as on the jade belt bridge): ~0.5 m
         // courses, staggered vertical joints, per-block tone drift; the arch-ring
         // band gets radial voussoir joints instead. Outer flank faces only.
@@ -1073,8 +1073,11 @@ export async function build(ctx) {
       const ya = deckTop(za) + railH, yb = deckTop(zb) + railH;
       const len = Math.hypot(zb - za, yb - ya);
       const ax = Math.atan2(zb - za, yb - ya);
-      addStone(rbox(0.13, 0.11, len + 0.02, 0.008), mat4([xr, (ya + yb) / 2, (za + zb) / 2], [ax, 0, 0]), 1.04);          // moulded beam
-      addStone(rbox(0.15, 0.03, len + 0.02, 0.006), mat4([xr, (ya + yb) / 2 + 0.065, (za + zb) / 2], [ax, 0, 0]), 1.04);  // cap bead
+      // beam/cap are Y-long like the cylinder they replace: ax (atan2(dz,dy))
+      // aligns a Y axis with the segment; a Z-long box under the same rotation
+      // swings 90° off and sticks up out of the railing on the ramps
+      addStone(rbox(0.13, len + 0.02, 0.11, 0.008), mat4([xr, (ya + yb) / 2, (za + zb) / 2], [ax, 0, 0]), 1.04);          // moulded beam
+      addStone(rbox(0.15, len + 0.02, 0.03, 0.006), mat4([xr, (ya + yb) / 2 + 0.055, (za + zb) / 2], [ax, 0, 0]), 1.04);  // cap bead
     }
     // 雕花栏板: solid carved panels between the posts (as on 玉带桥) — raised border
     // frame, recessed field, and a band of 卷草 scroll curls in real relief
