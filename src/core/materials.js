@@ -356,6 +356,27 @@ PROC.granite = (mossAmt = '0.6', tint = 'vec3(1.0)') => ({
   fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.01);`,
 });
 
+// Smooth pale limestone (玉带桥-style): uniform grey-white, only faint broad
+// veining — no speckle/salt-and-pepper, so it does not read as mosaic at distance.
+PROC.limestone = (tint = 'vec3(1.0)') => ({
+  fragHead: /* glsl */ `float g_h;\nuniform vec3 uTint;`,
+  uniforms: { uTint: U3(tint) },
+  fragColor: /* glsl */ `
+    {
+      vec3 wp = vWPos;
+      float big = n_fbm3(wp * 0.16, ${OC(4)});                 // broad tonal drift only
+      vec3 base = vec3(0.70, 0.70, 0.68) * uTint;              // pale grey-white limestone
+      vec3 col = base * (0.95 + 0.07 * big);
+      float vein = n_fbm3(wp * 0.5 + 2.3, ${OC(4)});           // soft mineral veining
+      col = mix(col, base * 1.05, smoothstep(0.58, 0.82, vein) * 0.22);
+      diffuseColor.rgb *= col;
+      g_h = big * 0.22;
+    }
+  `,
+  fragRough: '',
+  fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0012);`,
+});
+
 // Classical Suzhou Taihu Stone (太湖石 - 皱漏瘦透)
 PROC.taihuStone = (mossAmt = '0.65', tint = 'vec3(1.0)') => ({
   fragHead: /* glsl */ `float g_h; float g_moss;`,

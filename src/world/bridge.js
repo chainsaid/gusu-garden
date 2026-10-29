@@ -469,7 +469,9 @@ export async function build(ctx) {
 
   // granite (piers, abutments, slabs) with a waterline algae band and wet darkening —
   // light grey limestone like the reference garden bridges (玉带桥), not dark granite
-  const GP = mat.PROC.granite('0.25', 'vec3(1.9, 1.86, 1.76)');
+  // smooth pale limestone (玉带桥-style): uniform grey-white, faint broad veining — no
+  // salt-and-pepper speckle (the old granite PROC read as mosaic at distance)
+  const GP = mat.PROC.limestone('vec3(0.99, 0.99, 0.97)');
   const granite = mat.std({ color: 0xffffff, roughness: 0.8, metalness: 0, vertexColors: true }, {
     uniforms: GP.uniforms,                     // uTint / uMoss — without these the GLSL defaults to 0 (black!)
     fragHead: GP.fragHead + ARC_GLSL + 'float g_wet;',
@@ -486,13 +488,9 @@ export async function build(ctx) {
         float sideS = 1.0 - abs(wnS.y);
         float vs = n_fbm3(vec3((wpS.x + wpS.z) * 7.0, wpS.y * 0.7, 3.0), 3);
         diffuseColor.rgb *= 1.0 - sideS * smoothstep(0.0, 0.45, vs) * 0.28;
-        // granular salt-and-pepper crystals + tooling pits (faded out when sub-pixel)
-        float gq = n_snoise3(wpS * 170.0), gq2 = n_snoise3(wpS * 90.0 + 11.0);
-        float aaG = 1.0 - smoothstep(0.12, 0.4, length(fwidth(wpS * 170.0)));
-        diffuseColor.rgb *= 1.0 + aaG * (0.22 * smoothstep(0.35, 0.8, gq2) - 0.35 * smoothstep(0.45, 0.85, gq));
+        // faint broad micro-relief only — no salt-and-pepper speckle (that read as mosaic)
         float pxS = length(fwidth(wpS));
-        float pits = smoothstep(0.55, 0.85, n_snoise3(wpS * 38.0 + 3.0)) * (1.0 - smoothstep(0.004, 0.012, pxS));
-        g_h += aaG * (gq * 0.05 + gq2 * 0.04) - pits * 0.12 + n_fbm3(wpS * 14.0, 2) * 0.1;
+        g_h += n_fbm3(wpS * 2.0, 2) * 0.05;
         float h = vWPos.y - WATER_Y;
         float n1 = n_fbm3(vWPos * vec3(3.0, 1.2, 3.0), 3);
         float wet = 1.0 - smoothstep(0.02, 0.5 + 0.25 * n1, h);
@@ -810,7 +808,7 @@ export async function build(ctx) {
         ? Math.max(profY(zm) - 0.18, YRING + Math.sqrt(Math.max(R_OUT * R_OUT - dz * dz, 0)) - 0.02)
         : profY(zm) - 0.5;
       const yBot = Y0 + seat;
-      addStone(rbox(pw, Math.max(yTop - yBot, 0.04), z1 - z0 - 0.01, 0.008), mat4([X0, (yTop + yBot) / 2, zm]), 1.04 + sr.next() * 0.22);
+      addStone(rbox(pw, Math.max(yTop - yBot, 0.04), z1 - z0 - 0.01, 0.008), mat4([X0, (yTop + yBot) / 2, zm]), 0.985 + sr.next() * 0.03);
     }
   }
 
@@ -879,16 +877,16 @@ export async function build(ctx) {
       const cy = YRING + rMid * Math.cos(tm), cz = ZC + rMid * Math.sin(tm);
       const arcLen = (t1 - t0) * rMid;
       const g = stoneBlock(Xw * 2, R_OUT - R_IN - wj, arcLen - wj, 0.025, 0.01, 0.1, vr.next() * 50, 0.012);
-      addStone(g, mat4([X0, cy, cz], [tm, 0, 0]), 1.1);   // rotate so local Y -> radial, Z -> tangential
+      addStone(g, mat4([X0, cy, cz], [tm, 0, 0]), 1.04 + vr.next() * 0.04);   // rotate so local Y -> radial, Z -> tangential
     }
     // 拱顶石 (keystone) slightly proud at the crown
     addStone(stoneBlock(Xw * 2 + 0.02, R_OUT - R_IN + 0.03, 0.26, 0.025, 0.01, 0.1, 7, 0.012),
-      mat4([X0, YRING + rMid, ZC], [0, 0, 0]), 1.12);
+      mat4([X0, YRING + rMid, ZC], [0, 0, 0]), 1.05);
     // 分水金刚墙: foundation blocks the ring springs onto, standing out of the water
     for (const sgn of [-1, 1]) {
       const fr = ctx.rng('spring' + sgn);
       addStone(stoneBlock(2 * HW + 0.5, (WATER + 0.16) - (BOTTOM - 0.5), 1.5, 0.05, 0.014, 0.14, sgn * 13, 0.006),
-        mat4([X0, ((WATER + 0.16) + (BOTTOM - 0.5)) / 2, ZC + sgn * rMid], [0, (fr.next() - 0.5) * 0.04, 0]), 0.9 + fr.next() * 0.12);
+      mat4([X0, ((WATER + 0.16) + (BOTTOM - 0.5)) / 2, ZC + sgn * rMid], [0, (fr.next() - 0.5) * 0.04, 0]), 0.97 + fr.next() * 0.05);
     }
   }
 
@@ -932,7 +930,7 @@ export async function build(ctx) {
             : stoneBlock(depth, ch - 0.014, len - 0.014, 0.035, 0.014, 0.22, r.next() * 100, 0.022);
           const pz = perp - out * depth / 2;
           const m = axis === 'x' ? mat4([c, y, pz]) : mat4([pz, y, c]);
-          addStone(g, m, 0.95 + r.next() * 0.1);
+          addStone(g, m, 0.97 + r.next() * 0.05);
           a += len;
         }
       }
@@ -945,14 +943,14 @@ export async function build(ctx) {
     const nS = Math.max(2, Math.round((z1 - z0) / 1.0));
     for (let i = 0; i < nS; i++) {
       const za = z0 + ((z1 - z0) * i) / nS, zb2 = z0 + ((z1 - z0) * (i + 1)) / nS;
-      addStone(stoneBlock(xb - xa + 0.08, 0.2, zb2 - za - 0.012, 0.03, 0.006, 0.2, za * 7), mat4([X0, yt - 0.1 + 0.001, (za + zb2) / 2]), 1.06);
+      addStone(stoneBlock(xb - xa + 0.08, 0.2, zb2 - za - 0.012, 0.03, 0.006, 0.2, za * 7), mat4([X0, yt - 0.1 + 0.001, (za + zb2) / 2]), 1.03);
     }
     // landing slabs beyond the deck end (top at LAND_TOP)
     const lz0 = Math.min(end, end + dir * 1.9), lz1 = Math.max(end, end + dir * 1.9);
     const slabT = LAND_TOP - yt;
     for (let i = 0; i < 2; i++) {
       const za = lz0 + ((lz1 - lz0) * i) / 2, zb2 = lz0 + ((lz1 - lz0) * (i + 1)) / 2;
-      addStone(stoneBlock(2 * HW + 0.9, slabT, zb2 - za - 0.012, 0.03, 0.004, 0.2, za * 13 + 5), mat4([X0, yt + slabT / 2, (za + zb2) / 2]), 1.1);
+      addStone(stoneBlock(2 * HW + 0.9, slabT, zb2 - za - 0.012, 0.03, 0.004, 0.2, za * 13 + 5), mat4([X0, yt + slabT / 2, (za + zb2) / 2]), 1.03);
     }
   }
   abutment(faceN, zEndN, -1);
@@ -998,10 +996,10 @@ export async function build(ctx) {
       const ya = deckTop(za) + railH, yb = deckTop(zb) + railH;
       const len = Math.hypot(zb - za, yb - ya);
       const ax = Math.atan2(zb - za, yb - ya);
-      addStone(new THREE.CylinderGeometry(0.055, 0.055, len + 0.02, 10), mat4([xr, (ya + yb) / 2, (za + zb) / 2], [ax, 0, 0]), 1.12);
+      addStone(new THREE.CylinderGeometry(0.055, 0.055, len + 0.02, 10), mat4([xr, (ya + yb) / 2, (za + zb) / 2], [ax, 0, 0]), 1.04);
       const yla = deckTop(za) + 0.20, ylb = deckTop(zb) + 0.20;
       const axl = Math.atan2(deckTop(za) - deckTop(zb), zb - za);
-      addStone(rbox(0.055, 0.07, Math.max(Math.hypot(zb - za, ylb - yla) - wP, 0.05), 0.006), mat4([xr, (yla + ylb) / 2, (za + zb) / 2], [axl, 0, 0]), 1.1);
+      addStone(rbox(0.055, 0.07, Math.max(Math.hypot(zb - za, ylb - yla) - wP, 0.05), 0.006), mat4([xr, (yla + ylb) / 2, (za + zb) / 2], [axl, 0, 0]), 1.03);
     }
     // 望柱 with lotus-bud finials on every post + 抱鼓石 at the ends
     const budPts = (s) => [[0, 0], [0.04 * s, 0], [0.045 * s, 0.025], [0.025 * s, 0.05], [0.036 * s, 0.075], [0.032 * s, 0.10], [0.016 * s, 0.125], [0, 0.14]].map(p => new THREE.Vector2(p[0], p[1]));
@@ -1011,13 +1009,13 @@ export async function build(ctx) {
       const w = isEnd ? 0.20 : wP;
       const h = isEnd ? 0.75 : railH;
       const dy0 = deckTop(zp);
-      addStone(stoneBlock(w, h, w, 0.012, 0.006, 0.06, zp + side * 3, 0.004), mat4([xr, dy0 + h / 2, zp]), 1.12);
-      addStone(rbox(w * 1.18, 0.06, w * 1.18, 0.006), mat4([xr, dy0 + h + 0.03, zp]), 1.12);
+      addStone(stoneBlock(w, h, w, 0.012, 0.006, 0.06, zp + side * 3, 0.004), mat4([xr, dy0 + h / 2, zp]), 1.04);
+      addStone(rbox(w * 1.18, 0.06, w * 1.18, 0.006), mat4([xr, dy0 + h + 0.03, zp]), 1.04);
       addStone(new THREE.LatheGeometry(budPts(isEnd ? 1.15 : 0.95), 12), mat4([xr, dy0 + h + 0.06, zp]), 1.15);
       if (isEnd) {
         // 抱鼓石: 横置鼓石夹护端柱 + 石础
-        for (const fs of [-1, 1]) addStone(new THREE.CylinderGeometry(0.11, 0.11, 0.16, 12).rotateZ(Math.PI / 2), mat4([xr + fs * (w / 2 + 0.10), dy0 + 0.11, zp]), 1.1);
-        addStone(stoneBlock(0.40, 0.16, 0.40, 0.03, 0.004, 0.08, zp + side, 0.006), mat4([xr, LAND_TOP + 0.08, zp]), 1.1);
+        for (const fs of [-1, 1]) addStone(new THREE.CylinderGeometry(0.11, 0.11, 0.16, 12).rotateZ(Math.PI / 2), mat4([xr + fs * (w / 2 + 0.10), dy0 + 0.11, zp]), 1.03);
+        addStone(stoneBlock(0.40, 0.16, 0.40, 0.03, 0.004, 0.08, zp + side, 0.006), mat4([xr, LAND_TOP + 0.08, zp]), 1.03);
       }
     }
     // 系船石 (mooring stones) protruding from the spandrel
