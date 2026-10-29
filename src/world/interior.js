@@ -10,7 +10,7 @@ import { makeInteriorMaterials, boxProject } from './interior-mats.js';
 import { petalGeo, latheGeo, ringGeo, rbox, merge, extrude, flameShape } from './interior-geo.js';
 import * as THREE from 'three';
 import {
-  buildFrontTable, buildFloorLantern, buildCandlestick, flameGeo,
+  buildFrontTable, buildFloorLantern, buildFloorPalaceLantern, buildCandlestick, flameGeo,
   buildIncenseBurner, buildFlowerVase, flowerHeadGeo, leafGeo, buildFruitStand, addTassel,
 } from './interior-altar.js';
 import { makeStrandKit, flushStrands, buildPendantLantern } from './interior-hang.js';
@@ -104,9 +104,9 @@ export async function build(ctx) {
   buildLuohanBed(B, woodMat, { x: cx - 5.5, y: Y0, z: cz - 4.0, w: 2.2, d: 1.3, h: 0.52 });
   buildCurioShelf(B, woodMat, { x: cx - 7.5, y: Y0, z: cz - 6.6, w: 2.0, d: 0.42, h: 2.6 });
 
-  // 7. Floor Lanterns flanking the central table
+  // 7. 落地六角宫灯（红木灯杆 + 绢罩），替换原日式落地灯篭
   for (const sx of [-1, 1]) {
-    lights.push({ p: buildFloorLantern(B, M, { x: cx + sx * 2.85, y: Y0, z: cz - 4.5, s: 0.85 }).light, i: 1 });
+    lights.push({ p: buildFloorPalaceLantern(B, M, { x: cx + sx * 2.85, y: Y0, z: cz - 4.5, s: 0.85 }, rnd).light, i: 1 });
   }
 
   // ---------------------------------------------------------------- architecture

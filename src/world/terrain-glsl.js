@@ -132,12 +132,12 @@ vec3 tg_meadow(vec2 p, float y, float fw, out float hOut){
   float gn = n_fbm(p * 0.05 + 7.0, 3);
   float g2 = n_fbm(p * 0.6 + 2.0, 3);
   float g3 = n_snoise(p * 3.0);
-  vec3 c = mix(vec3(0.050, 0.075, 0.020), vec3(0.11, 0.105, 0.035), smoothstep(-0.5, 0.6, gn + 0.3 * g2));
+  vec3 c = mix(vec3(0.042, 0.062, 0.017), vec3(0.085, 0.082, 0.028), smoothstep(-0.5, 0.6, gn + 0.3 * g2));
   c = mix(c, vec3(0.13, 0.085, 0.035), smoothstep(0.35, 0.75, n_fbm(p * 0.12 - 4.0, 3)) * 0.45); // dry bracken
   c *= 0.78 + 0.34 * g2 + 0.14 * g3 * (1.0 - smoothstep(0.1, 0.4, fw));
   vec3 mm; float mmh; float mmr;
   tg_moss(p, y, fw, mm, mmh, mmr);
-  c = mix(c, mm * 1.25, smoothstep(0.0, 0.45, n_fbm(p * 0.22 + 31.0, 3)) * 0.6);
+  c = mix(c, mm * 1.25, smoothstep(0.0, 0.45, n_fbm(p * 0.22 + 31.0, 3)) * 0.78);
   float bare = smoothstep(0.2, 0.55, n_fbm(p * 0.3 - 17.0, 3));
   c = mix(c, vec3(0.12, 0.08, 0.045) * (0.8 + 0.3 * g3), bare * 0.45);
   float scrub = smoothstep(0.1, 0.45, n_fbm(p * 0.35 + 2.0, 3));
@@ -151,7 +151,7 @@ vec3 tg_meadow(vec2 p, float y, float fw, out float hOut){
   float lv = smoothstep(0.15, 0.55, n_fbm(p * 0.16 + 17.0, 3));
   tg_leafDrift(p, fw, lv * 0.7, c);
   hOut = scrub * 0.06 + g2 * 0.015 + tus * 0.02 * tF;
-  c *= 1.3;
+  c *= 1.12;
   tg_yongdao(p, fw, c, hOut);
   return c;
 }
@@ -230,26 +230,27 @@ void tg_huajie(vec2 p, float fw, float dBand, out vec3 col, out float hOut, out 
   float pebF = 1.0 - smoothstep(0.010, 0.030, fw);
   float peb = smoothstep(0.60, 0.46, cw.x + 0.10 * (chh.y - 0.5));
   vec3 pc;
-  if (chh.x < 0.56) pc = vec3(0.200, 0.218, 0.226);
-  else if (chh.x < 0.74) pc = vec3(0.330, 0.305, 0.245);
-  else if (chh.x < 0.86) pc = vec3(0.245, 0.130, 0.085);
+  if (chh.x < 0.40) pc = vec3(0.260, 0.275, 0.282);
+  else if (chh.x < 0.60) pc = vec3(0.400, 0.395, 0.380);   // 白卵石: the pattern ground
+  else if (chh.x < 0.78) pc = vec3(0.330, 0.305, 0.245);
+  else if (chh.x < 0.90) pc = vec3(0.245, 0.130, 0.085);
   else pc = vec3(0.068, 0.070, 0.068);
   pc *= 0.84 + 0.30 * chh.z;
-  vec3 mortar = vec3(0.105, 0.110, 0.107) * (0.85 + 0.25 * n_snoise(p * 40.0));
+  vec3 mortar = vec3(0.085, 0.090, 0.088) * (0.85 + 0.25 * n_snoise(p * 40.0));
   // beyond the resolved scale the field must average to the pebbles, not to the mortar
-  vec3 c = mix(mix(mortar, vec3(0.235, 0.240, 0.232), 0.85), mix(mortar, pc, peb), pebF);
+  vec3 c = mix(mix(mortar, vec3(0.295, 0.295, 0.283), 0.85), mix(mortar, pc, peb), pebF);
   float hh = 0.0038 * peb * pebF;
   // 砖瓦 lines: 万字锦 along the edge, then a 鱼鳞 band, then the 冰裂纹 field with
   // 海棠 medallions; straight brick courses frame the bands
   float line;
-  if (dBand < 0.55) line = hj_wanzi(p, 0.50, 0.014);
+  if (dBand < 0.55) line = hj_wanzi(p, 0.50, 0.019);
   else if (dBand < 1.15) line = hj_yulin(p, 0.34, 0.012);
   else line = min(hj_binglie(p, 1.5, 0.010), hj_haitang(p, 1.35, 0.38, 0.012));
   line = min(line, min(abs(dBand - 0.55), abs(dBand - 1.15)) - 0.022);
   float lw = 0.010 + fwidth(line) * 1.5;
   float ln = 1.0 - smoothstep(0.0, lw, line);
-  vec3 lineC = vec3(0.082, 0.082, 0.076) * (0.85 + 0.3 * n_snoise(p * 22.0));
-  c = mix(c, lineC, ln * 0.88);
+  vec3 lineC = vec3(0.055, 0.056, 0.052) * (0.85 + 0.3 * n_snoise(p * 22.0));
+  c = mix(c, lineC, ln * 0.92);
   hOut = mix(hh, 0.0011, ln) - 0.0006 * ln;
   rough = mix(0.80, 0.62, ln);
   col = c;

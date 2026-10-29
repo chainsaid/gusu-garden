@@ -204,8 +204,8 @@ export function buildBackScreen(B, M, S, { x0, x1, z, y0, y1 }) {
     const py = y0 + 0.16 + ph / 2 + j * (ph + 0.16);
     B.add(panelGeo(pw, ph, 0.02, j === ny - 1 ? 0 : 3), M.panel, mat4([px, py, z + 0.065]));
   }
-  for (let i = 0; i <= nx; i++) B.add(rbox(0.1, h, 0.05, 0.01), M.goldAntique, mat4([x0 + 0.08 + i * (pw + 0.16), (y0 + y1) / 2, z + 0.08]));
-  for (let j = 0; j <= ny; j++) B.add(rbox(w, 0.1, 0.05, 0.01), M.goldAntique, mat4([(x0 + x1) / 2, y0 + 0.08 + j * (ph + 0.16), z + 0.081]));
+  for (let i = 0; i <= nx; i++) B.add(rbox(0.1, h, 0.05, 0.01), M.woodNanmu, mat4([x0 + 0.08 + i * (pw + 0.16), (y0 + y1) / 2, z + 0.08]));
+  for (let j = 0; j <= ny; j++) B.add(rbox(w, 0.1, 0.05, 0.01), M.woodNanmu, mat4([(x0 + x1) / 2, y0 + 0.08 + j * (ph + 0.16), z + 0.081]));
 }
 
 // 隔扇 / 长窗 of the inner hall: lacquered frame, 裙板 kick panel, a 步步锦
@@ -221,8 +221,8 @@ export function buildSideScreen(B, M, S, { x, z0, z1, y0, y1, facing = 1 }) {
   const bw = len / nb;
   for (let i = 0; i <= nb; i++) B.add(rbox(0.16, h, 0.16, 0.02), M.black, mat4(P(-len / 2 + i * bw, y0 + h / 2), rot));
   for (const vv of [y0 + 0.05, y0 + 0.95, y1 - 1.05, y1 - 0.06]) B.add(rbox(0.12, 0.1, len, 0.015), M.black, mat4(P(0, vv), [0, 0, 0]));
-  // gold fittings on the posts
-  for (let i = 0; i <= nb; i++) for (const vv of [y0 + 0.95, y1 - 1.05]) B.add(rbox(0.19, 0.13, 0.19, 0.012), M.goldBright, mat4(P(-len / 2 + i * bw, vv), rot));
+  // 木饰（非金）on the posts
+  for (let i = 0; i <= nb; i++) for (const vv of [y0 + 0.95, y1 - 1.05]) B.add(rbox(0.19, 0.13, 0.19, 0.012), M.woodNanmu, mat4(P(-len / 2 + i * bw, vv), rot));
   for (let i = 0; i < nb; i++) {
     const uc = -len / 2 + (i + 0.5) * bw, pw = bw - 0.16;
     // kick panel with carved diaper

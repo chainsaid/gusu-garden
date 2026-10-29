@@ -411,20 +411,16 @@ export function makeInteriorMaterials(ctx) {
         m = max(m, frameMask(uv, hs, fw));
         float fine = n_fbm(uv * 60.0, 2);
         g_m = mix(smoothstep(0.35, 0.65, m), 0.3, p_aa);
-        vec3 gold = vec3(1.0, 0.70, 0.31) * (0.9 + 0.12 * fine);
-        // 鱼子地 punch dots on the gilt ground
-        vec2 nq = fract(uv / 0.012) - 0.5;
-        float nan = smoothstep(0.32, 0.2, length(nq)) * (1.0 - clamp((fwidth(uv.x) + fwidth(uv.y)) / 0.008, 0.0, 1.0));
-        vec3 blk = mix(vec3(0.014, 0.012, 0.011), vec3(0.95, 0.62, 0.24) * (0.85 + 0.25 * fine) * (1.0 - 0.12 * nan), g_gg);
-        diffuseColor.rgb = mix(blk, gold, g_m);
-        // gilt relief: dark cut outlines around the raised ornament
-        float outl = smoothstep(0.08, 0.3, m) * smoothstep(0.75, 0.45, m) * (1.0 - p_aa);
-        diffuseColor.rgb *= 1.0 - g_gg * outl * 0.55;
-        g_h = m * (1.0 - p_aa) + g_gg * nan * 0.06;
+        // 木雕 (wood carving, no gilt): deep 栗壳木 recessed ground, the raised
+        // ornament reads a touch brighter — this is the Jiangnan 木装修 look, not gold
+        vec3 relief = vec3(0.22, 0.11, 0.06) * (0.82 + 0.22 * fine);
+        vec3 ground = vec3(0.10, 0.05, 0.025);
+        diffuseColor.rgb = mix(ground, relief, g_m);
+        g_h = m * (1.0 - p_aa);
       }
     `,
-    fragRough: `roughnessFactor = mix(mix(0.3, 0.4, g_gg), mix(0.22, 0.3, g_gg), g_m);`,
-    fragMetal: `metalnessFactor = mix(g_m, mix(0.55, 0.78, g_m), g_gg);`,
+    fragRough: `roughnessFactor = mix(0.62, 0.44, g_m);`,
+    fragMetal: `metalnessFactor = 0.0;`,
     fragNormal: `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0035);`,
   }, 0.6));
   envList.push(M.panel);

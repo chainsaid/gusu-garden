@@ -150,14 +150,14 @@ export async function build(ctx) {
   const P = mat.PROC;
   const MT = {
     // 北寺塔: 砖身抹赭黄, 木构髹红棕 (vermilion-red-brown), 铁件乌黑
-    red: mat.phys({ color: 0xffffff, roughness: 0.5, metalness: 0, clearcoat: 0.15, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.34, 0.13, 0.06)', C, { wear: 0.8 }), 'wood')),
+    red: mat.phys({ color: 0xffffff, roughness: 0.5, metalness: 0, clearcoat: 0.15, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.25, 0.105, 0.055)', C, { wear: 0.8 }), 'wood')),
     redDark: mat.phys({ color: 0xffffff, roughness: 0.55, metalness: 0, clearcoat: 0.1, clearcoatRoughness: 0.5 }, rig(woodProc('vec3(0.22, 0.085, 0.04)', C, { wear: 0.6 }), 'wood')),
     iron: mat.std({ color: 0x46464a, roughness: 0.5, metalness: 0.85 }),
     tile: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(P.roofTile(), 'tile')),
     tileRound: mat.std({ color: 0xffffff, roughness: 0.42, metalness: 0.12 }, rig(tileProc('round'), 'tile')),
     tileFlat: mat.std({ color: 0xffffff, roughness: 0.45, metalness: 0.1 }, rig(tileProc('flat'), 'tile')),
-    // 赭黄砖身 plaster (the brick body is lime-washed warm ochre)
-    plaster: mat.std({ color: 0xd8c090, roughness: 0.93, metalness: 0 }, rig(P.plaster(), 'wall')),
+    // 赭黄砖身 plaster (weathered ochre — muted 土赭, not a fresh bright wash)
+    plaster: mat.std({ color: 0xc2a87e, roughness: 0.93, metalness: 0 }, rig(P.plaster(), 'wall')),
     // 窗格木框: dark red-brown wood
     green: mat.std({ color: 0xffffff, roughness: 0.6, metalness: 0 }, rig(P.chestnutWood('vec3(0.16, 0.07, 0.04)'), 'wood')),
     dark: M.woodDark,

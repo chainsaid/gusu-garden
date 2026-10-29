@@ -759,7 +759,8 @@ export function makeBlossomAtlas(rng, size = 1024) {
     flowers.sort((a, b) => a.depth - b.depth);
     for (const f of flowers) {
       const pale = rnd();
-      const tone = pale < 0.6 ? [252, 232, 238] : pale < 0.9 ? [250, 214, 226] : [255, 244, 246];
+      // 碧桃: deep rose petals (double peach), not the pale wash of sakura
+      const tone = pale < 0.6 ? [243, 172, 194] : pale < 0.9 ? [232, 140, 170] : [250, 205, 220];
       drawPeachBlossom(g, f.x, f.y, f.rp, f.rot, f.sq, rnd, tone);
     }
     // buds

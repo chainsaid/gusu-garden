@@ -366,8 +366,8 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
     const ySkirt = 3.22; // 裙板上口
     const yWaist = 3.52; // 绦环板上口
 
-    // 底层内衬透光白壁
-    panel(white, -half, half, Y.sill1, Y.nag0, 0.03, 0.045, 0.002);
+    // 底层内衬：暗色内壁（格心透出的是幽暗室内 / 明瓦灰光，不是白粉墙 —— 白格子是障子做法）
+    panel(inW, -half, half, Y.sill1, Y.nag0, 0.03, 0.045, 0.002);
     panel(inW, -half, half, Y.sill1, Y.nag0, -0.06, 0.0, 0.004);
 
     for (let li = 0; li < nLeaves; li++) {

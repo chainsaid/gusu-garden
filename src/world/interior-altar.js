@@ -243,6 +243,42 @@ export function buildFloorLantern(B, M, { x, y, z, s = 1, ry = 0 }) {
 }
 
 // ============================================================================
+// FLOOR-PALACE-LANTERN (落地六角宫灯): 红木灯杆 + 六角绢罩宫灯. A Jiangnan
+// scholar's-study floor lamp — a wood post with a hexagonal silk-shaded 宫灯 on
+// top (tassels below), replacing the Japanese stone/bronze 灯篭.
+export function buildFloorPalaceLantern(B, M, { x, y, z, s = 1, ry = 0 }, rnd) {
+  const H = 1.62 * s;                       // 灯杆高
+  const rot = [0, ry, 0];
+  // 底盘 (stepped wood base)
+  B.add(latheGeo([[0, 0], [0.30 * s, 0], [0.30 * s, 0.05 * s], [0.26 * s, 0.07 * s], [0.26 * s, 0.12 * s], [0.18 * s, 0.15 * s], [0, 0.15 * s]], 20), M.woodNanmu, mat4([x, y, z]));
+  // 灯杆
+  B.add(new THREE.CylinderGeometry(0.045 * s, 0.055 * s, H - 0.15 * s, 12), M.woodNanmu, mat4([x, y + (H - 0.15 * s) / 2, z]));
+  const add = (g, m, px, py, pz, r = [0, 0, 0], sc = 1) => B.add(g, m, mat4([x + px * s, y + H + py * s, z + pz * s], r, sc * s));
+  const hex = (prof) => { const g = latheGeo(prof, 6, Math.PI / 6).toNonIndexed(); g.computeVertexNormals(); return g; };
+  // 顶盖 (木，六角凹曲面)
+  add(hex([[0, 0], [0.04, -0.02], [0.1, -0.08], [0.2, -0.13], [0.26, -0.15], [0.26, -0.17], [0, -0.17]]), M.woodNanmu, 0, 0, 0);
+  add(latheGeo([[0, 0], [0.03, 0], [0.04, 0.03], [0.02, 0.06], [0, 0.09]], 10), M.woodNanmu, 0, -0.02, 0);
+  // 灯身：绢罩（微透光，非自发光障子）
+  const fb = 0.32, rr = 0.17;
+  add(hex([[0, -0.17], [rr - 0.02, -0.17], [rr - 0.02, -0.17 - fb], [0, -0.17 - fb]]), M.paper, 0, 0, 0);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const fx = Math.sin(a) * rr * 0.866, fz = Math.cos(a) * rr * 0.866;
+    B.add(panelGeo(rr * 0.9 * s, fb * 0.9 * s, 0.012 * s, 2), M.panel, mat4([x + fx * s, y + H + (-0.17 - fb / 2) * s, z + fz * s], [0, a, 0]));
+    const ac = a + Math.PI / 6;
+    add(rbox(0.025, fb, 0.025, 0.006), M.woodNanmu, Math.sin(ac) * rr, -0.17 - fb / 2, Math.cos(ac) * rr, [0, ac, 0]);
+  }
+  add(hex([[0, -0.17 - fb], [rr + 0.03, -0.17 - fb], [rr + 0.03, -0.2 - fb], [0.08, -0.26 - fb], [0, -0.28 - fb]]), M.woodNanmu, 0, 0, 0);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + Math.PI / 6;
+    const px = x + Math.sin(a) * (rr + 0.02) * s, pz = z + Math.cos(a) * (rr + 0.02) * s, py = y + H + (-0.2 - fb) * s;
+    if (i % 2 === 0) addTassel(B, M, px, py, pz, 0.40 * s, M.silkRed);
+  }
+  addTassel(B, M, x, y + H + (-0.28 - fb) * s, z, 0.48 * s, M.silkRed);
+  return { light: [x, y + H + (-0.17 - fb / 2) * s, z] };
+}
+
+// ============================================================================
 // CANDLESTICK (gold) with wax candle and flame. returns flame position
 export function buildCandlestick(B, M, { x, y, z, h = 0.7, s = 1 }, flames) {
   const add = (g, m, px, py, pz, sc = 1) => B.add(g, m, mat4([x + px, y + py, z + pz], [0, 0, 0], sc));

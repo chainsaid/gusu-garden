@@ -138,8 +138,8 @@ export function buildStone(ctx, site, U) {
   const noise = makeNoise(() => r.float());
   const waterY = site.waterY;
 
-  const rockMat = stoneMaterial(ctx, U, '0.75', 'vec3(0.96, 0.97, 0.93)');
-  const wallMat = stoneMaterial(ctx, U, '0.3', 'vec3(1.12, 1.1, 1.06)', { cut: true });
+  const rockMat = stoneMaterial(ctx, U, '0.75', 'vec3(0.60, 0.62, 0.61)');      // 太湖石灰岩，不是白蛋
+  const wallMat = stoneMaterial(ctx, U, '0.3', 'vec3(0.78, 0.81, 0.83)', { cut: true });   // 青石整石挡墙
   rockMat.name = 'pondRock'; wallMat.name = 'pondWall';
 
   // ---- rock prototypes ------------------------------------------------------

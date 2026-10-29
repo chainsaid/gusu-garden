@@ -155,8 +155,8 @@ export async function build(ctx) {
       reflectedLight.indirectDiffuse += material.diffuseColor * RECIPROCAL_PI * bounce;
     }
   `;
-  // chestnut lacquer over timber. vColor: r = grain mode (0 arc / .5 vertical / 1 along x), g = grime, b = piece random
-  const lac = mat.phys({ color: 0xffffff, roughness: 0.52, metalness: 0, clearcoat: 0.09, clearcoatRoughness: 0.45, vertexColors: true }, {
+  // dressed 青石 over the old chestnut lacquer. vColor: r = grain mode (0 arc / .5 vertical / 1 along x), g = grime, b = piece random
+  const lac = mat.phys({ color: 0xffffff, roughness: 0.72, metalness: 0, clearcoat: 0.0, clearcoatRoughness: 0.5, vertexColors: true }, {
     fragHead: ARC_GLSL + 'float g_h; float g_r;',
     fragColor: /* glsl */ `
       {
@@ -165,7 +165,8 @@ export async function build(ctx) {
         float kindR = step(1.5, vColor.g);
         float mode = vColor.r; float dirt = vColor.g - 2.0 * kindR; float pr = vColor.b;
         vec2 rel = vec2(wp.z - ARC_ZC, wp.y - ARC_YC);
-        // local grain frame: x = along the member, y/z = across (metres, small local values)
+        // local frame: x = along the member (arc length on the fascia, height on the
+        // posts), y/z = across (metres, small local values)
         vec3 gp;
         float xr = wp.x - BR_X0;
         float xl = xr - floor(xr / 0.845 + 0.5) * 0.845; // member-centred across coordinate
@@ -175,30 +176,25 @@ export async function build(ctx) {
         float big = n_fbm3(wp * 0.35 + pr * 3.0, 3);
         float pxL = length(fwidth(wp));                         // pixel footprint (m): fades sub-pixel detail
         float aaF = 1.0 - smoothstep(0.003, 0.009, pxL);
-        // flat-sawn growth rings: distance to a slowly wandering virtual log axis -> cathedral figure
-        float logD = abs(gp.z) + (0.06 + 0.3 * pr) + 0.42 * (1.0 - kindR) + 0.06 * sin(gp.x * (1.1 + 1.2 * pr) + pr * 17.0) + 0.04 * n_snoise(vec2(gp.x * 0.9, pr * 9.0));
-        float logA = gp.y + (pr - 0.5) * 0.35 + 0.03 * n_snoise(vec2(gp.x * 1.7, pr * 4.0 + 2.0));
-        float rr0 = length(vec2(logA, logD));
-        float rr2 = rr0 * (55.0 + 25.0 * pr) + 1.6 * n_snoise(vec2(rr0 * 9.0, pr * 31.0)) + 0.3 * n_snoise3(gp * vec3(0.6, 14.0, 14.0));
-        float rf = fract(rr2);
-        float fw = fwidth(rr2);
-        float lw = 0.62 + 0.25 * n_snoise(vec2(floor(rr2) * 0.37, pr * 7.0));
-        float lines = smoothstep(lw, lw + 0.2, rf) * (1.0 - smoothstep(0.9, 1.0, rf)) * (0.55 + 0.45 * n_snoise(vec2(floor(rr2) * 0.71, gp.x * 0.8)));
-        lines = mix(lines, 0.3, smoothstep(0.25, 0.7, fw));
         float gw = n_snoise3(gp * vec3(0.15, 2.5, 2.5) + pr * 7.0);
         float gl = n_fbm3((gp + pr * 13.0) * vec3(0.22, 15.0, 15.0) + vec3(0.0, gw * 0.7, gw * 0.7), 3);
         float fine = n_snoise3((gp + pr * 5.0) * vec3(1.4, 70.0, 70.0)) * aaF;
-        // fine dark checks (drying cracks) along the grain
-        float chk = smoothstep(0.84, 0.97, abs(n_snoise3((gp + pr * 3.0) * vec3(0.5, 38.0, 38.0) + 3.0))) * (1.0 - smoothstep(0.004, 0.012, pxL));
-        // railings and fascia: Jiangnan deep chestnut wood (栗壳色)
-        vec3 baseR = vec3(0.082, 0.046, 0.028);
-        vec3 baseS = vec3(0.065, 0.038, 0.022);
+        // 水磨青石: cool blue-grey dressed stone, the railings a shade lighter
+        vec3 baseR = vec3(0.245, 0.258, 0.258);
+        vec3 baseS = vec3(0.185, 0.202, 0.208);
         vec3 base = mix(baseS, baseR, kindR) * (0.86 + 0.16 * (pr - 0.5) + 0.18 * big);
-        vec3 col = base * (1.0 - mix(0.12, 0.30, kindR) * lines - 0.12 * smoothstep(0.0, 0.4, gl) - 0.05 * fine - 0.35 * chk);
-        // structure: thin paint worn off the raised latewood -> paler salmon streaks of the figure
-        float figF = (1.0 - kindR) * (1.0 - smoothstep(0.3, 0.75, fw));
-        col = mix(col, base * vec3(1.6, 2.1, 2.05), figF * lines * 0.36);
-        col = mix(col, base * vec3(1.4, 1.75, 1.75), figF * smoothstep(0.0, 0.5, gl) * 0.3);
+        // stone pits (was drying cracks) — a faint dark speckle, resolved only up close
+        float chk = smoothstep(0.90, 0.985, n_snoise3(gp * vec3(6.0, 40.0, 40.0) + pr * 3.0)) * aaF;
+        vec3 col = base * (1.0 - mix(0.12, 0.30, kindR) * lines - 0.12 * smoothstep(0.0, 0.4, gl) - 0.05 * fine - 0.55 * chk);
+        // masonry joints: block courses along the member (voussoir joints on the arch
+        // ring, course joints on the posts), plus a mid joint across the wide members
+        float along = gp.x;
+        float blk = 0.58 + 0.16 * pr;
+        float aj2 = abs(fract(along / blk + 0.31 * pr + 0.5) - 0.5) * blk;
+        float ajoint = 1.0 - smoothstep(0.0, 0.007 + fwidth(along) * 1.4, aj2 - 0.004);
+        float cj2 = abs(fract(xl / 0.30 + 0.17 * pr) - 0.5) * 0.30;
+        float acr = step(0.5, kindR) * step(0.10, abs(xl)) * (1.0 - smoothstep(0.0, 0.007 + fwidth(xl), cj2 - 0.004));
+        lines = clamp(ajoint + acr, 0.0, 1.0) * (1.0 - smoothstep(0.012, 0.03, pxL));
         // fascia boards: horizontal seam between the two stacked arch boards + butt joints
         if (kindR < 0.5 && mode < 0.25) {
           float dR = ARC_R - length(rel);
@@ -212,7 +208,7 @@ export async function build(ctx) {
         float up = smoothstep(0.35, 0.95, wn.y);
         float underF = smoothstep(0.0, 0.14, ARC_R - length(rel)) * (1.0 - smoothstep(${f6(HW - 0.35)}, ${f6(HW + 0.06)}, abs(wp.x - BR_X0)));
         float fade = clamp(up * (0.5 + 0.5 * n_fbm3(wp * 2.2, 3)), 0.0, 1.0) * (1.0 - underF);
-        col = mix(col, base * vec3(1.18, 1.45, 1.3), fade * 0.22);
+        col = mix(col, base * vec3(1.10, 1.12, 1.16), fade * 0.22);
         // rain streaks on vertical faces
         float vert = 1.0 - abs(wn.y);
         float streak = n_fbm3(vec3((wp.x + wp.z) * 4.0, wp.y * 0.4, pr * 7.0), 3);
@@ -233,36 +229,36 @@ export async function build(ctx) {
         col = mix(col, col * vec3(0.45, 0.45, 0.42), damp * 0.75);
         // worn lacquer revealing dark timber
         float wear = smoothstep(0.68, 0.84, n_fbm3(wp * 3.1 + pr * 9.0, 3) * 0.5 + 0.5);
-        col = mix(col, vec3(0.075, 0.032, 0.018), wear * mix(0.28, 0.5, kindR));
+        col = mix(col, vec3(0.30, 0.315, 0.31), wear * mix(0.28, 0.5, kindR));
         // chipped arrises: on the rounded edges (high normal curvature) the finish has flaked off to the
         // black undercoat and, in places, the grey timber; only resolved up close
         float curvL = length(fwidth(wn)) / max(pxL, 1e-5);
         float edgeN = n_fbm3(wp * 19.0 + pr * 4.0, 2) * 0.5 + 0.5;
         float edgeW = smoothstep(16.0, 42.0, curvL) * smoothstep(0.42, 0.66, edgeN) * (1.0 - smoothstep(0.0025, 0.007, pxL)) * kindR;
-        col = mix(col, mix(vec3(0.028, 0.018, 0.014), vec3(0.16, 0.12, 0.09), smoothstep(0.62, 0.8, edgeN)), edgeW * 0.85);
+        col = mix(col, mix(vec3(0.06, 0.065, 0.065), vec3(0.33, 0.345, 0.34), smoothstep(0.62, 0.8, edgeN)), edgeW * 0.85);
         // hand-worn top rail: polished through to the black undercoat in long streaks along the rail
         float topRail = kindR * (1.0 - step(0.25, mode)) * (1.0 - step(0.02, dirt));
         float sAr = atan(rel.x, rel.y) * ARC_R;
         float handN = n_fbm3(vec3(sAr * 1.6, wp.x * 9.0, pr * 5.0), 3) * 0.5 + 0.5;
         float hand = topRail * smoothstep(0.45, 0.9, wn.y) * smoothstep(0.5, 0.72, handN + 0.18 * (1.0 - smoothstep(0.0, 4.0, abs(rel.x))));
-        col = mix(col, mix(vec3(0.05, 0.022, 0.016), base * 0.55, 0.35), hand * 0.75);
+        col = mix(col, base * 0.95, hand * 0.6);
         diffuseColor.rgb = diffuse * col;
         g_h = gl * 0.15 - lines * 0.18 + fine * 0.04 + wear * 0.3 - chk * 0.25 - edgeW * 0.4 - hand * 0.15;
         g_r = fade * 0.2 + dirt * 0.22 + wear * 0.3 + lines * 0.1 + chk * 0.2 - damp * 0.1 + kindR * 0.1 + edgeW * 0.25 - hand * 0.22;
       }
     `,
-    fragRough: /* glsl */ `roughnessFactor = clamp(roughnessFactor + g_r, 0.14, 1.0);`,
+    fragRough: /* glsl */ `roughnessFactor = clamp(roughnessFactor + g_r, 0.4, 1.0);`,
     fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0022);
       { vec3 dn = fwidth(normal); roughnessFactor = max(roughnessFactor, clamp(length(dn) * 0.6, 0.0, 0.35)); }`,
     // the golden-hour sky fills real shade more than the captured IBL does: lift the lacquer's
     // indirect light so chestnut stays readable on the backlit (east) side
-    fragLight: AO_GLSL + 'reflectedLight.indirectDiffuse *= 1.45;',
+    fragLight: AO_GLSL + 'reflectedLight.indirectDiffuse *= 1.14;',
   });
   lac.name = 'bridgeLacquer';
 
   // weathered deck timber. vColor: r = plank random, g = plank wear, b = unused
-  let PLANK_S0 = 0, PLANK_PITCH = 0.245;
-  const plankUniforms = { uPlank: { value: new THREE.Vector2(0, 0.245) } };
+  let PLANK_S0 = 0, PLANK_PITCH = 0.62;
+  const plankUniforms = { uPlank: { value: new THREE.Vector2(0, 0.62) } };
   const wood = mat.std({ color: 0xffffff, roughness: 0.78, metalness: 0, vertexColors: true }, {
     uniforms: plankUniforms,
     fragHead: ARC_GLSL + 'uniform vec2 uPlank; float g_h; float g_r;',
@@ -285,27 +281,27 @@ export async function build(ctx) {
         vec2 kc = vec2((ph2 - 0.5) * 2.4, (ph3 - 0.5) * 0.5);
         vec2 kd = vec2((lx - kc.x) / 0.05, (lu - kc.y) * uPlank.y / 0.028);
         float kr = length(kd);
-        float hasKnot = step(0.55, ph3);
+        float hasKnot = 0.0;
         float knotWarp = hasKnot * 1.6 * exp(-kr * kr * 0.18) * sign(lu - kc.y + 1e-4);
         // straight growth rings along x with slow wander
         float wander = n_snoise(vec2(lx * 0.32, pidH * 3.1)) * 0.7 + n_snoise(vec2(lx * 1.4, pidH * 7.7)) * 0.18;
         float gc = lu * (5.0 + ph * 5.0) + wander * 1.4 + knotWarp + ph * 10.0 + 0.35 * n_snoise(vec2(lx * 0.7 + ph * 9.0, lu * 3.0));
         float ring = fract(gc);
-        float late = smoothstep(0.5, 0.8, ring) * (1.0 - smoothstep(0.86, 0.99, ring));
+        float late = 0.0;
         float pxD = length(fwidth(wp));
         float fine = n_fbm(vec2(lx * 1.2 + ph * 20.0, lu * 34.0 + ph * 50.0), 2) * (1.0 - smoothstep(0.002, 0.006, pxD));
         float fwG = fwidth(gc);
         late *= 1.0 - smoothstep(0.3, 0.8, fwG);
         float big = n_fbm3(wp * 0.7 + ph * 5.0, 3);
-        vec3 warm = mix(vec3(0.185, 0.122, 0.078), vec3(0.130, 0.088, 0.058), ph2);
-        vec3 silver = vec3(0.225, 0.208, 0.186);
+        vec3 warm = mix(vec3(0.205, 0.215, 0.212), vec3(0.165, 0.178, 0.182), ph2);   // 青石板基色（不同板略变化）
+        vec3 silver = vec3(0.16, 0.172, 0.178);                                        // 石缝暗灰
         float grey = clamp(0.35 + 0.4 * ph + 0.25 * big + 0.2 * wk - 0.25 * hasKnot * 0.0, 0.0, 0.9);
         vec3 col = mix(warm, silver, grey);
         float ptone = n_hash11(pidH * 9.7 + 1.3);
         col *= 0.7 + 0.55 * ptone;
         // a few replaced boards (younger, warmer timber), lengthwise sun-bleaching, old water stains
         float repl = step(0.88, n_hash11(pidH * 6.1 + 2.0));
-        col = mix(col, vec3(0.29, 0.18, 0.105) * (0.88 + 0.24 * ph), repl * 0.55);
+        col = mix(col, vec3(0.185, 0.2, 0.205) * (0.9 + 0.2 * ph), repl * 0.5);
         float bleach = smoothstep(0.1, 0.7, n_fbm(vec2(lx * 0.45 + ph * 7.0, lu * 2.5 + pidH * 0.37), 2));
         col = mix(col, col * vec3(1.18, 1.15, 1.12), 0.3 * bleach * (1.0 - repl));
         float wstain = smoothstep(0.58, 0.86, n_fbm3(wp * vec3(1.3, 1.0, 2.6) + 9.0, 3) * 0.5 + 0.5);
@@ -331,7 +327,7 @@ export async function build(ctx) {
         // worn walking line (lighter, smoother) in the middle
         float ax = abs(wp.x - BR_X0);
         float path = (1.0 - smoothstep(0.35, 1.05, ax)) * topF;
-        col = mix(col, col * vec3(1.22, 1.15, 1.06), path * 0.55);
+        col = mix(col, col * vec3(1.14, 1.15, 1.17), path * 0.5);
         // grime + moss toward the railings and in the gaps
         float edge = smoothstep(1.05, 1.5, ax);
         float mn = n_fbm3(wp * 5.0, 3) * 0.5 + 0.5;
@@ -340,14 +336,9 @@ export async function build(ctx) {
         // plank edges / end grain darker
         col *= 1.0 - (1.0 - topF) * 0.45;
         col *= 1.0 - smoothstep(0.6, 0.9, abs(wn.x)) * 0.8;  // end grain at the butt joints: dark, dirty
-        // nail heads: two rows per plank over each girder
-        float dxn = mod(wp.x - BR_X0 + 0.41, 0.82) - 0.41;
-        float dn = length(vec2(dxn, (abs(lu) - 0.27) * uPlank.y));
-        float nailOk = (1.0 - step(1.25, ax)) * topF;
-        float nail = (1.0 - smoothstep(0.0055, 0.0085, dn)) * nailOk * (1.0 - smoothstep(0.004, 0.01, pxD));
-        float rust = (1.0 - smoothstep(0.008, 0.03, dn)) * nailOk;
-        col = mix(col, col * vec3(0.55, 0.38, 0.28), rust * 0.6);
-        col = mix(col, vec3(0.03, 0.026, 0.024), nail);
+        // (stone slabs need no nail heads)
+        float nail = 0.0;
+        float rust = 0.0;
         diffuseColor.rgb = diffuse * col;
         g_h = -late * 0.12 + fine * 0.05 - nail * 0.4 - chk * 0.12 - hasKnot * (1.0 - smoothstep(0.6, 1.0, kr)) * 0.3;
         g_r = -path * 0.18 + edge * 0.1 - nail * 0.3 + late * 0.05;
@@ -459,7 +450,7 @@ export async function build(ctx) {
         }
         col *= 1.0 - 0.45 * grv;
         col = mix(col, col * vec3(0.72, 0.6, 0.45), grv * 0.45);  // dirt held in the cuts
-        diffuseColor.rgb = diffuse * col * bright;
+        diffuseColor.rgb = diffuse * col;
         g_h = n1 * 0.12 - grv * 0.7 + gx;
         g_r = tarn * 0.15 + matte * 0.2 + grv * 0.16 + verd * 0.4 - pol * 0.04;
       }
