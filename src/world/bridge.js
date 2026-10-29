@@ -49,6 +49,17 @@ export async function build(ctx) {
   const thAtZ = (z, off = 0) => Math.asin(clamp((z - ZC) / (RA + off), -1, 1));
   const ptTh = (th, off = 0, x = X0) => new THREE.Vector3(x, YC + (RA + off) * Math.cos(th), ZC + (RA + off) * Math.sin(th));
 
+  // 踏步 (deck steps): the walkable surface is stepped over the arch — treads level,
+  // risers tall at the abutments and shallow toward the crown, as on real stone bridges
+  const N_STEPS = Math.max(10, Math.round((zEndS - zEndN) / 0.34));
+  const STEP_W = (zEndS - zEndN) / N_STEPS;
+  const stepUpper = (z) => {                 // z of the step's upper (crown-side) edge
+    const i = clamp(Math.floor((z - zEndN) / STEP_W), 0, N_STEPS - 1);
+    const z0 = zEndN + i * STEP_W, z1 = z0 + STEP_W;
+    return ((z0 + z1) / 2 < ZC) ? z1 : z0;
+  };
+  const treadTop = (z) => yAt(stepUpper(clamp(z, zEndN + 0.02, zEndS - 0.02)), 0.06);
+
   // cross-section (u = x offset from axis, v = radial offset from the deck surface)
   const XR = HW - 0.105;                       // railing centre line
   const BAND = { u0: HW - 0.25, u1: HW + 0.03, v0: -0.13, v1: 0.0 };
@@ -797,40 +808,17 @@ export async function build(ctx) {
     for (const g of (hero ? CAP_HERO : CAP_STD)) B.add(g, capMat, M);
   }
 
-  // ---------------------------------------------------------------- DECK planks
+  // ---------------------------------------------------------------- DECK steps (踏步)
   {
-    const L2 = 2 * thE * RA;
-    // 青石板桥面: wide slabs (~0.62 m along the span), not timber planks
-    const count = Math.round(L2 / 0.62);
-    PLANK_PITCH = L2 / count; PLANK_S0 = -L2 / 2;
-    plankUniforms.uPlank.value.set(PLANK_S0, PLANK_PITCH);
     const pw = BAND.u0 * 2 + 0.01;
-    for (let i = 0; i < count; i++) {
-      const s = PLANK_S0 + (i + 0.5) * PLANK_PITCH;
-      const th = s / RA;
-      const gap = 0.012 + rnd.next() * 0.004;
-      const wdt = PLANK_PITCH - gap;
-      const t = 0.1 + rnd.next() * 0.012;            // slabs are thick, slabs sit flat
-      const lift = (rnd.next() - 0.5) * 0.0015;
-      const c = ptTh(th, -t / 2 + lift, X0 + (rnd.next() - 0.5) * 0.01);
-      const pwi = pw - rnd.next() * 0.02;
-      const rx = th + (rnd.next() - 0.5) * 0.006, rz = (rnd.next() - 0.5) * 0.004;
-      if (rnd.next() < 0.3) {
-        // occasional two-slab course with a tight butt joint (a full plank-width slab otherwise)
-        const jx = (rnd.next() - 0.5) * 1.5, jg = 0.0025 + rnd.next() * 0.002;
-        const la = pwi / 2 + jx - jg / 2, lb = pwi / 2 - jx - jg / 2;
-        for (const [len, cx, b] of [[la, -pwi / 2 + la / 2, 0], [lb, pwi / 2 - lb / 2, 1]]) {
-          const g = rbox(len, t, wdt, 0.009, 2);
-          paint(g, rnd.next(), rnd.next(), b);
-          const dl = (rnd.next() - 0.5) * 0.004;
-          const cc = ptTh(th, -t / 2 + lift + dl, c.x + cx);
-          B.add(g, wood, mat4([cc.x, cc.y, cc.z], [rx + (rnd.next() - 0.5) * 0.003, 0, rz + (rnd.next() - 0.5) * 0.006]));
-        }
-      } else {
-        const g = rbox(pwi, t, wdt, 0.009, 2);
-        paint(g, rnd.next(), rnd.next(), 0.5);
-        B.add(g, wood, mat4([c.x, c.y, c.z], [rx, 0, rz]));
-      }
+    const sr = ctx.rng('steps');
+    for (let i = 0; i < N_STEPS; i++) {
+      const z0 = zEndN + i * STEP_W, z1 = z0 + STEP_W;
+      const zm = (z0 + z1) / 2;
+      const zu = (zm < ZC) ? z1 : z0;              // upper edge, nearer the crown
+      const yTop = yAt(zu, 0.06);                  // level tread at the upper edge height
+      const yBot = yAt(zm, -0.10);                 // seat into the arch extrados
+      addStone(rbox(pw, Math.max(yTop - yBot, 0.04), z1 - z0 - 0.01, 0.008), mat4([X0, (yTop + yBot) / 2, zm]), 0.92 + sr.next() * 0.22);
     }
   }
 
@@ -880,6 +868,7 @@ export async function build(ctx) {
       const k = 0.8 + lr.next() * 0.35;
       paint(g, c0[0] * k, c0[1] * k, c0[2] * k);
       const c = ptTh(th, 0.003 + lr.next() * 0.003, X0 + u);
+      c.y = treadTop(c.z) + 0.004;               // rest on the step treads, not the buried arc
       B.add(g, leafMat, mat4([c.x, c.y, c.z], [th + (lr.next() - 0.5) * 0.12, 0, (lr.next() - 0.5) * 0.12]));
     }
   }
@@ -913,52 +902,7 @@ export async function build(ctx) {
   // ---------------------------------------------------------------- substructure
   // (the voussoir arch ring above is the structure; no timber girders / floor beams)
 
-  // ---------------------------------------------------------------- BENTS: granite piers + chestnut cap beams
-  const bentZ = [ZC - 3.4, ZC + 3.4];
-  for (const zb of bentZ) {
-    const fb = (z) => yAt(z, FT) - fasciaDepth(z);
-    const capTop = Math.max(fb(zb - 0.2), fb(zb + 0.2), yAt(zb, GIRDER_BOT) + 0.005, yAt(zb - 0.2, GIRDER_BOT), yAt(zb + 0.2, GIRDER_BOT));
-    const capH = 0.30, capD = 0.36, capL = 2 * HW + 0.84;
-    const capY = capTop - capH / 2;
-    // (no timber cap beam — a stone arch bridge rests directly on the granite pier)
-    // granite capitals, pillars of stacked rough ashlar, stepped footings
-    const capitalH = 0.22, capitalW = 0.78;
-    const pillarTop = capTop - capH - capitalH;
-    const footTop = WATER + 0.13;
-    for (const side of [-1, 1]) {
-      const px = X0 + side * 1.62;
-      const sr = ctx.rng('pier' + zb.toFixed(1) + side);
-      addStone(stoneBlock(capitalW, capitalH, capitalW, 0.03, 0.007, 0.1, zb + side, 0.004), mat4([px, pillarTop + capitalH / 2, zb], [0, (sr.next() - 0.5) * 0.03, 0]), 0.95);
-      // course heights
-      const H = pillarTop - footTop;
-      const hs = []; let acc = 0;
-      while (acc < H - 0.2) { const h = 0.3 + sr.next() * 0.2; hs.push(h); acc += h; }
-      const kS = H / acc;
-      let y = footTop;
-      hs.forEach((h0, k) => {
-        const h = h0 * kS;
-        const W = 0.58, j = 0.012;
-        const cx = px + (sr.next() - 0.5) * 0.025, cz = zb + (sr.next() - 0.5) * 0.025, ry = (sr.next() - 0.5) * 0.025;
-        const split = sr.next() < 0.55;
-        if (!split) {
-          addStone(stoneBlock(W + (sr.next() - 0.5) * 0.03, h - j, W + (sr.next() - 0.5) * 0.03, 0.018, 0.01, 0.08, sr.next() * 50, 0.012), mat4([cx, y + h / 2, cz], [0, ry, 0]), 0.8 + sr.next() * 0.25);
-        } else {
-          const f = 0.38 + sr.next() * 0.24; const alongX = k % 2 === 0;
-          const a = W * f, b = W * (1 - f);
-          for (const [len, off] of [[a, -W / 2 + a / 2], [b, W / 2 - b / 2]]) {
-            const g = alongX ? stoneBlock(len - j, h - j, W, 0.018, 0.01, 0.08, sr.next() * 50, 0.011) : stoneBlock(W, h - j, len - j, 0.018, 0.01, 0.08, sr.next() * 50, 0.011);
-            addStone(g, mat4([cx + (alongX ? off : 0), y + h / 2, cz + (alongX ? 0 : off)], [0, ry, 0]), 0.78 + sr.next() * 0.28);
-          }
-        }
-        y += h;
-      });
-      // (no timber 木楔 / through-tie — the pier stays all-stone)
-      // footings (two steps), from below the pond floor to just above the water
-      const f1Top = WATER - 0.22;
-      addStone(stoneBlock(1.1, f1Top - (BOTTOM - 0.5), 1.1, 0.05, 0.016, 0.14, zb * 2 + side, 0.006), mat4([px, (f1Top + BOTTOM - 0.5) / 2, zb], [0, (sr.next() - 0.5) * 0.06, 0]), 0.85);
-      addStone(stoneBlock(0.84, footTop - f1Top + 0.01, 0.84, 0.045, 0.012, 0.1, zb * 3 + side, 0.006), mat4([px, (footTop + f1Top) / 2, zb], [0, (sr.next() - 0.5) * 0.05, 0]), 0.88);
-    }
-  }
+  // (single-span arch: no mid-stream piers — the ring springs from the abutments)
 
   // ---------------------------------------------------------------- ABUTMENTS + landing slabs
   function abutment(face, end, dir) {
@@ -1033,7 +977,7 @@ export async function build(ctx) {
   for (const side of [-1, 1]) {
     const xr = X0 + side * XR;
     const railH = 0.62, wP = 0.14;
-    const deckTop = (z) => yAt(z, 0.06);   // deck slab top
+    const deckTop = treadTop;                    // the railing rides the stepped nosing line
     // 寻杖 (top stone rail): short cylinders joining the 望柱 heads along the arc
     for (let k = 0; k < postZ.length - 1; k++) {
       const za = postZ[k], zb = postZ[k + 1];
