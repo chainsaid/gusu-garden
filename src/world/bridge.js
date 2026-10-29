@@ -1056,11 +1056,18 @@ export async function build(ctx) {
         [rbox(0.016, H - 0.11, 0.055, 0.003), P(0.0305, 0, L / 2 - 0.0275)],   // end borders
         [rbox(0.016, H - 0.11, 0.055, 0.003), P(0.0305, 0, -L / 2 + 0.0275)],
       ];
-      const Lc = L - 0.22, nC = Math.max(2, Math.round(Lc / 0.17));
+      // 如意云纹 band (as carved on the real 玉带桥 panels): a raised ground band
+      // carrying a repeating three-lobed cloud scroll — main curl with a nested
+      // spiral eye plus two mirrored tail curls — one coherent motif, not loose rings
+      const Lc = L - 0.26;
+      parts.push([rbox(0.012, 0.05, Lc + 0.06, 0.003), P(0.0285, 0, 0)]);
+      const sc = 0.30, nC = Math.max(2, Math.floor(Lc / sc));
       for (let i = 0; i < nC; i++) {
-        const t = new THREE.TorusGeometry(0.038, 0.0095, 8, 16, Math.PI * 1.3).rotateY(Math.PI / 2);
-        if (i % 2) t.rotateX(Math.PI);             // alternate C-curls: 卷草 scroll
-        parts.push([t, P(0.032, 0, -Lc / 2 + Lc * (i + 0.5) / nC)]);
+        const zc = -Lc / 2 + Lc * (i + 0.5) / nC;
+        parts.push([new THREE.TorusGeometry(0.040, 0.010, 8, 18, Math.PI * 1.45).rotateY(Math.PI / 2), P(0.038, 0.012, zc)]);
+        parts.push([new THREE.TorusGeometry(0.017, 0.008, 8, 12, Math.PI * 1.25).rotateY(Math.PI / 2), P(0.038, 0.008, zc + 0.006)]);
+        parts.push([new THREE.TorusGeometry(0.026, 0.008, 8, 14, Math.PI * 1.1).rotateY(Math.PI / 2), P(0.038, -0.012, zc - 0.052)]);
+        parts.push([new THREE.TorusGeometry(0.026, 0.008, 8, 14, Math.PI * 1.1).rotateY(Math.PI / 2).rotateY(Math.PI), P(0.038, -0.012, zc + 0.052)]);
       }
       return mergeGeo(parts);
     };
@@ -1082,10 +1089,29 @@ export async function build(ctx) {
       addStone(stoneBlock(w, h, w, 0.012, 0.006, 0.06, zp + side * 3, 0.004), mat4([xr, dy0 + h / 2, zp]), 1.04);
       addStone(rbox(w * 1.18, 0.06, w * 1.18, 0.006), mat4([xr, dy0 + h + 0.03, zp]), 1.04);
       addStone(finialGeo(isEnd ? 1.15 : 0.95), mat4([xr, dy0 + h + 0.06, zp]), 1.15);
+      // 云箍: raised carved collars on the post shaft (the real posts carry cloud bands)
+      if (!isEnd) for (const fy of [0.30, 0.58]) addStone(rbox(w * 1.06, 0.028, w * 1.06, 0.004), mat4([xr, dy0 + h * fy, zp]), 1.03);
       if (isEnd) {
         // 抱鼓石: 横置鼓石夹护端柱 + 石础
         for (const fs of [-1, 1]) addStone(new THREE.CylinderGeometry(0.11, 0.11, 0.16, 12).rotateZ(Math.PI / 2), mat4([xr + fs * (w / 2 + 0.10), dy0 + 0.11, zp]), 1.03);
         addStone(stoneBlock(0.40, 0.16, 0.40, 0.03, 0.004, 0.08, zp + side, 0.006), mat4([xr, LAND_TOP + 0.08, zp]), 1.03);
+      }
+    }
+    // 桥额: carved inscription-panel frame on the spandrel haunch (the real bridge
+    // carries a tall tablet with the bridge name framed on the flank)
+    {
+      const dzE = 3.4;
+      for (const sgn of [-1, 1]) {
+        const ze = ZC + sgn * dzE;
+        const yb = wallBaseY(ze), yt2 = Y0 + profY(ze);
+        if (yt2 - yb < 0.42) continue;
+        const ye = (yb + yt2) / 2, xe = X0 + side * HW;
+        const W = 0.52, Hh = Math.min(0.40, yt2 - yb - 0.06);
+        addStone(rbox(0.020, 0.04, W, 0.004), mat4([xe + side * 0.010, ye + Hh / 2 - 0.02, ze]), 1.05);
+        addStone(rbox(0.020, 0.04, W, 0.004), mat4([xe + side * 0.010, ye - Hh / 2 + 0.02, ze]), 1.05);
+        addStone(rbox(0.020, Hh, 0.04, 0.004), mat4([xe + side * 0.010, ye, ze + W / 2 - 0.02]), 1.05);
+        addStone(rbox(0.020, Hh, 0.04, 0.004), mat4([xe + side * 0.010, ye, ze - W / 2 + 0.02]), 1.05);
+        addStone(rbox(0.012, Hh - 0.05, W - 0.05, 0.003), mat4([xe - side * 0.002, ye, ze]), 0.90);  // recessed tablet field
       }
     }
     // 系船石 (mooring stones) protruding from the spandrel
