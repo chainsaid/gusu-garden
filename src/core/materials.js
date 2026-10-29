@@ -366,15 +366,15 @@ PROC.limestone = (tint = 'vec3(1.0)') => ({
       vec3 wp = vWPos;
       float big = n_fbm3(wp * 0.16, ${OC(4)});                 // broad tonal drift only
       vec3 base = vec3(0.70, 0.70, 0.68) * uTint;              // pale grey-white limestone
-      vec3 col = base * (0.91 + 0.15 * big);
+      vec3 col = base * (0.95 + 0.07 * big);
       float vein = n_fbm3(wp * 0.5 + 2.3, ${OC(4)});           // soft mineral veining
-      col = mix(col, base * 1.05, smoothstep(0.58, 0.82, vein) * 0.30);
+      col = mix(col, base * 1.05, smoothstep(0.58, 0.82, vein) * 0.22);
       diffuseColor.rgb *= col;
       g_h = big * 0.22;
     }
   `,
   fragRough: '',
-  fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.003);`,
+  fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.0012);`,
 });
 
 // Classical Suzhou Taihu Stone (太湖石 - 皱漏瘦透)
