@@ -800,22 +800,23 @@ export async function build(ctx) {
   // ---------------------------------------------------------------- DECK planks
   {
     const L2 = 2 * thE * RA;
-    const count = Math.round(L2 / 0.245);
+    // 青石板桥面: wide slabs (~0.62 m along the span), not timber planks
+    const count = Math.round(L2 / 0.62);
     PLANK_PITCH = L2 / count; PLANK_S0 = -L2 / 2;
     plankUniforms.uPlank.value.set(PLANK_S0, PLANK_PITCH);
     const pw = BAND.u0 * 2 + 0.01;
     for (let i = 0; i < count; i++) {
       const s = PLANK_S0 + (i + 0.5) * PLANK_PITCH;
       const th = s / RA;
-      const gap = 0.008 + rnd.next() * 0.006;
+      const gap = 0.012 + rnd.next() * 0.004;
       const wdt = PLANK_PITCH - gap;
-      const t = 0.058 + rnd.next() * 0.006;
-      const lift = (rnd.next() - 0.5) * 0.005;
+      const t = 0.1 + rnd.next() * 0.012;            // slabs are thick, slabs sit flat
+      const lift = (rnd.next() - 0.5) * 0.0015;
       const c = ptTh(th, -t / 2 + lift, X0 + (rnd.next() - 0.5) * 0.01);
       const pwi = pw - rnd.next() * 0.02;
       const rx = th + (rnd.next() - 0.5) * 0.006, rz = (rnd.next() - 0.5) * 0.004;
-      if (rnd.next() < 0.72) {
-        // two boards: butt joint off-centre (staggered from plank to plank), each with its own lift/tone
+      if (rnd.next() < 0.3) {
+        // occasional two-slab course with a tight butt joint (a full plank-width slab otherwise)
         const jx = (rnd.next() - 0.5) * 1.5, jg = 0.0025 + rnd.next() * 0.002;
         const la = pwi / 2 + jx - jg / 2, lb = pwi / 2 - jx - jg / 2;
         for (const [len, cx, b] of [[la, -pwi / 2 + la / 2, 0], [lb, pwi / 2 - lb / 2, 1]]) {
@@ -883,62 +884,34 @@ export async function build(ctx) {
     }
   }
 
-  // ---------------------------------------------------------------- FASCIA arch boards + dark band
+  // ---------------------------------------------------------------- STONE ARCH RING (券石拱圈): discrete voussoirs
   {
-    const thF = thE + 0.035;
-    const n = 260;
-    const top = [], bot = [];
-    for (let i = 0; i <= n; i++) {
-      const th = -thF + (2 * thF * i) / n;
-      const p = ptTh(th, FT);
-      top.push(p);
+    const R_in = RA - 0.30;       // intrados (visible underside of the arch)
+    const R_out = RA + 0.04;      // extrados meets the deck underside
+    const Xw = HW + 0.05;         // the ring spans the full deck width
+    const ringH = R_out - R_in;
+    const nV = Math.max(16, Math.round((2 * thE * RA) / 0.40));  // ~0.4 m voussoirs
+    const wj = 0.014;             // radial joint gap
+    const vr = ctx.rng('voussoir');
+    for (let s = 0; s < nV; s++) {
+      const t0 = -thE + (2 * thE) * s / nV;
+      const t1 = -thE + (2 * thE) * (s + 1) / nV;
+      const tm = (t0 + t1) / 2;
+      const rMid = (R_in + R_out) / 2;
+      const c = ptTh(tm, rMid);
+      const arcLen = (t1 - t0) * rMid;
+      const g = stoneBlock(Xw * 2, ringH - wj, arcLen - wj, 0.025, 0.01, 0.1, vr.next() * 50, 0.012);
+      addStone(g, mat4([c.x, c.y, c.z], [tm, 0, 0]));   // rotate so local Y -> radial, Z -> tangential
     }
-    for (let i = 0; i <= n; i++) {
-      const p = top[i];
-      const d = fasciaDepth(p.z);
-      // bottom: vertical drop from the top edge (keeps the face crisp & monotonic)
-      bot.push(new THREE.Vector3(p.x, p.y - d, p.z));
-    }
-    const shape = new THREE.Shape();
-    shape.moveTo(top[0].z, top[0].y);
-    for (let i = 1; i <= n; i++) shape.lineTo(top[i].z, top[i].y);
-    for (let i = n; i >= 0; i--) shape.lineTo(bot[i].z, bot[i].y);
-    shape.closePath();
-    const th = 0.22, bv = 0.014;
-    const fg = new THREE.ExtrudeGeometry(shape, { depth: th - 2 * bv, bevelEnabled: true, bevelThickness: bv, bevelSize: bv, bevelOffset: -bv, bevelSegments: 2, curveSegments: 1, steps: 1 });
-    fg.translate(0, 0, bv); // z: 0..th
-    for (const side of [-1, 1]) {
-      // rotate so shape x -> world z, shape y -> world y, extrude z -> world -x
-      const xOuter = X0 + side * HW;
-      const m = side > 0 ? mat4([xOuter, 0, 0], [0, -Math.PI / 2, 0]) : mat4([xOuter + th, 0, 0], [0, -Math.PI / 2, 0]);
-      addLac(fg, MODE_ARC, 0.05, m);
-    }
-    // dark capping band
-    const bandProf = rrect(BAND.u1 - BAND.u0, BAND.v1 - BAND.v0, 0.012, 3);
-    for (const side of [-1, 1]) {
-      const uc = side * (BAND.u0 + BAND.u1) / 2;
-      const pts = arcPts((BAND.v0 + BAND.v1) / 2, zEndN - 0.02, zEndS + 0.02, X0 + uc, 0.08);
-      addDark(sweep(pts, bandProf));
+    // 拱顶石 (keystone) slightly proud at the crown
+    {
+      const c = ptTh(0, (R_in + R_out) / 2);
+      addStone(stoneBlock(Xw * 2 + 0.02, ringH + 0.03, 0.26, 0.025, 0.01, 0.1, 7, 0.012), mat4([c.x, c.y, c.z], [0, 0, 0]));
     }
   }
 
-  // ---------------------------------------------------------------- substructure: inner girders, floor beams
-  {
-    const prof = rrect(0.18, -GIRDER_BOT - 0.06, 0.02, 2);
-    const vc = (GIRDER_BOT - 0.06) / 2;
-    for (const gx of GIRDER_X) {
-      const pts = arcPts(vc, faceN - 0.6, faceS + 0.6, X0 + gx, 0.15);
-      addLac(sweep(pts, prof), MODE_ARC, 0.45);
-    }
-    // floor beams under the planks
-    const n = Math.round((thAtZ(faceS) - thAtZ(faceN)) * RA / 1.05);
-    const t0 = thAtZ(faceN) + 0.02, t1 = thAtZ(faceS) - 0.02;
-    for (let i = 0; i <= n; i++) {
-      const th = t0 + ((t1 - t0) * i) / n;
-      const c = ptTh(th, -0.06 - 0.075);
-      addLac(rbox(2 * (HW - 0.22) + 0.02, 0.15, 0.12, 0.012, 1), MODE_X, 0.5, mat4([c.x, c.y, c.z], [th, 0, 0]));
-    }
-  }
+  // ---------------------------------------------------------------- substructure
+  // (the voussoir arch ring above is the structure; no timber girders / floor beams)
 
   // ---------------------------------------------------------------- BENTS: granite piers + chestnut cap beams
   const bentZ = [ZC - 3.4, ZC + 3.4];
@@ -947,7 +920,7 @@ export async function build(ctx) {
     const capTop = Math.max(fb(zb - 0.2), fb(zb + 0.2), yAt(zb, GIRDER_BOT) + 0.005, yAt(zb - 0.2, GIRDER_BOT), yAt(zb + 0.2, GIRDER_BOT));
     const capH = 0.30, capD = 0.36, capL = 2 * HW + 0.84;
     const capY = capTop - capH / 2;
-    addLac(rbox(capL, capH, capD, 0.025, 2), MODE_X, 0.35, mat4([X0, capY, zb]));
+    // (no timber cap beam — a stone arch bridge rests directly on the granite pier)
     // granite capitals, pillars of stacked rough ashlar, stepped footings
     const capitalH = 0.22, capitalW = 0.78;
     const pillarTop = capTop - capH - capitalH;
@@ -979,21 +952,11 @@ export async function build(ctx) {
         }
         y += h;
       });
-      // 木楔 driven through the tie just outside the pillar
-      {
-        const ny = footTop + (pillarTop - footTop) * 0.56;
-        addLac(rbox(0.05, 0.36, 0.075, 0.008, 1), MODE_VERT, 0.6, mat4([px + side * 0.345, ny + 0.02, zb]));
-      }
+      // (no timber 木楔 / through-tie — the pier stays all-stone)
       // footings (two steps), from below the pond floor to just above the water
       const f1Top = WATER - 0.22;
       addStone(stoneBlock(1.1, f1Top - (BOTTOM - 0.5), 1.1, 0.05, 0.016, 0.14, zb * 2 + side, 0.006), mat4([px, (f1Top + BOTTOM - 0.5) / 2, zb], [0, (sr.next() - 0.5) * 0.06, 0]), 0.85);
       addStone(stoneBlock(0.84, footTop - f1Top + 0.01, 0.84, 0.045, 0.012, 0.1, zb * 3 + side, 0.006), mat4([px, (footTop + f1Top) / 2, zb], [0, (sr.next() - 0.5) * 0.05, 0]), 0.88);
-    }
-    // chestnut through-tie (穿枋) binding the pillar pair
-    {
-      const ny = footTop + (pillarTop - footTop) * 0.56;
-      const nL = 2 * (1.62 + 0.29 + 0.17);
-      addLac(rbox(nL, 0.22, 0.13, 0.015, 2), MODE_X, 0.45, mat4([X0, ny, zb]));
     }
   }
 
@@ -1069,62 +1032,47 @@ export async function build(ctx) {
 
   for (const side of [-1, 1]) {
     const xr = X0 + side * XR;
-    // 地栿 (base sill)
-    addLac(sweep(arcPts((SILL.v0 + SILL.v1) / 2, zPostN, zPostS, xr, 0.08), rrect(SILL.w, SILL.v1 - SILL.v0, 0.016, 3)), MODE_ARC, 0.15, null, 1);
-    // 横枋 (mid rail)
-    addLac(sweep(arcPts((MID.v0 + MID.v1) / 2, zPostN, zPostS, xr, 0.08), rrect(MID.w, MID.v1 - MID.v0, 0.012, 3)), MODE_ARC, 0.05, null, 1);
-    // 扶手 (top rail): runs level between the end posts and stops there.
-    // No upturned 反り curl — a Jiangnan rail terminates square on its end post.
-    {
-      const main = arcPts(TOP.v, zPostN, zPostS, xr, 0.06);
-      addLac(sweep(main, ellipse(TOP.a, TOP.b, 24)), MODE_ARC, 0.0, null, 1);
+    const railH = 0.62, wP = 0.14;
+    const deckTop = (z) => yAt(z, 0.06);   // deck slab top
+    // 寻杖 (top stone rail): short cylinders joining the 望柱 heads along the arc
+    for (let k = 0; k < postZ.length - 1; k++) {
+      const za = postZ[k], zb = postZ[k + 1];
+      const ya = deckTop(za) + railH, yb = deckTop(zb) + railH;
+      const a = new THREE.Vector3(xr, ya, za), b = new THREE.Vector3(xr, yb, zb);
+      const mid = a.clone().add(b).multiplyScalar(0.5);
+      const len = a.distanceTo(b);
+      const ax = Math.atan2(zb - za, yb - ya);
+      addStone(new THREE.CylinderGeometry(0.045, 0.045, len + 0.02, 10), mat4([mid.x, mid.y, mid.z], [ax, 0, 0]), 1.15);
     }
-    // posts
+    // 望柱 + 石柱头 + 抱鼓石
     for (let k = 0; k < postZ.length; k++) {
       const zp = postZ[k];
       const isEnd = k === 0 || k === postZ.length - 1;
-      const w = isEnd ? EPW : PW;
-      const railY = yAt(zp, TOP.v);
-      const yTop = railY + (isEnd ? 0.27 : 0.2);
-      const yBot = isEnd ? LAND_TOP + 0.17 : yAt(zp, BAND.v0) + 0.01;
-      addLac(rbox(w, yTop - yBot, w, 0.014, 2), MODE_VERT, 0.0, mat4([xr, (yTop + yBot) / 2, zp]), 1);
-      addPostTop(xr, yTop, zp, w, isEnd ? 1.32 : 1.0, side < 0 && k >= 3 && k <= 5);
+      const w = isEnd ? 0.20 : wP;
+      const h = isEnd ? 0.80 : railH;
+      const dy0 = deckTop(zp);
+      addStone(stoneBlock(w, h, w, 0.012, 0.006, 0.06, zp + side * 3, 0.004), mat4([xr, dy0 + h / 2, zp]), 1.15);
+      // 石柱头: 略宽短块 + 莲瓣顶珠
+      addStone(rbox(w * 1.18, 0.07, w * 1.18, 0.006), mat4([xr, dy0 + h + 0.035, zp]), 1.15);
+      const capPts = [[0, 0], [0.05, 0], [0.055, 0.03], [0.03, 0.06], [0.045, 0.09], [0.04, 0.12], [0.02, 0.15], [0, 0.17]].map(p => new THREE.Vector2(p[0], p[1]));
+      addStone(new THREE.LatheGeometry(capPts, 12), mat4([xr, dy0 + h + 0.07, zp]), 1.15);
       if (isEnd) {
-        // granite base for the larger end post
-        addStone(stoneBlock(0.42, 0.18, 0.42, 0.03, 0.004, 0.08, zp + side), mat4([xr, LAND_TOP + 0.09, zp]), 1.1);
+        // 抱鼓石: 横置鼓石夹护端柱
+        for (const fs of [-1, 1]) addStone(new THREE.CylinderGeometry(0.11, 0.11, 0.16, 12).rotateZ(Math.PI / 2), mat4([xr + fs * (w / 2 + 0.10), dy0 + 0.11, zp]));
+        // 石础
+        addStone(stoneBlock(0.40, 0.16, 0.40, 0.03, 0.004, 0.08, zp + side, 0.006), mat4([xr, LAND_TOP + 0.08, zp]), 1.1);
       }
     }
-    // 蜀柱 (short struts) between posts, lower and upper rows, plus nail heads on the mid rail
+    // 栏板 (low stone panel between posts, below the 寻杖)
     for (let k = 0; k < postZ.length - 1; k++) {
-      const za = postZ[k], zb2 = postZ[k + 1];
-      const ta = thAtZ(za), tb = thAtZ(zb2);
-      const gapLen = (tb - ta) * RA;
-      const m = Math.max(1, Math.round(gapLen / 0.6) - 1);
-      for (let j = 1; j <= m; j++) {
-        const th = ta + ((tb - ta) * j) / (m + 1);
-        const z = ZC + RA * Math.sin(th);
-        const lb = yAt(z, SILL.v1) - 0.015, lt = yAt(z, MID.v0) + 0.015;
-        const ub = yAt(z, MID.v1) - 0.015, ut = yAt(z, TOP.v - TOP.b * 0.5);
-        addLac(rbox(0.062, lt - lb, 0.062, 0.008, 1), MODE_VERT, 0.05, mat4([xr, (lb + lt) / 2, z]), 1);
-        addLac(rbox(0.062, ut - ub, 0.062, 0.008, 1), MODE_VERT, 0.0, mat4([xr, (ub + ut) / 2, z]), 1);
-        // 熟铁钉头 on both faces of the mid rail
-        const ym = yAt(z, (MID.v0 + MID.v1) / 2);
-        for (const fs of [-1, 1]) {
-          const fx = xr + fs * (MID.w / 2);
-          const hd = new THREE.SphereGeometry(0.017, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2); hd.rotateZ(-fs * Math.PI / 2);
-          addDark(hd, mat4([fx + fs * 0.004, ym, z]));
-        }
-
-      }
-    }
-    // forged iron nail heads in two rows along the dark capping band
-    for (let th = -thE + 0.02; th < thE - 0.02; th += 0.22 / RA) {
-      const z = ZC + RA * Math.sin(th);
-      if (postZ.some((zp) => Math.abs(zp - z) < 0.11)) continue;
-      for (const v of [-0.024, -0.106]) {
-        const c = ptTh(th, v, X0 + side * (BAND.u1 + 0.0004));
-        addDark(RIVET, mat4([c.x, c.y, c.z], [0, side * Math.PI / 2, 0]));
-      }
+      const za = postZ[k], zb = postZ[k + 1];
+      const zMid = (za + zb) / 2;
+      const yMid = (deckTop(za) + deckTop(zb)) / 2 + 0.28;
+      const gapLen = Math.hypot(zb - za, deckTop(zb) - deckTop(za)) - wP;
+      // panel's long axis is local Z: tilt it to follow the arc tangent (NOT the
+      // atan2(dz,dy) used for the cylinders, whose axis is local Y)
+      const ax = Math.atan2(deckTop(za) - deckTop(zb), zb - za);
+      addStone(rbox(0.06, 0.40, Math.max(gapLen, 0.05), 0.006), mat4([xr, yMid, zMid], [ax, 0, 0]), 1.15);
     }
   }
 
