@@ -111,7 +111,7 @@ export const L = {
     south: [10, 0, 27],
     north: [10, 0, 5],
     width: 3.6,
-    rise:  4.8,   // 矢跨比 0.44 — humpback like 玉带桥; the deck becomes stepped
+    rise:  5.4,   // 矢跨比 0.49 — steep humpback like 玉带桥; the deck becomes stepped
     posts: 9,
   },
 

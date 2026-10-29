@@ -35,19 +35,35 @@ export async function build(ctx) {
   const X0 = (BR.north[0] + BR.south[0]) / 2;
   const zA = Math.min(BR.north[2], BR.south[2]), zB = Math.max(BR.north[2], BR.south[2]);
   const ZC = (zA + zB) / 2, HALF = (zB - zA) / 2, RISE = BR.rise;
-  const RA = (HALF * HALF + RISE * RISE) / (2 * RISE); // deck-surface arc radius
-  const YC = Y0 + RISE - RA;                           // arc centre height
   const WATER = (L.pond && L.pond.waterY != null) ? L.pond.waterY : -0.55;
   const BOTTOM = (L.pond && L.pond.bottomY != null) ? L.pond.bottomY : -1.7;
   const HW = BR.width / 2;
 
   const LAND_TOP = Y0 + 0.06;                                   // landing slab top
-  const thE = Math.acos((RA - RISE + (LAND_TOP - Y0)) / RA);    // deck end angle (deck meets slab)
-  const zEndN = ZC - RA * Math.sin(thE), zEndS = ZC + RA * Math.sin(thE);
-
-  const yAt = (z, off = 0) => YC + Math.sqrt(Math.max((RA + off) ** 2 - (z - ZC) ** 2, 0));
-  const thAtZ = (z, off = 0) => Math.asin(clamp((z - ZC) / (RA + off), -1, 1));
-  const ptTh = (th, off = 0, x = X0) => new THREE.Vector3(x, YC + (RA + off) * Math.cos(th), ZC + (RA + off) * Math.sin(th));
+  // 玉带桥式剖面: a tight crown arc blended into straight approach ramps (桥堍),
+  // so the arch OPENING can be a near-semicircle while the deck still lands on the banks
+  const RC = Math.min(7.0, HALF * 0.95);                        // crown-arc radius (deck)
+  const thT = (() => {                                          // tangent point arc->ramp
+    let lo = 0.15, hi = 1.3;
+    const f = (th) => (LAND_TOP - Y0 - RISE + RC) * Math.cos(th) + HALF * Math.sin(th) - RC;
+    for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (f(m) > 0 === f(lo) > 0) lo = m; else hi = m; }
+    return (lo + hi) / 2;
+  })();
+  const zT = RC * Math.sin(thT), yT = RISE - RC * (1 - Math.cos(thT)), slopeT = Math.tan(thT);
+  const zEndN = ZC - HALF + 0.05, zEndS = ZC + HALF - 0.05;     // deck meets the landings
+  const profY = (z) => {                                        // deck-surface height above Y0
+    const dz = clamp(Math.abs(z - ZC), 0, HALF - 0.05);
+    return dz <= zT ? RISE - RC + Math.sqrt(Math.max(RC * RC - dz * dz, 0))
+                    : Math.max(yT - slopeT * (dz - zT), LAND_TOP - Y0);
+  };
+  // 券圈 (arch ring): an independent near-semicircular opening springing at the water
+  const R_IN = Math.min(5.2, HALF * 0.42), R_OUT = R_IN + 0.46;
+  const YRING = WATER + 0.10;                                   // ring centre height (spring line at the water)
+  const wallBaseY = (z) => {                                    // where flank masonry dies: ring extrados or water
+    const dz = Math.abs(z - ZC);
+    const ex = dz < R_OUT ? YRING + Math.sqrt(Math.max(R_OUT * R_OUT - dz * dz, 0)) : -Infinity;
+    return Math.max(ex, WATER - 0.12);
+  };
 
   // 踏步 (deck steps): the walkable surface is stepped over the arch — treads level,
   // risers tall at the abutments and shallow toward the crown, as on real stone bridges
@@ -58,15 +74,9 @@ export async function build(ctx) {
     const z0 = zEndN + i * STEP_W, z1 = z0 + STEP_W;
     return ((z0 + z1) / 2 < ZC) ? z1 : z0;
   };
-  const treadTop = (z) => yAt(stepUpper(clamp(z, zEndN + 0.02, zEndS - 0.02)), 0.06);
+  const treadTop = (z) => Y0 + profY(stepUpper(clamp(z, zEndN + 0.02, zEndS - 0.02)));
 
-  // cross-section (u = x offset from axis, v = radial offset from the deck surface)
-  const XR = HW - 0.105;                       // railing centre line
-  const BAND = { u0: HW - 0.25, u1: HW + 0.03, v0: -0.13, v1: 0.0 };
-  const FT = -0.12;                            // fascia top (radial)
-  const SILL = { w: 0.13, v0: -0.005, v1: 0.10 };
-  const MID = { w: 0.066, v0: 0.535, v1: 0.665 };
-  const TOP = { a: 0.052, b: 0.060, v: 0.925 };
+  // cross-section (u = x offset from axis)
   const PW = 0.16, EPW = 0.22;                 // post widths
   const GIRDER_X = [-0.82, 0, 0.82];
   const GIRDER_BOT = -0.74;
@@ -103,29 +113,12 @@ export async function build(ctx) {
   const faceDist = Math.max(clamp(shoreN + 0.35 - zEndN, 0.9, 3.2), clamp(zEndS - (shoreS - 0.35), 0.9, 3.2));
   const faceN = zEndN + faceDist, faceS = zEndS - faceDist;
   const ABUT_TOP = Y0 - 0.16;
-  const SPRING_Y = ABUT_TOP - 0.10; // intrados meets the abutment face just below its top
-
-  // fascia depth below FT as a function of z (deepens to spring from the abutments)
-  const D0 = 0.62;
-  const needN = (yAt(faceN) + FT) - SPRING_Y - D0;
-  const needS = (yAt(faceS) + FT) - SPRING_Y - D0;
-  function fasciaDepth(z) {
-    let d = D0;
-    const tn = (z - faceN), ts = (faceS - z);
-    // inside the span: smooth ramp over the last ~4 m before each face
-    const wn = Math.pow(sm(4.2, -0.2, tn), 2.0), ws = Math.pow(sm(4.2, -0.2, ts), 2.0);
-    d += Math.max(needN, 0) * wn + Math.max(needS, 0) * ws;
-    // inside the abutments: keep going down
-    if (tn < 0) d += -tn * 0.8;
-    if (ts < 0) d += -ts * 0.8;
-    return d;
-  }
 
   // ---------------------------------------------------------------- materials
   const ARC_GLSL = `
 #define ARC_ZC ${f6(ZC)}
-#define ARC_YC ${f6(YC)}
-#define ARC_R ${f6(RA)}
+#define ARC_YC ${f6(YRING)}
+#define ARC_R ${f6((R_IN + R_OUT) / 2)}
 #define BR_X0 ${f6(X0)}
 #define WATER_Y ${f6(WATER)}
 `;
@@ -606,13 +599,6 @@ export async function build(ctx) {
     g.setIndex(idx);
     return g;
   }
-  function arcPts(off, z0, z1, x, step = 0.1) {
-    const t0 = thAtZ(z0, off), t1 = thAtZ(z1, off);
-    const n = Math.max(2, Math.ceil((Math.abs(t1 - t0) * (RA + off)) / step) + 1);
-    const pts = [];
-    for (let i = 0; i < n; i++) pts.push(ptTh(t0 + ((t1 - t0) * i) / (n - 1), off, x));
-    return pts;
-  }
   const rbox = (w, h, d, r, seg = dseg(2, 1)) => new RBox(w, h, d, seg, Math.min(r, Math.min(w, h, d) * 0.45));
 
   // cheap deterministic 3D value noise for rough stone
@@ -812,14 +798,18 @@ export async function build(ctx) {
 
   // ---------------------------------------------------------------- DECK steps (踏步)
   {
-    const pw = 2 * (HW - 0.17) + 0.01;           // walkway seating under the deck-edge coping
+    const pw = 2 * (HW - 0.22) + 0.01;           // walkway seating between the flank walls
     const sr = ctx.rng('steps');
     for (let i = 0; i < N_STEPS; i++) {
       const z0 = zEndN + i * STEP_W, z1 = z0 + STEP_W;
       const zm = (z0 + z1) / 2;
       const zu = (zm < ZC) ? z1 : z0;              // upper edge, nearer the crown
-      const yTop = yAt(zu, 0.06);                  // level tread at the upper edge height
-      const yBot = yAt(zm, -0.10);                 // seat into the arch extrados
+      const yTop = Y0 + profY(zu);                 // level tread at the upper edge height
+      const dz = Math.abs(zm - ZC);                // seat into the ring extrados over the opening,
+      const seat = dz < R_OUT - 0.05               // deep into the spandrel fill on the haunches
+        ? Math.max(profY(zm) - 0.18, YRING + Math.sqrt(Math.max(R_OUT * R_OUT - dz * dz, 0)) - 0.02)
+        : profY(zm) - 0.5;
+      const yBot = Y0 + seat;
       addStone(rbox(pw, Math.max(yTop - yBot, 0.04), z1 - z0 - 0.01, 0.008), mat4([X0, (yTop + yBot) / 2, zm]), 1.04 + sr.next() * 0.22);
     }
   }
@@ -855,11 +845,11 @@ export async function build(ctx) {
     };
     const lr = ctx.rng('bridgeLeaves');
     const pals = [[0.42, 0.045, 0.02], [0.5, 0.12, 0.02], [0.33, 0.06, 0.03], [0.55, 0.26, 0.04], [0.2, 0.09, 0.035], [0.16, 0.11, 0.05]];
-    const L2 = 2 * thE * RA;
+    const L2 = zEndS - zEndN;
     for (let i = 0; i < 170; i++) {
       const petal = i % 5 === 4;
       const s = (lr.next() - 0.5) * (L2 - 0.4);
-      const th = s / RA;
+      const zz = ZC + s;
       // mostly against the sills (east side heavier), some scattered across the boards
       const side = lr.next() < 0.68 ? 1 : -1;
       const u = lr.next() < 0.75 ? side * (HW - 0.32 - Math.pow(lr.next(), 2) * 0.55) : (lr.next() - 0.5) * 2.4;
@@ -869,37 +859,36 @@ export async function build(ctx) {
       const c0 = petal ? [0.78, 0.5, 0.52] : pals[Math.floor(lr.next() * pals.length)];
       const k = 0.8 + lr.next() * 0.35;
       paint(g, c0[0] * k, c0[1] * k, c0[2] * k);
-      const c = ptTh(th, 0.003 + lr.next() * 0.003, X0 + u);
-      c.y = treadTop(c.z) + 0.004;               // rest on the step treads, not the buried arc
-      B.add(g, leafMat, mat4([c.x, c.y, c.z], [th + (lr.next() - 0.5) * 0.12, 0, (lr.next() - 0.5) * 0.12]));
+      B.add(g, leafMat, mat4([X0 + u, treadTop(zz) + 0.004, zz], [(lr.next() - 0.5) * 0.12, 0, (lr.next() - 0.5) * 0.12]));
     }
   }
 
-  // ---------------------------------------------------------------- STONE ARCH RING (券石拱圈): discrete voussoirs
+  // -------------------------------------------------------------- STONE ARCH RING (券石拱圈) — a near-semicircular
+  // opening springing at the water, independent of the deck profile (as on 玉带桥)
   {
-    const R_in = RA - 0.30;       // intrados (visible underside of the arch)
-    const R_out = RA + 0.04;      // extrados meets the deck underside
-    const Xw = HW + 0.05;         // the ring spans the full deck width
-    const ringH = R_out - R_in;
-    const nV = Math.max(16, Math.round((2 * thE * RA) / 0.40));  // ~0.4 m voussoirs
-    const wj = 0.014;             // radial joint gap
+    const Xw = HW + 0.05;                        // the ring spans the full deck width
+    const rMid = (R_IN + R_OUT) / 2;
+    const TH_R = 1.61;                           // half-angle — the springs plunge just under the water
+    const nV = Math.max(24, Math.round((2 * TH_R * rMid) / 0.42));  // ~0.42 m voussoirs
+    const wj = 0.014;                            // radial joint gap
     const vr = ctx.rng('voussoir');
     for (let s = 0; s < nV; s++) {
-      const t0 = -thE + (2 * thE) * s / nV;
-      const t1 = -thE + (2 * thE) * (s + 1) / nV;
+      const t0 = -TH_R + (2 * TH_R) * s / nV;
+      const t1 = -TH_R + (2 * TH_R) * (s + 1) / nV;
       const tm = (t0 + t1) / 2;
-      const rMid = (R_in + R_out) / 2;
-      // ptTh's 2nd arg is an offset FROM the deck arc (radius RA + off), not a radius —
-      // pass rMid - RA so the voussoirs sit at radius rMid from the arc centre
-      const c = ptTh(tm, rMid - RA);
+      const cy = YRING + rMid * Math.cos(tm), cz = ZC + rMid * Math.sin(tm);
       const arcLen = (t1 - t0) * rMid;
-      const g = stoneBlock(Xw * 2, ringH - wj, arcLen - wj, 0.025, 0.01, 0.1, vr.next() * 50, 0.012);
-      addStone(g, mat4([c.x, c.y, c.z], [tm, 0, 0]), 1.1);   // rotate so local Y -> radial, Z -> tangential
+      const g = stoneBlock(Xw * 2, R_OUT - R_IN - wj, arcLen - wj, 0.025, 0.01, 0.1, vr.next() * 50, 0.012);
+      addStone(g, mat4([X0, cy, cz], [tm, 0, 0]), 1.1);   // rotate so local Y -> radial, Z -> tangential
     }
     // 拱顶石 (keystone) slightly proud at the crown
-    {
-      const c = ptTh(0, (R_in + R_out) / 2 - RA);
-      addStone(stoneBlock(Xw * 2 + 0.02, ringH + 0.03, 0.26, 0.025, 0.01, 0.1, 7, 0.012), mat4([c.x, c.y, c.z], [0, 0, 0]));
+    addStone(stoneBlock(Xw * 2 + 0.02, R_OUT - R_IN + 0.03, 0.26, 0.025, 0.01, 0.1, 7, 0.012),
+      mat4([X0, YRING + rMid, ZC], [0, 0, 0]), 1.12);
+    // 分水金刚墙: foundation blocks the ring springs onto, standing out of the water
+    for (const sgn of [-1, 1]) {
+      const fr = ctx.rng('spring' + sgn);
+      addStone(stoneBlock(2 * HW + 0.5, (WATER + 0.16) - (BOTTOM - 0.5), 1.5, 0.05, 0.014, 0.14, sgn * 13, 0.006),
+        mat4([X0, ((WATER + 0.16) + (BOTTOM - 0.5)) / 2, ZC + sgn * rMid], [0, (fr.next() - 0.5) * 0.04, 0]), 0.9 + fr.next() * 0.12);
     }
   }
 
@@ -970,27 +959,35 @@ export async function build(ctx) {
   abutment(faceS, zEndS, +1);
 
   // ---------------------------------------------------------------- RAILINGS
-  const arcLenDeck = 2 * thE * RA;
-  const nPosts = Math.max(BR.posts || 9, Math.round(arcLenDeck / 2.3) + 1);
+  const deckLen = zEndS - zEndN;
+  const nPosts = Math.max(BR.posts || 9, Math.round(deckLen / 1.55) + 1);
   const endOut = 0.24; // end posts stand on the landing, beyond the deck end
   const zPostN = zEndN - endOut, zPostS = zEndS + endOut;
   const postZ = [zPostN];
-  for (let k = 1; k < nPosts - 1; k++) { const th = -thE + (2 * thE * k) / (nPosts - 1); postZ.push(ZC + RA * Math.sin(th)); }
+  for (let k = 1; k < nPosts - 1; k++) { postZ.push(zEndN + (deckLen * k) / (nPosts - 1)); }
   postZ.push(zPostS);
 
   for (const side of [-1, 1]) {
-    // 裙肩: a thin spandrel band from the arch extrados to the deck edge (the flank
-    // reads as one slender curved band, as on 玉带桥), then an OPEN balustrade
-    const xr = X0 + side * XR;
-    const xrS = X0 + side * (HW - 0.035);
+    // 裙肩墙: SOLID coursed masonry from the arch extrados up to the deck edge —
+    // a stone arch bridge is a filled mass, not a shell (as on 玉带桥)
+    const xr = X0 + side * (HW - 0.11);
+    const wallR = ctx.rng('spandrel' + side);
     for (let i = 0; i < N_STEPS; i++) {
       const z0 = zEndN + i * STEP_W, z1 = z0 + STEP_W;
       const zm = (z0 + z1) / 2;
-      const yBot = yAt(zm, 0.05);                // spring from the extrados
-      const yTop = treadTop(zm) + 0.02;          // up to the deck edge
-      addStone(rbox(0.15, yTop - yBot, z1 - z0 - 0.006, 0.006), mat4([xrS, (yTop + yBot) / 2, zm]), 1.0 + rnd.next() * 0.16);
-      // 眉石: deck-edge coping capping the spandrel
-      addStone(rbox(0.24, 0.05, z1 - z0 - 0.004, 0.012), mat4([X0 + side * (HW - 0.06), yTop + 0.025, zm]), 1.08);
+      const yBot = wallBaseY(zm);                // die on the ring extrados, or into the water
+      const yTop = treadTop(zm);                 // up to the deck edge
+      const H = yTop - yBot;
+      const nC = Math.max(1, Math.round(H / 0.3));
+      const ch = H / nC;
+      for (let c = 0; c < nC; c++) {
+        const y0 = yBot + c * ch;
+        addStone(rbox(0.22, ch - 0.008, z1 - z0 - 0.006, 0.005),
+          mat4([xr + (wallR.next() - 0.5) * 0.008, y0 + ch / 2, zm + (wallR.next() - 0.5) * 0.014]),
+          0.96 + wallR.next() * 0.18);
+      }
+      // 眉石: deck-edge coping capping the wall
+      addStone(rbox(0.28, 0.05, z1 - z0 - 0.004, 0.012), mat4([X0 + side * (HW - 0.06), yTop + 0.025, zm]), 1.08);
     }
     const COP = 0.05;                            // coping height the balustrade stands on
     const railH = 0.45, wP = 0.11;
@@ -1001,7 +998,7 @@ export async function build(ctx) {
       const ya = deckTop(za) + railH, yb = deckTop(zb) + railH;
       const len = Math.hypot(zb - za, yb - ya);
       const ax = Math.atan2(zb - za, yb - ya);
-      addStone(new THREE.CylinderGeometry(0.042, 0.042, len + 0.02, 10), mat4([xr, (ya + yb) / 2, (za + zb) / 2], [ax, 0, 0]), 1.12);
+      addStone(new THREE.CylinderGeometry(0.055, 0.055, len + 0.02, 10), mat4([xr, (ya + yb) / 2, (za + zb) / 2], [ax, 0, 0]), 1.12);
       const yla = deckTop(za) + 0.20, ylb = deckTop(zb) + 0.20;
       const axl = Math.atan2(deckTop(za) - deckTop(zb), zb - za);
       addStone(rbox(0.055, 0.07, Math.max(Math.hypot(zb - za, ylb - yla) - wP, 0.05), 0.006), mat4([xr, (yla + ylb) / 2, (za + zb) / 2], [axl, 0, 0]), 1.1);
@@ -1027,7 +1024,7 @@ export async function build(ctx) {
     for (const dzm of [2.2, 4.6]) for (const sgn of [-1, 1]) {
       const zm = ZC + sgn * dzm;
       if (zm > zEndN + 0.6 && zm < zEndS - 0.6) {
-        const ym = (yAt(zm, 0.05) + treadTop(zm)) / 2 + 0.05;
+        const ym = (wallBaseY(zm) + treadTop(zm)) / 2 + 0.05;
         addStone(stoneBlock(0.26, 0.15, 0.34, 0.02, 0.006, 0.06, zm + side, 0.005), mat4([X0 + side * (HW + 0.10), ym, zm]), 1.0);
       }
     }
