@@ -1076,8 +1076,8 @@ export async function build(ctx) {
       const L = zb - za - wP - 0.05;
       if (L < 0.3) continue;
       const zm = (za + zb) / 2;
-      const m = (deckTop(zb) - deckTop(za)) / (zb - za);
-      addStone(carvedPanel(L), mat4([xr, deckTop(zm) + 0.215, zm], [-Math.atan(m), 0, 0]), 1.04);
+      // panels stand PLUMB between the posts (never tilted with the deck slope)
+      addStone(carvedPanel(L), mat4([xr, deckTop(zm) + 0.215, zm]), 1.04);
     }
     // 望柱 with stacked cloud-ring finials on every post + 抱鼓石 at the ends
     for (let k = 0; k < postZ.length; k++) {
