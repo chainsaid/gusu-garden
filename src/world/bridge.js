@@ -115,6 +115,7 @@ export async function build(ctx) {
 #define ARC_YC ${f6(YRING)}
 #define ARC_R ${f6((R_IN + R_OUT) / 2)}
 #define BR_X0 ${f6(X0)}
+#define BR_HW ${f6(HW)}
 #define WATER_Y ${f6(WATER)}
 `;
   // analytic occlusion of the indirect light under the deck (the sky IBL would otherwise light the soffit)
@@ -483,6 +484,36 @@ export async function build(ctx) {
         float sideS = 1.0 - abs(wnS.y);
         float vs = n_fbm3(vec3((wpS.x + wpS.z) * 7.0, wpS.y * 0.7, 3.0), 3);
         diffuseColor.rgb *= 1.0 - sideS * smoothstep(0.0, 0.45, vs) * 0.16;
+        // ---- spandrel masonry at real scale (as on the jade belt bridge): ~0.5 m
+        // courses, staggered vertical joints, per-block tone drift; the arch-ring
+        // band gets radial voussoir joints instead. Outer flank faces only.
+        float rr = length(vec2(wpS.z - ARC_ZC, wpS.y - ARC_YC));
+        float pxR = length(fwidth(wpS));
+        float thA = atan(wpS.z - ARC_ZC, wpS.y - ARC_YC);
+        float wallX = abs(abs(wpS.x - BR_X0) - BR_HW);
+        float wallM = 1.0 - smoothstep(0.02, 0.08, wallX);
+        float ringBand = smoothstep(ARC_R - 0.30, ARC_R - 0.24, rr) * (1.0 - smoothstep(ARC_R + 0.24, ARC_R + 0.30, rr));
+        float spandrelM = wallM * smoothstep(ARC_R + 0.24, ARC_R + 0.34, rr);
+        float courseF = (wpS.y - WATER_Y) / 0.5;
+        float ci = floor(courseF), cf = fract(courseF);
+        float cHash = fract(sin(ci * 127.1) * 43758.5453);
+        diffuseColor.rgb *= mix(1.0, 0.88 + 0.24 * cHash, spandrelM * (1.0 - smoothstep(0.03, 0.14, pxR)));
+        float gw = max(0.006, pxR * 1.1);
+        float dj = min(cf, 1.0 - cf) * 0.5;
+        float groove = 1.0 - smoothstep(gw * 0.5, gw * 1.3 + fwidth(wpS.y), dj);
+        diffuseColor.rgb *= 1.0 - groove * spandrelM * 0.50;
+        g_h -= groove * spandrelM * 0.5 * (1.0 - smoothstep(0.01, 0.04, pxR));
+        float vj = fract(wpS.z / 0.72 + mod(ci, 2.0) * 0.5 + fract(cHash * 13.7));
+        float vE = min(vj, 1.0 - vj) * 0.72;
+        float vg = 1.0 - smoothstep(gw * 0.5, gw * 1.3 + fwidth(wpS.z), vE);
+        diffuseColor.rgb *= 1.0 - vg * spandrelM * 0.40;
+        g_h -= vg * spandrelM * 0.4 * (1.0 - smoothstep(0.01, 0.04, pxR));
+        float arcS = thA * ARC_R;
+        float vj2 = fract(arcS / 0.55);
+        float vE2 = min(vj2, 1.0 - vj2) * 0.55;
+        float vg2 = 1.0 - smoothstep(gw * 0.5, gw * 1.3, vE2);
+        diffuseColor.rgb *= 1.0 - vg2 * wallM * ringBand * 0.42;
+        g_h -= vg2 * wallM * ringBand * 0.45 * (1.0 - smoothstep(0.01, 0.04, pxR));
         // faint broad micro-relief only — no salt-and-pepper speckle (that read as mosaic)
         float pxS = length(fwidth(wpS));
         g_h += n_fbm3(wpS * 2.0, 2) * 0.05;
@@ -1018,13 +1049,13 @@ export async function build(ctx) {
     return out;
   }
 
-  // 望柱柱头: stacked cloud-ring finial (叠环云头) as on the jade belt bridge —
-  // three stacked rings tightening upward under a pearl
+  // 望柱柱头: moulded neck ring under a carved cloud-bud head (as on the real
+  // posts — a substantial head, not a bead)
   const finialGeo = (s) => mergeGeo([
-    [new THREE.TorusGeometry(0.052 * s, 0.013, 8, 16).rotateX(Math.PI / 2), mat4([0, 0.028, 0])],
-    [new THREE.TorusGeometry(0.043 * s, 0.012, 8, 16).rotateX(Math.PI / 2), mat4([0, 0.072, 0])],
-    [new THREE.TorusGeometry(0.034 * s, 0.011, 8, 16).rotateX(Math.PI / 2), mat4([0, 0.112, 0])],
-    [new THREE.SphereGeometry(0.026 * s, 12, 10), mat4([0, 0.152 * s, 0])],
+    [new THREE.TorusGeometry(0.088 * s, 0.016, 8, 18).rotateX(Math.PI / 2), mat4([0, 0.02, 0])],
+    [new THREE.LatheGeometry(
+      [[0.078, 0], [0.092, 0.03], [0.086, 0.07], [0.060, 0.115], [0.032, 0.15], [0.010, 0.170], [0, 0.175]]
+        .map(p => new THREE.Vector2(p[0] * s, p[1] * s)), 14), mat4([0, 0.05, 0])],
   ]);
 
   for (const side of [-1, 1]) {
@@ -1034,7 +1065,7 @@ export async function build(ctx) {
     addStone(continuousBand(side, xr, 0.11, (z) => Y0 + profY(z), wallBaseY), null, 1.0);
     addStone(continuousBand(side, X0 + side * (HW - 0.06), 0.14, (z) => Y0 + profY(z) + 0.05, (z) => Y0 + profY(z)), null, 1.03);
     const COP = 0.05;                            // coping height the balustrade stands on
-    const railH = 0.45, wP = 0.11;
+    const railH = 0.45, wP = 0.13;
     const deckTop = (z) => Y0 + profY(z) + COP;  // the balustrade rides the smooth flank line
     // 寻杖 (top rail): the moulded capping member riding over the carved panels
     for (let k = 0; k < postZ.length - 1; k++) {
@@ -1042,32 +1073,32 @@ export async function build(ctx) {
       const ya = deckTop(za) + railH, yb = deckTop(zb) + railH;
       const len = Math.hypot(zb - za, yb - ya);
       const ax = Math.atan2(zb - za, yb - ya);
-      addStone(new THREE.CylinderGeometry(0.055, 0.055, len + 0.02, 10), mat4([xr, (ya + yb) / 2, (za + zb) / 2], [ax, 0, 0]), 1.04);
+      addStone(rbox(0.13, 0.11, len + 0.02, 0.008), mat4([xr, (ya + yb) / 2, (za + zb) / 2], [ax, 0, 0]), 1.04);          // moulded beam
+      addStone(rbox(0.15, 0.03, len + 0.02, 0.006), mat4([xr, (ya + yb) / 2 + 0.065, (za + zb) / 2], [ax, 0, 0]), 1.04);  // cap bead
     }
     // 雕花栏板: solid carved panels between the posts (as on 玉带桥) — raised border
     // frame, recessed field, and a band of 卷草 scroll curls in real relief
     const carvedPanel = (L) => {
-      const H = 0.43;
+      const H = 0.36;
       const P = (dx, dy, dz) => mat4([side * dx, dy, dz]);
       const parts = [
         [rbox(0.045, H, L, 0.004), P(0, 0, 0)],                              // slab (field)
-        [rbox(0.016, 0.055, L + 0.004, 0.003), P(0.0305, H / 2 - 0.0275, 0)],  // top border
-        [rbox(0.016, 0.055, L + 0.004, 0.003), P(0.0305, -H / 2 + 0.0275, 0)], // bottom border
-        [rbox(0.016, H - 0.11, 0.055, 0.003), P(0.0305, 0, L / 2 - 0.0275)],   // end borders
-        [rbox(0.016, H - 0.11, 0.055, 0.003), P(0.0305, 0, -L / 2 + 0.0275)],
+        [rbox(0.018, 0.045, L + 0.004, 0.003), P(0.0305, H / 2 - 0.0225, 0)],  // top border
+        [rbox(0.018, 0.045, L + 0.004, 0.003), P(0.0305, -H / 2 + 0.0225, 0)], // bottom border
+        [rbox(0.018, H - 0.09, 0.05, 0.003), P(0.0305, 0, L / 2 - 0.025)],     // end borders
+        [rbox(0.018, H - 0.09, 0.05, 0.003), P(0.0305, 0, -L / 2 + 0.025)],
       ];
-      // 如意云纹 band (as carved on the real 玉带桥 panels): a raised ground band
-      // carrying a repeating three-lobed cloud scroll — main curl with a nested
-      // spiral eye plus two mirrored tail curls — one coherent motif, not loose rings
-      const Lc = L - 0.26;
-      parts.push([rbox(0.012, 0.05, Lc + 0.06, 0.003), P(0.0285, 0, 0)]);
-      const sc = 0.30, nC = Math.max(2, Math.floor(Lc / sc));
+      // carved frieze across the upper field: LARGE tightly-packed ruyi cloud heads
+      // in deep relief — they read as a continuous carved band at distance, as on
+      // the real panels — over a plain lower field
+      const Lc = L - 0.14;
+      const bandY = 0.055, sc = 0.24, nC = Math.max(2, Math.floor(Lc / sc));
       for (let i = 0; i < nC; i++) {
         const zc = -Lc / 2 + Lc * (i + 0.5) / nC;
-        parts.push([new THREE.TorusGeometry(0.040, 0.010, 8, 18, Math.PI * 1.45).rotateY(Math.PI / 2), P(0.038, 0.012, zc)]);
-        parts.push([new THREE.TorusGeometry(0.017, 0.008, 8, 12, Math.PI * 1.25).rotateY(Math.PI / 2), P(0.038, 0.008, zc + 0.006)]);
-        parts.push([new THREE.TorusGeometry(0.026, 0.008, 8, 14, Math.PI * 1.1).rotateY(Math.PI / 2), P(0.038, -0.012, zc - 0.052)]);
-        parts.push([new THREE.TorusGeometry(0.026, 0.008, 8, 14, Math.PI * 1.1).rotateY(Math.PI / 2).rotateY(Math.PI), P(0.038, -0.012, zc + 0.052)]);
+        parts.push([new THREE.TorusGeometry(0.062, 0.015, 8, 20, Math.PI * 1.5).rotateY(Math.PI / 2), P(0.034, bandY + 0.012, zc)]);
+        parts.push([new THREE.TorusGeometry(0.028, 0.012, 8, 14, Math.PI * 1.3).rotateY(Math.PI / 2), P(0.034, bandY + 0.004, zc + 0.010)]);
+        parts.push([new THREE.TorusGeometry(0.040, 0.013, 8, 16, Math.PI * 1.15).rotateY(Math.PI / 2), P(0.034, bandY - 0.030, zc - 0.068)]);
+        parts.push([new THREE.TorusGeometry(0.040, 0.013, 8, 16, Math.PI * 1.15).rotateY(Math.PI / 2).rotateY(Math.PI), P(0.034, bandY - 0.030, zc + 0.068)]);
       }
       return mergeGeo(parts);
     };
@@ -1077,7 +1108,7 @@ export async function build(ctx) {
       if (L < 0.3) continue;
       const zm = (za + zb) / 2;
       // panels stand PLUMB between the posts (never tilted with the deck slope)
-      addStone(carvedPanel(L), mat4([xr, deckTop(zm) + 0.215, zm]), 1.04);
+      addStone(carvedPanel(L), mat4([xr, deckTop(zm) + 0.20, zm]), 1.04);
     }
     // 望柱 with stacked cloud-ring finials on every post + 抱鼓石 at the ends
     for (let k = 0; k < postZ.length; k++) {
@@ -1111,14 +1142,14 @@ export async function build(ctx) {
         addStone(rbox(0.020, 0.04, W, 0.004), mat4([xe + side * 0.010, ye - Hh / 2 + 0.02, ze]), 1.05);
         addStone(rbox(0.020, Hh, 0.04, 0.004), mat4([xe + side * 0.010, ye, ze + W / 2 - 0.02]), 1.05);
         addStone(rbox(0.020, Hh, 0.04, 0.004), mat4([xe + side * 0.010, ye, ze - W / 2 + 0.02]), 1.05);
-        addStone(rbox(0.012, Hh - 0.05, W - 0.05, 0.003), mat4([xe - side * 0.002, ye, ze]), 0.90);  // recessed tablet field
+        addStone(rbox(0.012, Hh - 0.05, W - 0.05, 0.003), mat4([xe - side * 0.007, ye, ze]), 0.90);  // recessed tablet field
       }
     }
-    // 系船石 (mooring stones) protruding from the spandrel
-    for (const dzm of [2.2, 4.6]) for (const sgn of [-1, 1]) {
+    // 系船石 (mooring stones) low on the spandrel near the waterline, as on real bridges
+    for (const dzm of [5.0, 5.8]) for (const sgn of [-1, 1]) {
       const zm = ZC + sgn * dzm;
       if (zm > zEndN + 0.6 && zm < zEndS - 0.6) {
-        const ym = (wallBaseY(zm) + treadTop(zm)) / 2 + 0.05;
+        const ym = wallBaseY(zm) + 0.30;
         addStone(stoneBlock(0.26, 0.15, 0.34, 0.02, 0.006, 0.06, zm + side, 0.005), mat4([X0 + side * (HW + 0.10), ym, zm]), 1.0);
       }
     }
