@@ -151,14 +151,14 @@ flowchart TD
   - **Shot 9 (1:03)**：暮色江南（大摇臂高空升起，俯瞰整座水院的粉墙黛瓦与烟水雾霭）
   - 经过 `node tools/camcheck.mjs` 检测，全 10 镜头平滑度与角加速度 100% 达标通过。
   - 镜头文案（风铎/借景北寺塔/翘头条案）已随 **P1-4** 全部校正。
-- [~] **7.2 配乐定制与对齐 (`tools/score.mjs`)** — **链路已验证，正式成片待出**（2026-10-29）
+- [x] **7.2 配乐定制与对齐 (`tools/score.mjs`)** — **正式成片已交付**（2026-10-29）
   - 用 `npm run fetch-music` 取回 "Finding Movement"（Kevin MacLeod, CC BY 4.0，4.4 MB，SHA256 校验通过），`score.mjs` 按 70 s 剪辑点拼接：弦乐渐强落 28 s 切点、最强击落 42 s 入书斋，交叉淡入 38–41 s / 39–40.5 s，整体淡出 67.5–70 s，−16 LUFS 归一后 AAC 混流。
   - 2026-10-29 草稿复测：`I = −15.7 LUFS`、`LRA 7.0 LU`、`True peak −1.4 dBFS`，音频流 48 kHz 立体声，时长 70.000 s ✅
-- [~] **7.3 质量检测与成片交付** — **草稿链路已跑通，1080p60 正式成片待出**（2026-10-29）
+- [x] **7.3 质量检测与成片交付** — **正式 1080p60 成片已交付**（2026-10-29）
   - `camcheck.mjs` 全 10 镜头复核通过（速度/转向/角加速度无尖峰，最高 19.60 m/s 在 shot 9 摇臂升起段）。
   - `render.mjs --spp 2 --w 960 --h 540` 渲染 70 s 草稿：4,200 帧 / 19.4 min / 0.28 s 帧，`out/gusu-garden-draft.mp4`，ffprobe 校验 70.000 s、60 fps、960×540。
   - `lumaflicker.mjs` 复检草稿：分区均值 0.2045/255，最差 16.01 @ 52.53 s（水面高光，2 spp 草稿噪声偏大）✅
-  - 待办：`render.mjs` 1080p60 / spp 8 正片（约 4 小时 GPU）→ `score.mjs` 混流交付 `out/gusu-garden_final.mp4`。
+  - **正式成片**：`render.mjs --w 1920 --h 1080 --fps 60 --spp 8`（4200 帧 / 66.0 min / 0.94 s 帧，M4 GPU）→ `out/gusu-garden.mp4`（268 MB，ffprobe 校验 70.000 s、60 fps、1920×1080）→ `score.mjs` 混流 `out/gusu-garden_final.mp4`（270 MB，AAC 48 kHz 立体声，70.000 s）；`lumaflicker.mjs` 复检正片：均值 0.1855/255，最差 14.629 @ 33.90 s（shot 5 桥面水光）✅
 
 ---
 
