@@ -69,12 +69,7 @@ export async function build(ctx) {
   // risers tall at the abutments and shallow toward the crown, as on real stone bridges
   const N_STEPS = Math.max(10, Math.round((zEndS - zEndN) / 0.34));
   const STEP_W = (zEndS - zEndN) / N_STEPS;
-  const stepUpper = (z) => {                 // z of the step's upper (crown-side) edge
-    const i = clamp(Math.floor((z - zEndN) / STEP_W), 0, N_STEPS - 1);
-    const z0 = zEndN + i * STEP_W, z1 = z0 + STEP_W;
-    return ((z0 + z1) / 2 < ZC) ? z1 : z0;
-  };
-  const treadTop = (z) => Y0 + profY(stepUpper(clamp(z, zEndN + 0.02, zEndS - 0.02)));
+  const treadTop = (z) => Y0 + profY(clamp(z, zEndN + 0.02, zEndS - 0.02));
 
   // cross-section (u = x offset from axis)
   const PW = 0.16, EPW = 0.22;                 // post widths
@@ -480,14 +475,14 @@ export async function build(ctx) {
         vec3 wpS = vWPos; vec3 wnS = normalize(vWNrm);
         // weathering patches, lichen rosettes, vertical run-off streaks
         float wpat = n_fbm3(wpS * 1.8 + 31.0, 3);
-        diffuseColor.rgb *= 0.74 + 0.34 * smoothstep(-0.45, 0.5, wpat);
+        diffuseColor.rgb *= 0.88 + 0.16 * smoothstep(-0.45, 0.5, wpat);
         vec2 wl = n_worley3(wpS * 7.0 + 5.0);
         float lichP = smoothstep(0.05, 0.45, n_fbm3(wpS * 1.3 + 2.0, 2));
         float lich = (1.0 - smoothstep(0.1, 0.24, wl.x)) * lichP;
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.40, 0.40, 0.33), lich * 0.55);
         float sideS = 1.0 - abs(wnS.y);
         float vs = n_fbm3(vec3((wpS.x + wpS.z) * 7.0, wpS.y * 0.7, 3.0), 3);
-        diffuseColor.rgb *= 1.0 - sideS * smoothstep(0.0, 0.45, vs) * 0.28;
+        diffuseColor.rgb *= 1.0 - sideS * smoothstep(0.0, 0.45, vs) * 0.16;
         // faint broad micro-relief only — no salt-and-pepper speckle (that read as mosaic)
         float pxS = length(fwidth(wpS));
         g_h += n_fbm3(wpS * 2.0, 2) * 0.05;
@@ -545,7 +540,9 @@ export async function build(ctx) {
   // kind 1 = railing member (栗壳桐油木), 0 = fascia / substructure (深栗壳)
   const addLac = (g, mode, dirt, m = null, kind = 0) => B.add(paint(g, mode, dirt + 2 * kind, rnd.next()), lac, m);
   const addDark = (g, m = null) => B.add(paint(g, 1, 1, 1), dark, m);
-  const addStone = (g, m = null, tone = 1) => { const t = tone * (0.72 + 0.36 * rnd.next()); const w = rnd.next(); return B.add(paint(g, t * (1.0 + 0.06 * w), t * (0.97 + 0.03 * w), t * (0.9 + 0.08 * (1 - w))), granite, m); };
+  // per-stone tint: keep variation tiny (~1%) so big surfaces read as one stone,
+  // not a patchwork of differently-shaded blocks (the old 0.72..1.08 was the mosaic)
+  const addStone = (g, m = null, tone = 1) => { const t = tone * (0.985 + 0.015 * rnd.next()); const w = rnd.next(); return B.add(paint(g, t * (1.0 + 0.008 * w), t * (0.996 + 0.004 * w), t * (0.992 + 0.008 * (1 - w))), granite, m); };
 
   // profiles: arrays of [u, v, nu, nv], counter-clockwise
   function rrect(w, h, r, k = 3) {
@@ -801,8 +798,8 @@ export async function build(ctx) {
     for (let i = 0; i < N_STEPS; i++) {
       const z0 = zEndN + i * STEP_W, z1 = z0 + STEP_W;
       const zm = (z0 + z1) / 2;
-      const zu = (zm < ZC) ? z1 : z0;              // upper edge, nearer the crown
-      const yTop = Y0 + profY(zu);                 // level tread at the upper edge height
+      const yTop = Y0 + profY(zm);                 // tread at the step-centre height, so the
+                                                   // treads recess just below the smooth coping
       const dz = Math.abs(zm - ZC);                // seat into the ring extrados over the opening,
       const seat = dz < R_OUT - 0.05               // deep into the spandrel fill on the haunches
         ? Math.max(profY(zm) - 0.18, YRING + Math.sqrt(Math.max(R_OUT * R_OUT - dz * dz, 0)) - 0.02)
@@ -868,7 +865,7 @@ export async function build(ctx) {
     const rMid = (R_IN + R_OUT) / 2;
     const TH_R = 1.61;                           // half-angle — the springs plunge just under the water
     const nV = Math.max(24, Math.round((2 * TH_R * rMid) / 0.42));  // ~0.42 m voussoirs
-    const wj = 0.014;                            // radial joint gap
+    const wj = 0.005;                            // hairline radial joints (fine voussoir band)
     const vr = ctx.rng('voussoir');
     for (let s = 0; s < nV; s++) {
       const t0 = -TH_R + (2 * TH_R) * s / nV;
@@ -876,7 +873,7 @@ export async function build(ctx) {
       const tm = (t0 + t1) / 2;
       const cy = YRING + rMid * Math.cos(tm), cz = ZC + rMid * Math.sin(tm);
       const arcLen = (t1 - t0) * rMid;
-      const g = stoneBlock(Xw * 2, R_OUT - R_IN - wj, arcLen - wj, 0.025, 0.01, 0.1, vr.next() * 50, 0.012);
+      const g = stoneBlock(Xw * 2, R_OUT - R_IN - wj, arcLen - wj, 0.012, 0.01, 0.06, vr.next() * 50, 0.006);
       addStone(g, mat4([X0, cy, cz], [tm, 0, 0]), 1.04 + vr.next() * 0.04);   // rotate so local Y -> radial, Z -> tangential
     }
     // 拱顶石 (keystone) slightly proud at the crown
@@ -965,31 +962,48 @@ export async function build(ctx) {
   for (let k = 1; k < nPosts - 1; k++) { postZ.push(zEndN + (deckLen * k) / (nPosts - 1)); }
   postZ.push(zPostS);
 
-  for (const side of [-1, 1]) {
-    // 裙肩墙: SOLID coursed masonry from the arch extrados up to the deck edge —
-    // a stone arch bridge is a filled mass, not a shell (as on 玉带桥)
-    const xr = X0 + side * (HW - 0.11);
-    const wallR = ctx.rng('spandrel' + side);
-    for (let i = 0; i < N_STEPS; i++) {
-      const z0 = zEndN + i * STEP_W, z1 = z0 + STEP_W;
-      const zm = (z0 + z1) / 2;
-      const yBot = wallBaseY(zm);                // die on the ring extrados, or into the water
-      const yTop = treadTop(zm);                 // up to the deck edge
-      const H = yTop - yBot;
-      const nC = Math.max(1, Math.round(H / 0.3));
-      const ch = H / nC;
-      for (let c = 0; c < nC; c++) {
-        const y0 = yBot + c * ch;
-        addStone(rbox(0.22, ch - 0.008, z1 - z0 - 0.006, 0.005),
-          mat4([xr + (wallR.next() - 0.5) * 0.008, y0 + ch / 2, zm + (wallR.next() - 0.5) * 0.014]),
-          0.96 + wallR.next() * 0.18);
-      }
-      // 眉石: deck-edge coping capping the wall
-      addStone(rbox(0.28, 0.05, z1 - z0 - 0.004, 0.012), mat4([X0 + side * (HW - 0.06), yTop + 0.025, zm]), 1.08);
+  // A continuous swept solid between two z-station profiles (bottom fn, top fn),
+  // used for the flank walls and coping so they read as ONE smooth stone surface
+  // (fine modelling, like the buildings) rather than a stack of gapped blocks.
+  function continuousBand(side, xC, halfW, topFn, botFn, nz = 200) {
+    const xo = xC + side * halfW, xi = xC - side * halfW;
+    const pos = [], idx = [];
+    const push = (x, y, z) => { pos.push(x, y, z); return pos.length / 3 - 1; };
+    const rings = [];
+    for (let i = 0; i <= nz; i++) {
+      const z = zEndN + (zEndS - zEndN) * (i / nz);
+      const yT = topFn(z), yB = botFn(z);
+      rings.push([push(xo, yB, z), push(xo, yT, z), push(xi, yT, z), push(xi, yB, z)]);
     }
+    for (let i = 0; i < nz; i++) {
+      const a = rings[i], b = rings[i + 1];
+      for (let j = 0; j < 4; j++) {
+        const j1 = (j + 1) % 4;
+        idx.push(a[j], a[j1], b[j1], a[j], b[j1], b[j]);
+      }
+    }
+    for (const [ri, flip] of [[0, true], [nz, false]]) {
+      const r = rings[ri];
+      if (flip) idx.push(r[0], r[2], r[1], r[0], r[3], r[2]);
+      else idx.push(r[0], r[1], r[2], r[0], r[2], r[3]);
+    }
+    if (side < 0) for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  }
+
+  for (const side of [-1, 1]) {
+    // 裙肩墙 + 眉石: continuous smooth stone faces (the extrados -> deck-edge band
+    // and its coping), NOT a stack of blocks — this is what makes it read as 玉带桥
+    const xr = X0 + side * (HW - 0.11);
+    addStone(continuousBand(side, xr, 0.11, (z) => Y0 + profY(z), wallBaseY), null, 1.0);
+    addStone(continuousBand(side, X0 + side * (HW - 0.06), 0.14, (z) => Y0 + profY(z) + 0.05, (z) => Y0 + profY(z)), null, 1.03);
     const COP = 0.05;                            // coping height the balustrade stands on
     const railH = 0.45, wP = 0.11;
-    const deckTop = (z) => treadTop(z) + COP;    // the balustrade rides the stepped nosing line
+    const deckTop = (z) => Y0 + profY(z) + COP;  // the balustrade rides the smooth flank line
     // 寻杖 (top rail) + 下枋 (low rail): short members joining the post heads, open between
     for (let k = 0; k < postZ.length - 1; k++) {
       const za = postZ[k], zb = postZ[k + 1];
