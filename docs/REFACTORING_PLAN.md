@@ -317,3 +317,10 @@ flowchart TD
 | **阶段八 P0** | 塔刹/石灯笼/耙纹/鬼瓦/拟宝珠/障子/黑松/桥形制全部江南化 | `npm run dev` 逐批目视 + `npm run snap` 单帧核对剪影 | 4 ~ 6 天 |
 | **阶段八 P1** | 命名、注释、字段名去日化 | 全仓 grep 日式术语归零，`npm run build` 通过 | 1 天 |
 | **阶段八 P2** | README / ARCHITECTURE / package.json / 图片 / 死代码 | 文档与代码一致，`mcflicker` + `lumaflicker` 复检 | 1 ~ 2 天 |
+
+## 桥体雕作补记（P0-JN-2f ~ 2j，2026-10-29）
+
+- [x] **2f 石材去马赛克**：新增 `PROC.limestone`（均匀灰白、低频云斑+淡矿脉，无高频斑点），桥从 granite 换 limestone；删盐椒/麻点高频块；每石块色调抖动收紧 ±2%。教训：limestone 必须带 `fragRough: ''`，否则桥材质块拼出 `undefined` 致 shader 编译失败、整桥不渲染。
+- [x] **2g 拱肩改连续曲面**：用户指出块砌图案"像乐高、和建筑细建模比不了"。裙肩墙+眉石改 `continuousBand()` 连续扫掠实体（200 段、闭合截面、side<0 翻绕序）；`addStone` 随机色偏 `tone*(0.72+0.36r)` → ±1.5%（真正的拼布根源）；栏杆走平滑剖面、踏步收到眉石下。
+- [x] **2h+2i 着色砌缝（已回退）**：加了着色砌缝/线脚/色差——用户纠正"我说的花纹是雕刻，不是随便画的花纹"，`git revert` 之。
+- [x] **2j 真雕作**：`mergeGeo` 合并工具；**雕花栏板** `carvedPanel`（实心板落至眉石+凸边框+卷草 C 环浮雕，随坡倾斜 θ=−atan(m)，初版符号写反成鳍片交叉已修）；**望柱叠环云头** `finialGeo`（三道渐收叠环+顶珠，照玉带桥柱头）；寻杖承栏板、删下枋。验证帧 `out/diag-rail4.png`、`out/carve2-s1/s9.png`。

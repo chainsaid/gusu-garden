@@ -995,6 +995,38 @@ export async function build(ctx) {
     return g;
   }
 
+  // merge small carved pieces (slabs, torus curls, spheres) into one geometry so each
+  // panel / finial stays a single mesh
+  function mergeGeo(items) {
+    const pos = [], nor = [], idx = []; let off = 0;
+    for (const [g, m] of items) {
+      const gg = g.clone();
+      gg.deleteAttribute('uv'); gg.deleteAttribute('color');
+      if (m) gg.applyMatrix4(m);
+      const p = gg.attributes.position.array, n = gg.attributes.normal.array;
+      for (let i = 0; i < p.length; i++) pos.push(p[i]);
+      for (let i = 0; i < n.length; i++) nor.push(n[i]);
+      const ix = gg.index ? gg.index.array : null;
+      if (ix) { for (let i = 0; i < ix.length; i++) idx.push(ix[i] + off); }
+      else { for (let i = 0; i < gg.attributes.position.count; i++) idx.push(i + off); }
+      off += gg.attributes.position.count;
+    }
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    out.setIndex(idx);
+    return out;
+  }
+
+  // 望柱柱头: stacked cloud-ring finial (叠环云头) as on the jade belt bridge —
+  // three stacked rings tightening upward under a pearl
+  const finialGeo = (s) => mergeGeo([
+    [new THREE.TorusGeometry(0.052 * s, 0.013, 8, 16).rotateX(Math.PI / 2), mat4([0, 0.028, 0])],
+    [new THREE.TorusGeometry(0.043 * s, 0.012, 8, 16).rotateX(Math.PI / 2), mat4([0, 0.072, 0])],
+    [new THREE.TorusGeometry(0.034 * s, 0.011, 8, 16).rotateX(Math.PI / 2), mat4([0, 0.112, 0])],
+    [new THREE.SphereGeometry(0.026 * s, 12, 10), mat4([0, 0.152 * s, 0])],
+  ]);
+
   for (const side of [-1, 1]) {
     // 裙肩墙 + 眉石: continuous smooth stone faces (the extrados -> deck-edge band
     // and its coping), NOT a stack of blocks — this is what makes it read as 玉带桥
@@ -1004,19 +1036,43 @@ export async function build(ctx) {
     const COP = 0.05;                            // coping height the balustrade stands on
     const railH = 0.45, wP = 0.11;
     const deckTop = (z) => Y0 + profY(z) + COP;  // the balustrade rides the smooth flank line
-    // 寻杖 (top rail) + 下枋 (low rail): short members joining the post heads, open between
+    // 寻杖 (top rail): the moulded capping member riding over the carved panels
     for (let k = 0; k < postZ.length - 1; k++) {
       const za = postZ[k], zb = postZ[k + 1];
       const ya = deckTop(za) + railH, yb = deckTop(zb) + railH;
       const len = Math.hypot(zb - za, yb - ya);
       const ax = Math.atan2(zb - za, yb - ya);
       addStone(new THREE.CylinderGeometry(0.055, 0.055, len + 0.02, 10), mat4([xr, (ya + yb) / 2, (za + zb) / 2], [ax, 0, 0]), 1.04);
-      const yla = deckTop(za) + 0.20, ylb = deckTop(zb) + 0.20;
-      const axl = Math.atan2(deckTop(za) - deckTop(zb), zb - za);
-      addStone(rbox(0.055, 0.07, Math.max(Math.hypot(zb - za, ylb - yla) - wP, 0.05), 0.006), mat4([xr, (yla + ylb) / 2, (za + zb) / 2], [axl, 0, 0]), 1.03);
     }
-    // 望柱 with lotus-bud finials on every post + 抱鼓石 at the ends
-    const budPts = (s) => [[0, 0], [0.04 * s, 0], [0.045 * s, 0.025], [0.025 * s, 0.05], [0.036 * s, 0.075], [0.032 * s, 0.10], [0.016 * s, 0.125], [0, 0.14]].map(p => new THREE.Vector2(p[0], p[1]));
+    // 雕花栏板: solid carved panels between the posts (as on 玉带桥) — raised border
+    // frame, recessed field, and a band of 卷草 scroll curls in real relief
+    const carvedPanel = (L) => {
+      const H = 0.43;
+      const P = (dx, dy, dz) => mat4([side * dx, dy, dz]);
+      const parts = [
+        [rbox(0.045, H, L, 0.004), P(0, 0, 0)],                              // slab (field)
+        [rbox(0.016, 0.055, L + 0.004, 0.003), P(0.0305, H / 2 - 0.0275, 0)],  // top border
+        [rbox(0.016, 0.055, L + 0.004, 0.003), P(0.0305, -H / 2 + 0.0275, 0)], // bottom border
+        [rbox(0.016, H - 0.11, 0.055, 0.003), P(0.0305, 0, L / 2 - 0.0275)],   // end borders
+        [rbox(0.016, H - 0.11, 0.055, 0.003), P(0.0305, 0, -L / 2 + 0.0275)],
+      ];
+      const Lc = L - 0.22, nC = Math.max(2, Math.round(Lc / 0.17));
+      for (let i = 0; i < nC; i++) {
+        const t = new THREE.TorusGeometry(0.038, 0.0095, 8, 16, Math.PI * 1.3).rotateY(Math.PI / 2);
+        if (i % 2) t.rotateX(Math.PI);             // alternate C-curls: 卷草 scroll
+        parts.push([t, P(0.032, 0, -Lc / 2 + Lc * (i + 0.5) / nC)]);
+      }
+      return mergeGeo(parts);
+    };
+    for (let k = 0; k < postZ.length - 1; k++) {
+      const za = postZ[k], zb = postZ[k + 1];
+      const L = zb - za - wP - 0.05;
+      if (L < 0.3) continue;
+      const zm = (za + zb) / 2;
+      const m = (deckTop(zb) - deckTop(za)) / (zb - za);
+      addStone(carvedPanel(L), mat4([xr, deckTop(zm) + 0.215, zm], [-Math.atan(m), 0, 0]), 1.04);
+    }
+    // 望柱 with stacked cloud-ring finials on every post + 抱鼓石 at the ends
     for (let k = 0; k < postZ.length; k++) {
       const zp = postZ[k];
       const isEnd = k === 0 || k === postZ.length - 1;
@@ -1025,7 +1081,7 @@ export async function build(ctx) {
       const dy0 = deckTop(zp);
       addStone(stoneBlock(w, h, w, 0.012, 0.006, 0.06, zp + side * 3, 0.004), mat4([xr, dy0 + h / 2, zp]), 1.04);
       addStone(rbox(w * 1.18, 0.06, w * 1.18, 0.006), mat4([xr, dy0 + h + 0.03, zp]), 1.04);
-      addStone(new THREE.LatheGeometry(budPts(isEnd ? 1.15 : 0.95), 12), mat4([xr, dy0 + h + 0.06, zp]), 1.15);
+      addStone(finialGeo(isEnd ? 1.15 : 0.95), mat4([xr, dy0 + h + 0.06, zp]), 1.15);
       if (isEnd) {
         // 抱鼓石: 横置鼓石夹护端柱 + 石础
         for (const fs of [-1, 1]) addStone(new THREE.CylinderGeometry(0.11, 0.11, 0.16, 12).rotateZ(Math.PI / 2), mat4([xr + fs * (w / 2 + 0.10), dy0 + 0.11, zp]), 1.03);
