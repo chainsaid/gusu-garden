@@ -810,7 +810,7 @@ export async function build(ctx) {
 
   // ---------------------------------------------------------------- DECK steps (踏步)
   {
-    const pw = BAND.u0 * 2 + 0.01;
+    const pw = 2 * (HW - 0.20) + 0.01;           // walkway between the parapet walls
     const sr = ctx.rng('steps');
     for (let i = 0; i < N_STEPS; i++) {
       const z0 = zEndN + i * STEP_W, z1 = z0 + STEP_W;
@@ -818,7 +818,7 @@ export async function build(ctx) {
       const zu = (zm < ZC) ? z1 : z0;              // upper edge, nearer the crown
       const yTop = yAt(zu, 0.06);                  // level tread at the upper edge height
       const yBot = yAt(zm, -0.10);                 // seat into the arch extrados
-      addStone(rbox(pw, Math.max(yTop - yBot, 0.04), z1 - z0 - 0.01, 0.008), mat4([X0, (yTop + yBot) / 2, zm]), 0.92 + sr.next() * 0.22);
+      addStone(rbox(pw, Math.max(yTop - yBot, 0.04), z1 - z0 - 0.01, 0.008), mat4([X0, (yTop + yBot) / 2, zm]), 1.04 + sr.next() * 0.22);
     }
   }
 
@@ -890,7 +890,7 @@ export async function build(ctx) {
       const c = ptTh(tm, rMid);
       const arcLen = (t1 - t0) * rMid;
       const g = stoneBlock(Xw * 2, ringH - wj, arcLen - wj, 0.025, 0.01, 0.1, vr.next() * 50, 0.012);
-      addStone(g, mat4([c.x, c.y, c.z], [tm, 0, 0]));   // rotate so local Y -> radial, Z -> tangential
+      addStone(g, mat4([c.x, c.y, c.z], [tm, 0, 0]), 1.1);   // rotate so local Y -> radial, Z -> tangential
     }
     // 拱顶石 (keystone) slightly proud at the crown
     {
@@ -975,48 +975,46 @@ export async function build(ctx) {
   postZ.push(zPostS);
 
   for (const side of [-1, 1]) {
-    const xr = X0 + side * XR;
-    const railH = 0.62, wP = 0.14;
-    const deckTop = treadTop;                    // the railing rides the stepped nosing line
-    // 寻杖 (top stone rail): short cylinders joining the 望柱 heads along the arc
-    for (let k = 0; k < postZ.length - 1; k++) {
-      const za = postZ[k], zb = postZ[k + 1];
-      const ya = deckTop(za) + railH, yb = deckTop(zb) + railH;
-      const a = new THREE.Vector3(xr, ya, za), b = new THREE.Vector3(xr, yb, zb);
-      const mid = a.clone().add(b).multiplyScalar(0.5);
-      const len = a.distanceTo(b);
-      const ax = Math.atan2(zb - za, yb - ya);
-      addStone(new THREE.CylinderGeometry(0.045, 0.045, len + 0.02, 10), mat4([mid.x, mid.y, mid.z], [ax, 0, 0]), 1.15);
+    // solid parapet wall on the deck edge — its masonry continues DOWN to the arch
+    // extrados, so the flanks read as one solid body (as on real 江南 bridges)
+    const xr = X0 + side * (HW - 0.09);
+    const PAR_H = 0.55;
+    const deckTop = treadTop;                    // the wall rides the stepped nosing line
+    for (let i = 0; i < N_STEPS; i++) {
+      const z0 = zEndN + i * STEP_W, z1 = z0 + STEP_W;
+      const zm = (z0 + z1) / 2;
+      const yBot = yAt(zm, 0.05);                // spring from the extrados, covering the steps' flanks
+      const yTop = deckTop(zm) + PAR_H;
+      addStone(rbox(0.22, yTop - yBot, z1 - z0 - 0.006, 0.006), mat4([xr, (yTop + yBot) / 2, zm]), 1.04 + rnd.next() * 0.18);
+      // 压顶石 (moulded coping, slightly wider, follows the arch)
+      addStone(rbox(0.28, 0.055, z1 - z0 - 0.004, 0.012), mat4([xr, yTop + 0.028, zm]), 1.05);
     }
-    // 望柱 + 石柱头 + 抱鼓石
+    // 望柱头: sparse lotus-bud finials on the coping, taller end posts + 抱鼓石
+    const budPts = (s) => [[0, 0], [0.04 * s, 0], [0.045 * s, 0.025], [0.025 * s, 0.05], [0.036 * s, 0.075], [0.032 * s, 0.10], [0.016 * s, 0.125], [0, 0.14]].map(p => new THREE.Vector2(p[0], p[1]));
     for (let k = 0; k < postZ.length; k++) {
       const zp = postZ[k];
       const isEnd = k === 0 || k === postZ.length - 1;
-      const w = isEnd ? 0.20 : wP;
-      const h = isEnd ? 0.80 : railH;
-      const dy0 = deckTop(zp);
-      addStone(stoneBlock(w, h, w, 0.012, 0.006, 0.06, zp + side * 3, 0.004), mat4([xr, dy0 + h / 2, zp]), 1.15);
-      // 石柱头: 略宽短块 + 莲瓣顶珠
-      addStone(rbox(w * 1.18, 0.07, w * 1.18, 0.006), mat4([xr, dy0 + h + 0.035, zp]), 1.15);
-      const capPts = [[0, 0], [0.05, 0], [0.055, 0.03], [0.03, 0.06], [0.045, 0.09], [0.04, 0.12], [0.02, 0.15], [0, 0.17]].map(p => new THREE.Vector2(p[0], p[1]));
-      addStone(new THREE.LatheGeometry(capPts, 12), mat4([xr, dy0 + h + 0.07, zp]), 1.15);
+      const dy0 = deckTop(zp) + PAR_H + 0.055;   // top of the coping
       if (isEnd) {
-        // 抱鼓石: 横置鼓石夹护端柱
-        for (const fs of [-1, 1]) addStone(new THREE.CylinderGeometry(0.11, 0.11, 0.16, 12).rotateZ(Math.PI / 2), mat4([xr + fs * (w / 2 + 0.10), dy0 + 0.11, zp]));
-        // 石础
+        const w = 0.24;
+        addStone(stoneBlock(w, 0.40, w, 0.012, 0.006, 0.06, zp + side * 3, 0.004), mat4([xr, dy0 + 0.20, zp]), 1.1);
+        addStone(rbox(w * 1.25, 0.07, w * 1.25, 0.006), mat4([xr, dy0 + 0.435, zp]), 1.1);
+        addStone(new THREE.LatheGeometry(budPts(1.15), 12), mat4([xr, dy0 + 0.47, zp]), 1.15);
+        // 抱鼓石: 横置鼓石夹护端柱 + 石础
+        for (const fs of [-1, 1]) addStone(new THREE.CylinderGeometry(0.11, 0.11, 0.16, 12).rotateZ(Math.PI / 2), mat4([xr + fs * (w / 2 + 0.10), deckTop(zp) + 0.11, zp]), 1.1);
         addStone(stoneBlock(0.40, 0.16, 0.40, 0.03, 0.004, 0.08, zp + side, 0.006), mat4([xr, LAND_TOP + 0.08, zp]), 1.1);
+      } else if (k % 3 === 1) {
+        addStone(stoneBlock(0.13, 0.15, 0.13, 0.008, 0.004, 0.05, zp + side, 0.003), mat4([xr, dy0 + 0.075, zp]), 1.05);
+        addStone(new THREE.LatheGeometry(budPts(0.95), 10), mat4([xr, dy0 + 0.15, zp]), 1.1);
       }
     }
-    // 栏板 (low stone panel between posts, below the 寻杖)
-    for (let k = 0; k < postZ.length - 1; k++) {
-      const za = postZ[k], zb = postZ[k + 1];
-      const zMid = (za + zb) / 2;
-      const yMid = (deckTop(za) + deckTop(zb)) / 2 + 0.28;
-      const gapLen = Math.hypot(zb - za, deckTop(zb) - deckTop(za)) - wP;
-      // panel's long axis is local Z: tilt it to follow the arc tangent (NOT the
-      // atan2(dz,dy) used for the cylinders, whose axis is local Y)
-      const ax = Math.atan2(deckTop(za) - deckTop(zb), zb - za);
-      addStone(rbox(0.06, 0.40, Math.max(gapLen, 0.05), 0.006), mat4([xr, yMid, zMid], [ax, 0, 0]), 1.15);
+    // 系船石 (mooring stones) protruding from the spandrel wall
+    for (const dzm of [2.2, 4.6]) for (const sgn of [-1, 1]) {
+      const zm = ZC + sgn * dzm;
+      if (zm > zEndN + 0.6 && zm < zEndS - 0.6) {
+        const ym = (yAt(zm, 0.05) + deckTop(zm)) / 2 + 0.05;
+        addStone(stoneBlock(0.26, 0.15, 0.34, 0.02, 0.006, 0.06, zm + side, 0.005), mat4([X0 + side * (HW + 0.10), ym, zm]), 1.0);
+      }
     }
   }
 
