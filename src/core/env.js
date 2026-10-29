@@ -8,8 +8,15 @@ import * as THREE from 'three';
 const deg = Math.PI / 180;
 
 // Sun: low golden-hour sun in the west-south-west.
-export const SUN_ELEVATION = 6.8 * deg;
-export const SUN_AZ_DIR = new THREE.Vector2(-0.94, 0.34).normalize(); // horizontal (x,z) direction TOWARD the sun
+export let SUN_ELEVATION = 6.8 * deg;
+export let SUN_AZ_DIR = new THREE.Vector2(-0.94, 0.34).normalize(); // horizontal (x,z) direction TOWARD the sun
+
+// dev override so modules can be inspected under a higher, neutral sun (?sunelev=, ?sunaz=)
+if (typeof location !== 'undefined') {
+  const q = new URLSearchParams(location.search);
+  if (q.has('sunelev')) SUN_ELEVATION = (+q.get('sunelev')) * deg;
+  if (q.has('sunaz')) { const a = (+q.get('sunaz')) * deg; SUN_AZ_DIR = new THREE.Vector2(Math.cos(a), Math.sin(a)).normalize(); }
+}
 
 export const sunDir = new THREE.Vector3(
   SUN_AZ_DIR.x * Math.cos(SUN_ELEVATION),
