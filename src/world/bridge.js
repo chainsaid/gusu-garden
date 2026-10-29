@@ -479,10 +479,24 @@ export async function build(ctx) {
         vec2 wl = n_worley3(wpS * 7.0 + 5.0);
         float lichP = smoothstep(0.05, 0.45, n_fbm3(wpS * 1.3 + 2.0, 2));
         float lich = (1.0 - smoothstep(0.1, 0.24, wl.x)) * lichP;
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.40, 0.40, 0.33), lich * 0.55);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.40, 0.40, 0.33), lich * 0.32);
         float sideS = 1.0 - abs(wnS.y);
         float vs = n_fbm3(vec3((wpS.x + wpS.z) * 7.0, wpS.y * 0.7, 3.0), 3);
         diffuseColor.rgb *= 1.0 - sideS * smoothstep(0.0, 0.45, vs) * 0.16;
+        // faint masonry courses: concentric arcs following the arch (rr from the ring
+        // centre), on the vertical flank faces only, faded out when sub-pixel — colour
+        // only, no relief, so the face still reads as one smooth stone surface
+        float rr = length(vec2(wpS.z - ARC_ZC, wpS.y - ARC_YC));
+        float pxR = length(fwidth(wpS));
+        float cf = fract(rr / 0.30);
+        float courseLine = 1.0 - smoothstep(0.0, 0.015 + fwidth(rr) * 1.5, min(cf, 1.0 - cf) * 0.30);
+        float flankM = sideS * (1.0 - smoothstep(0.012, 0.035, pxR));
+        diffuseColor.rgb *= 1.0 - courseLine * flankM * 0.09;
+        // 券脸石线脚: a hairline groove just inside both edges of the arch-ring band
+        float bandIn = smoothstep(ARC_R - 0.235, ARC_R - 0.205, rr) * (1.0 - smoothstep(ARC_R + 0.205, ARC_R + 0.235, rr));
+        float edgeD = min(abs(rr - (ARC_R - 0.215)), abs(rr - (ARC_R + 0.215)));
+        float mould = (1.0 - smoothstep(0.0, 0.010 + fwidth(rr), edgeD)) * bandIn;
+        diffuseColor.rgb *= 1.0 - mould * flankM * 0.13;
         // faint broad micro-relief only — no salt-and-pepper speckle (that read as mosaic)
         float pxS = length(fwidth(wpS));
         g_h += n_fbm3(wpS * 2.0, 2) * 0.05;
