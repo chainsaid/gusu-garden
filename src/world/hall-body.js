@@ -300,9 +300,11 @@ export function buildVeranda(acc, mats, R) {
 // ------------------------------------------------------- columns
 export function column(acc, mats, x, z, y0, y1, r, opts = {}) {
   const red = acc.m(mats.redA || mats.red), black = acc.m(mats.black);
-  lathe(red, xf([x, y0, z]), [[0, 0], [r, 0], [r * 0.995, (y1 - y0) * 0.5], [r * 0.975, y1 - y0], [0, y1 - y0]], 28, { hardDeg: 20 });
+  // 柱身收分（卷杀）：上细下粗，顶径约 0.90 柱径 —— 中式柱不做笔直光筒
+  lathe(red, xf([x, y0, z]), [[0, 0], [r, 0], [r * 0.95, (y1 - y0) * 0.5], [r * 0.90, y1 - y0], [0, y1 - y0]], 28, { hardDeg: 20 });
   if (opts.foot) {
-    lathe(black, xf([x, y0, z]), [[r + 0.012, 0], [r + 0.012, 0.3], [0, 0.3]], 28);
+    // 暗色防潮箍（替代原日式「根巻」0.3m 黑漆柱脚）
+    lathe(black, xf([x, y0, z]), [[r + 0.012, 0], [r + 0.012, 0.10], [0, 0.10]], 28);
   }
   if (opts.soseki) {
     lathe(acc.m(mats.granite), xf([x, opts.soseki, z]), [[0, 0], [r + 0.3, 0], [r + 0.3, 0.06], [r + 0.2, y0 - opts.soseki - 0.02], [r + 0.05, y0 - opts.soseki], [0, y0 - opts.soseki]], 24);
@@ -406,6 +408,19 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
         panel(redA, gx0, gx1, hy - 0.012, hy + 0.012, 0.048, 0.078, 0.003);
       }
 
+      // 4b. 步步锦短棂：格档内错落咬合短横/短竖棂，形成江南长窗的步步锦棂花
+      // （均质井字格偏日式障子感，步步锦才是苏式长窗做法）
+      for (let hi = 0; hi <= nH; hi++) {
+        const by0 = gy0 + hi * dy;
+        const sy = by0 + dy * 0.25, ey = by0 + dy * 0.75;
+        for (let vi = 0; vi <= nV; vi++) {
+          if ((hi + vi) % 2) continue;
+          const sx = gx0 + vi * du + du * 0.25, ex = gx0 + vi * du + du * 0.75;
+          panel(redA, sx - 0.010, sx + 0.010, sy, ey, 0.044, 0.074, 0.003);
+          panel(redA, sx, ex, sy - 0.010, sy + 0.010, 0.044, 0.074, 0.003);
+        }
+      }
+
       // 5. 门环（中间两扇相遇处加素雅小拉手）
       if (li === 1 || li === 2) {
         const ringU = li === 1 ? u1 - fw - 0.04 : u0 + fw + 0.04;
@@ -504,7 +519,7 @@ export function buildWalls(acc, mats, R, frontTypes, backTypes, westTypes, eastT
   for (const x of X) for (const z of Z) {
     const edge = Math.abs(x) === 13 || Math.abs(z) === 8.5;
     if (!edge) continue;
-    column(acc, mats, x, z, HB.colBase + 0.14, HB.colTop, HB.colR, { foot: true, soseki: HB.colBase - 0.02 });
+    column(acc, mats, x, z, HB.colBase + 0.22, HB.colTop, HB.colR, { foot: true, soseki: HB.colBase - 0.06 });
   }
   // 梁枋出头（霸王拳）：角柱外挑梁头，中式梁头不做日式「木鼻」平头
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
