@@ -391,8 +391,12 @@ export function buildEaves(acc, T, mats, opts = {}) {
       const Rc = 0.5 * Math.hypot(w, h) + 0.015;
       // rimmed rectangular 木鼻 plate over the end face, boss, corner nails
       const Fe = endFrame(q0, dir);
-      const ww = w / 2 + 0.016, hh2 = h / 2 + 0.016;
+      const ww = w / 2 + 0.004, hh2 = h / 2 + 0.004;
       rafterCap(gl, Fe, ww, hh2, { sleeve: 0, boss: false });
+      // 嫩戗圆润收头：在端板外罩一个圆锥尖（江南嫩戗发戗的柔和翘尖），收掉
+      // 方形木鼻端板的「利」感；锥轴沿梁向( dir )外，底径略大于梁宽以包住端面
+      lathe(gl, basis(v3.add(q0, v3.scale(dir, -0.04)), side, dir, v3.cross(side, dir)),
+        [[0.115, 0], [0.098, 0.10], [0.06, 0.20], [0, 0.29]], 16);
       // black-lacquered inset inside the plain end frame covers the end grain
       const iw = (ww + 0.007) * 0.73, ih = (hh2 + 0.007) * 0.79;
       extrude(acc.m(mats.black), Fe, [[-iw, -ih], [iw, -ih], [iw, ih], [-iw, ih]], [], 0, 0.004, { back: false });

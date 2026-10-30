@@ -510,8 +510,14 @@ export function buildWalls(acc, mats, R, frontTypes, backTypes, westTypes, eastT
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     for (const [dx, dz] of [[1, 0], [0, 1]]) {
       const c = [sx * 13, 7.5, sz * 8.5];
-      const e = [c[0] + sx * dx * 0.75, 7.5, c[2] + sz * dz * 0.75];
+      const e = [c[0] + sx * dx * 0.58, 7.5, c[2] + sz * dz * 0.58];
       beam(acc.m(mats.red), c, e, 0.2, 0.3, 0.02);
+      // 霸王拳：梁枋出头做卷杀收分（中式梁头，替代原日式「木鼻」平头），
+      // 锥轴沿梁向( dirB )外，底径略大于梁截面对角以包住端头
+      const dirB = v3.norm(v3.sub(e, c));
+      const sideB = v3.norm(v3.cross([0, 1, 0], dirB));
+      lathe(acc.m(mats.red), basis(v3.add(e, v3.scale(dirB, -0.04)), sideB, dirB, v3.cross(sideB, dirB)),
+        [[0.19, 0], [0.16, 0.08], [0.10, 0.17], [0, 0.24]], 14);
     }
   }
 }
