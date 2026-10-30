@@ -185,8 +185,8 @@ export async function build(ctx) {
     E: { dP: 4.08, yP: 14.82, sb: 0.33, dTip: 0.9, yF0: 13.74, sf: 0.22, dFly: 1.95, rafW: 0.13, rafH: 0.15, frafW: 0.12, frafH: 0.13, dwX: 5.4, dwZ: 5.4, purW: 0.26, purH: 0.3, spacing: 0.3 },
     bellScale: 1.1,
   };
-  const warpM = makeWarp(mok.ex, mok.ez, 0.95, 0.45, Math.max(13 / mok.ex, 8.5 / mok.ez) - 0.04, 1.9);
-  const warpU = makeWarp(main.ex, main.ez, 1.30, 0.60, Math.max(xi / main.ex, zi / main.ez) - 0.04, 1.9);
+  const warpM = makeWarp(mok.ex, mok.ez, 1.05, 0.50, Math.max(13 / mok.ex, 8.5 / mok.ez) - 0.04, 1.9);
+  const warpU = makeWarp(main.ex, main.ez, 1.45, 0.66, Math.max(xi / main.ex, zi / main.ez) - 0.04, 1.9);
   const tmp = [0, 0, 0];
   // lower roof tile height (with warp lift) for intersections
   const mokY = (x, z) => {
