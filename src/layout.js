@@ -111,7 +111,7 @@ export const L = {
     south: [10, 0, 27],
     north: [10, 0, 5],
     width: 3.6,
-    rise:  5.4,   // 矢跨比 0.49 — steep humpback like 玉带桥; the deck becomes stepped
+    rise:  3.2,   // 江南青石拱桥 — 桥面高跨比 0.145，直坡坡度 17.6°；拱券半径由矢高反解（见 bridge.js）
     posts: 9,
   },
 

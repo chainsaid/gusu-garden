@@ -356,7 +356,7 @@ PROC.granite = (mossAmt = '0.6', tint = 'vec3(1.0)') => ({
   fragNormal: /* glsl */ `normal = n_bumpView(-vViewPosition, normal, g_h, 0.01);`,
 });
 
-// Smooth pale limestone (玉带桥-style): uniform grey-white, only faint broad
+// Smooth 水磨青石 (江南石桥/台基用): uniform cool grey, only faint broad
 // veining — no speckle/salt-and-pepper, so it does not read as mosaic at distance.
 PROC.limestone = (tint = 'vec3(1.0)') => ({
   fragHead: /* glsl */ `float g_h;\nuniform vec3 uTint;`,
