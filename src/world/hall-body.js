@@ -15,7 +15,7 @@ export const HB = {
   colR: 0.32, colBase: 1.6, colTop: 8.0,
   floorY: 2.1, ceilY: 9.2,
   ver: { x: 15.4, z: 10.9 },
-  up: { xs: [-9.2857, -5.5714, -1.8571, 1.8571, 5.5714, 9.2857], zs: [-4.8, -1.6, 1.6, 4.8], r: 0.27, top: 12.9, base: 10.4 },
+  up: { xs: [-9.2857, -5.5714, -1.8571, 1.8571, 5.5714, 9.2857], zs: [-4.8, -1.6, 1.6, 4.8], r: 0.22, top: 12.9, base: 10.4 },
   stair: { hw: 5.0, rise: 0.16, run: 0.31, n: 10, sideW: 0.8 },
   frontSteps: { z0: 10.9, n: 3, run: 0.28 },
 };
@@ -328,36 +328,37 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
   const at = (u, y, w) => [cx + ax[0] * u + o[0] * w, y, cz + ax[2] * u + o[2] * w];
   const M = (u, y, w) => basis(at(u, y, w), ax, [0, 1, 0], o);
   const panel = (ms, u0, u1, y0, y1, w0, w1, c = 0.01) => cbox(ms, M((u0 + u1) / 2, (y0 + y1) / 2, (w0 + w1) / 2), (u1 - u0) / 2, (y1 - y0) / 2, (w1 - w0) / 2, c);
-  const Y = { sill0: fy, sill1: fy + 0.26, koshi: 2.95, kn1: 3.12, nag0: 5.9, nag1: 6.15, kn0: 7.35, kh1: 7.65, top: HB.colTop };
+  // 中式外檐构件标高：下槛 / 腰串(yao) / 窗下枋(chuan1) / 上槛(e0,e1) / 额枋(fang0,fang1)
+  const Y = { sill0: fy, sill1: fy + 0.26, yao: 2.95, chuan1: 3.12, e0: 5.9, e1: 6.15, fang0: 7.35, fang1: 7.65, top: HB.colTop };
   // --- structural beams (柱间额枋与穿枋，平接柱身，无凸出柱外的日式长押)
-  panel(redA, -half, half, Y.kn0, Y.kh1, -0.09, 0.09, 0.015); // 大额枋 (阑额)
+  panel(redA, -half, half, Y.fang0, Y.fang1, -0.09, 0.09, 0.015); // 大额枋 (阑额)
   panel(redA, -half, half, Y.top - 0.17, Y.top, -0.11, 0.11, 0.015); // 普拍枋
   if (type !== 'open') panel(redA, -half, half, Y.sill0, Y.sill1, -0.10, 0.10, 0.015); // 下槛枋
   else panel(redA, -half, half, Y.sill0, Y.sill0 + 0.1, -0.10, 0.10, 0.01); // 门槛木
   // 中式穿枋 (穿插枋，平齐柱面)
-  panel(redA, -half, half, Y.nag0, Y.nag1, -0.07, 0.07, 0.012);
+  panel(redA, -half, half, Y.e0, Y.e1, -0.07, 0.07, 0.012);
   panel(redA, -half, half, Y.sill1 - 0.01, Y.sill1 + 0.12, -0.07, 0.07, 0.01);
 
   // --- 中式木雕雀替 (Sparrow Braces / Consoles) — 柱头额枋交角倒三角木雕卷草雀替
   const spW = Math.min(0.52, half * 0.42), spH = 0.35, spT = 0.065;
   for (const sx of [-1, 1]) {
     const spX = sx * (half - spW / 2);
-    panel(redD, spX - spW / 2, spX + spW / 2, Y.kn0 - spH, Y.kn0, -spT / 2, spT / 2, 0.008);
+    panel(redD, spX - spW / 2, spX + spW / 2, Y.fang0 - spH, Y.fang0, -spT / 2, spT / 2, 0.008);
   }
 
   // --- upper wall: plaster between 额枋 and 普拍枋 (由额垫板与白粉抹灰)
-  panel(white, -half, half, Y.kh1, Y.top - 0.17, 0.0, 0.06, 0.006);
-  panel(inP, -half, half, Y.kh1, HB.ceilY + 0.08, -0.06, 0.0, 0.006);
+  panel(white, -half, half, Y.fang1, Y.top - 0.17, 0.0, 0.06, 0.006);
+  panel(inP, -half, half, Y.fang1, HB.ceilY + 0.08, -0.06, 0.0, 0.006);
   // 额枋下中式花牙与棂条
   if (type === 'open') {
     // 苏式挂落与棂子楣杆 (Lattice transom)
-    panel(red, -half, half, Y.nag1, Y.nag1 + 0.08, -0.06, 0.06, 0.008);
-    for (let u = -half + 0.12; u < half - 0.08; u += 0.16) panel(red, u - 0.02, u + 0.02, Y.nag1 + 0.08, Y.kn0, -0.025, 0.025, 0.005);
-    for (const y of [Y.nag1 + 0.42, Y.nag1 + 0.82]) panel(red, -half, half, y - 0.018, y + 0.018, -0.025, 0.025, 0.004);
-    panel(inP, -half, half, Y.kn0 - 0.02, Y.kh1, -0.06, -0.0, 0.004);
+    panel(red, -half, half, Y.e1, Y.e1 + 0.08, -0.06, 0.06, 0.008);
+    for (let u = -half + 0.12; u < half - 0.08; u += 0.16) panel(red, u - 0.02, u + 0.02, Y.e1 + 0.08, Y.fang0, -0.025, 0.025, 0.005);
+    for (const y of [Y.e1 + 0.42, Y.e1 + 0.82]) panel(red, -half, half, y - 0.018, y + 0.018, -0.025, 0.025, 0.004);
+    panel(inP, -half, half, Y.fang0 - 0.02, Y.fang1, -0.06, -0.0, 0.004);
   } else {
-    panel(white, -half, half, Y.nag1, Y.kn0, 0.0, 0.06, 0.006);
-    panel(inP, -half, half, Y.nag1, Y.kn0, -0.06, 0.0, 0.006);
+    panel(white, -half, half, Y.e1, Y.fang0, 0.0, 0.06, 0.006);
+    panel(inP, -half, half, Y.e1, Y.fang0, -0.06, 0.0, 0.006);
   }
   // --- main zone
   if (type === 'panel') {
@@ -369,18 +370,18 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
     const yWaist = 3.72; // 绦环板上口
 
     // 底层内衬：暗色内壁（格心透出的是幽暗室内 / 明瓦灰光，不是白粉墙 —— 白格子是障子做法）
-    panel(inW, -half, half, Y.sill1, Y.nag0, 0.03, 0.045, 0.002);
-    panel(inW, -half, half, Y.sill1, Y.nag0, -0.06, 0.0, 0.004);
+    panel(inW, -half, half, Y.sill1, Y.e0, 0.03, 0.045, 0.002);
+    panel(inW, -half, half, Y.sill1, Y.e0, -0.06, 0.0, 0.004);
 
     for (let li = 0; li < nLeaves; li++) {
       const u0 = -half + li * leafW + 0.008;
       const u1 = -half + (li + 1) * leafW - 0.008;
 
       // 1. 门扇外框（边梃与抹头）
-      panel(red, u0, u0 + fw, Y.sill1, Y.nag0, 0.035, 0.085, 0.008); // 左边梃
-      panel(red, u1 - fw, u1, Y.sill1, Y.nag0, 0.035, 0.085, 0.008); // 右边梃
+      panel(red, u0, u0 + fw, Y.sill1, Y.e0, 0.035, 0.085, 0.008); // 左边梃
+      panel(red, u1 - fw, u1, Y.sill1, Y.e0, 0.035, 0.085, 0.008); // 右边梃
       panel(red, u0, u1, Y.sill1, Y.sill1 + 0.055, 0.035, 0.085, 0.008); // 下抹头
-      panel(red, u0, u1, Y.nag0 - 0.055, Y.nag0, 0.035, 0.085, 0.008); // 上抹头
+      panel(red, u0, u1, Y.e0 - 0.055, Y.e0, 0.035, 0.085, 0.008); // 上抹头
       panel(red, u0, u1, ySkirt - 0.04, ySkirt, 0.035, 0.085, 0.008); // 裙板上抹头
       panel(red, u0, u1, yWaist - 0.04, yWaist, 0.035, 0.085, 0.008); // 绦环板上抹头
 
@@ -392,7 +393,7 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
 
       // 4. 格心（上部高挑透光花格：步步锦棂花构架）
       const gx0 = u0 + fw + 0.015, gx1 = u1 - fw - 0.015;
-      const gy0 = yWaist + 0.02, gy1 = Y.nag0 - 0.075;
+      const gy0 = yWaist + 0.02, gy1 = Y.e0 - 0.075;
       // 竖向棂条 (2 vertical bars)
       const nV = 2;
       const du = (gx1 - gx0) / (nV + 1);
@@ -433,64 +434,64 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
       const u = s * (half - 0.06);
       for (const k of [0, 1]) {
         const uu = u - s * (0.02 + k * 0.065);
-        panel(red, uu - 0.025, uu + 0.025, Y.sill1, Y.nag0, 0.12, 0.95, 0.006);
+        panel(red, uu - 0.025, uu + 0.025, Y.sill1, Y.e0, 0.12, 0.95, 0.006);
         panel(redD, uu - 0.022, uu + 0.022, Y.sill1 + 0.06, 3.22, 0.14, 0.93, 0.004); // 裙板
         for (let w = 0.22; w < 0.9; w += 0.16) {
-          panel(redA, uu - 0.018, uu + 0.018, 3.52, Y.nag0 - 0.08, w - 0.015, w + 0.015, 0.003);
+          panel(redA, uu - 0.018, uu + 0.018, 3.52, Y.e0 - 0.08, w - 0.015, w + 0.015, 0.003);
         }
       }
     }
   } else if (type === 'window') {
     // ---- 苏式半窗（白粉矮墙 + 步步锦花窗，彻底取代日式連子窓）----
-    panel(white, -half, half, Y.sill1, Y.koshi, 0.0, 0.06, 0.006);
-    panel(inP, -half, half, Y.sill0, Y.koshi, -0.06, 0.0, 0.006);
-    panel(redA, -half, half, Y.koshi, Y.kn1, -0.08, 0.08, 0.012);
+    panel(white, -half, half, Y.sill1, Y.yao, 0.0, 0.06, 0.006);
+    panel(inP, -half, half, Y.sill0, Y.yao, -0.06, 0.0, 0.006);
+    panel(redA, -half, half, Y.yao, Y.chuan1, -0.08, 0.08, 0.012);
     const fw = 0.065;
-    panel(red, -half, -half + fw, Y.kn1, Y.nag0, -0.06, 0.06, 0.01);
-    panel(red, half - fw, half, Y.kn1, Y.nag0, -0.06, 0.06, 0.01);
-    panel(red, -half, half, Y.nag0 - 0.06, Y.nag0, -0.06, 0.06, 0.01);
-    panel(white, -half + fw, half - fw, Y.kn1 + 0.02, Y.nag0 - 0.06, 0.0, 0.02, 0.002);
+    panel(red, -half, -half + fw, Y.chuan1, Y.e0, -0.06, 0.06, 0.01);
+    panel(red, half - fw, half, Y.chuan1, Y.e0, -0.06, 0.06, 0.01);
+    panel(red, -half, half, Y.e0 - 0.06, Y.e0, -0.06, 0.06, 0.01);
+    panel(white, -half + fw, half - fw, Y.chuan1 + 0.02, Y.e0 - 0.06, 0.0, 0.02, 0.002);
     const nLeaves = 4;
     const lW = (2 * (half - fw)) / nLeaves;
     for (let li = 0; li < nLeaves; li++) {
       const u0 = -half + fw + li * lW + 0.006;
       const u1 = -half + fw + (li + 1) * lW - 0.006;
-      panel(red, u0, u0 + 0.035, Y.kn1 + 0.02, Y.nag0 - 0.06, 0.02, 0.05, 0.005);
-      panel(red, u1 - 0.035, u1, Y.kn1 + 0.02, Y.nag0 - 0.06, 0.02, 0.05, 0.005);
-      panel(red, u0, u1, Y.kn1 + 0.02, Y.kn1 + 0.055, 0.02, 0.05, 0.005);
-      panel(red, u0, u1, Y.nag0 - 0.095, Y.nag0 - 0.06, 0.02, 0.05, 0.005);
+      panel(red, u0, u0 + 0.035, Y.chuan1 + 0.02, Y.e0 - 0.06, 0.02, 0.05, 0.005);
+      panel(red, u1 - 0.035, u1, Y.chuan1 + 0.02, Y.e0 - 0.06, 0.02, 0.05, 0.005);
+      panel(red, u0, u1, Y.chuan1 + 0.02, Y.chuan1 + 0.055, 0.02, 0.05, 0.005);
+      panel(red, u0, u1, Y.e0 - 0.095, Y.e0 - 0.06, 0.02, 0.05, 0.005);
       const nV = 2;
       for (let vi = 1; vi <= nV; vi++) {
         const vx = u0 + (vi * (u1 - u0)) / (nV + 1);
-        panel(redA, vx - 0.01, vx + 0.01, Y.kn1 + 0.055, Y.nag0 - 0.095, 0.025, 0.045, 0.003);
+        panel(redA, vx - 0.01, vx + 0.01, Y.chuan1 + 0.055, Y.e0 - 0.095, 0.025, 0.045, 0.003);
       }
       for (let hi = 1; hi <= 5; hi++) {
-        const hy = Y.kn1 + 0.055 + (hi * (Y.nag0 - 0.15 - Y.kn1)) / 6;
+        const hy = Y.chuan1 + 0.055 + (hi * (Y.e0 - 0.15 - Y.chuan1)) / 6;
         panel(redA, u0 + 0.035, u1 - 0.035, hy - 0.01, hy + 0.01, 0.025, 0.045, 0.003);
       }
     }
-    panel(inW, -half, half, Y.nag0, Y.nag1, -0.06, 0.0, 0.004);
+    panel(inW, -half, half, Y.e0, Y.e1, -0.06, 0.0, 0.004);
   } else if (type === 'door') {
     // ---- 苏式双开实木雕花大门（带中式黑铁铺首拉环）----
     const jw = 0.08;
-    panel(red, -half, -half + jw, Y.sill1, Y.nag0, -0.06, 0.06, 0.01);
-    panel(red, half - jw, half, Y.sill1, Y.nag0, -0.06, 0.06, 0.01);
-    panel(red, -half, half, Y.nag0 - 0.08, Y.nag0, -0.06, 0.06, 0.01);
+    panel(red, -half, -half + jw, Y.sill1, Y.e0, -0.06, 0.06, 0.01);
+    panel(red, half - jw, half, Y.sill1, Y.e0, -0.06, 0.06, 0.01);
+    panel(red, -half, half, Y.e0 - 0.08, Y.e0, -0.06, 0.06, 0.01);
     const dHalf = half - jw;
     for (const sx of [-1, 1]) {
       const du0 = sx > 0 ? 0.005 : -dHalf + 0.005;
       const du1 = sx > 0 ? dHalf - 0.005 : -0.005;
-      panel(redD, du0, du1, Y.sill1 + 0.02, Y.nag0 - 0.08, 0.01, 0.06, 0.008);
+      panel(redD, du0, du1, Y.sill1 + 0.02, Y.e0 - 0.08, 0.01, 0.06, 0.008);
       panel(red, du0 + 0.02, du1 - 0.02, 3.2, 3.28, 0.062, 0.075, 0.004);
       const ringX = sx * 0.18;
-      pullRing(black, M(ringX, (Y.sill1 + Y.nag0) / 2, 0.075), 0.042, 0.006);
+      pullRing(black, M(ringX, (Y.sill1 + Y.e0) / 2, 0.075), 0.042, 0.006);
     }
   } else if (type === 'leak') {
     // ---- 苏式白粉墙开漏窗（移步换景，取代原日式粗厚板墙）----
-    panel(white, -half, half, Y.sill1, Y.nag0, 0.0, 0.05, 0.006);
-    panel(inP, -half, half, Y.sill1, Y.nag0, -0.05, 0.0, 0.006);
+    panel(white, -half, half, Y.sill1, Y.e0, 0.0, 0.05, 0.006);
+    panel(inP, -half, half, Y.sill1, Y.e0, -0.05, 0.0, 0.006);
     const winW = Math.min(1.2, half * 1.2), winH = 1.35;
-    const winY = (Y.sill1 + Y.nag0) / 2 + 0.15;
+    const winY = (Y.sill1 + Y.e0) / 2 + 0.15;
     panel(black, -winW / 2, winW / 2, winY - winH / 2, winY + winH / 2, 0.052, 0.072, 0.008);
     panel(acc.m(mats.woodDark), -winW / 2 + 0.05, winW / 2 - 0.05, winY - winH / 2 + 0.05, winY + winH / 2 - 0.05, -0.02, 0.055, 0.004);
     for (let u = -winW / 2 + 0.18; u <= winW / 2 - 0.18; u += 0.24) {
@@ -501,7 +502,7 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
     }
   }
   // interior skin top band above 腰枋 for open bays handled; for others continuous
-  if (type === 'open') panel(inP, -half, half, Y.nag1, Y.kn0, -0.06, -0.035, 0.004);
+  if (type === 'open') panel(inP, -half, half, Y.e1, Y.fang0, -0.06, -0.035, 0.004);
   void ctx2; void R;
 }
 
