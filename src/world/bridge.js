@@ -414,11 +414,68 @@ export async function build(ctx) {
     };
     run(zEndN, ZC - PLAT, Math.max(4, Math.round((ZC - PLAT - zEndN) / 0.34)));
     run(ZC + PLAT, zEndS, Math.max(4, Math.round((zEndS - ZC - PLAT) / 0.34)));
-    // 桥心石: 拱顶一整块平台石板，坐在拱顶外弧之上，表面由 shader 刻圆框 + 六旋水纹
+    // 桥心石: 拱顶一整块平台石板，坐在拱顶外弧之上；中心嵌一块圆雕石板（圆框 +
+    // 六旋水纹）。纹样原先由 granite patch 在 fragment 里画，但导出时 patch 被换成
+    // 纯标准材质、web 版会丢纹样，所以这里改成程序化贴图圆板 —— resolveStdMat 对带
+    // map 的材质原样保留 (export.html:152)，电影版 / web 版共用同一张图，两版统一。
     {
       const yTop = Y0 + profY(ZC);
       const yBot = Math.max(yTop - 0.22, YRING + R_OUT + 0.02);
       addStone(stoneBlock(pw, yTop - yBot, 2 * PLAT - 0.012, 0.03, 0.005, 0.12, 3, 0.004), mat4([X0, (yTop + yBot) / 2, ZC]), 1.02);
+
+      // 程序化生成六旋水纹 + 圆框的 albedo / normal 贴图（仅浏览器环境，node 校验跳过）
+      const makeHeartTextures = () => {
+        if (typeof document === 'undefined') return null;
+        const S = 512, cx = S / 2, cy = S / 2, R = S / 2, R0 = 0.55;
+        const cv = document.createElement('canvas'); cv.width = cv.height = S;
+        const cc = cv.getContext('2d'); if (!cc) return null;
+        cc.fillStyle = '#9fa6a4'; cc.fillRect(0, 0, S, S);
+        const al = cc.getImageData(0, 0, S, S), ad = al.data;
+        const nv = document.createElement('canvas'); nv.width = nv.height = S;
+        const nc = nv.getContext('2d'); if (!nc) return null;
+        const nl = nc.createImageData(S, S), nd = nl.data;
+        const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+        const mask = new Float32Array(S * S);
+        for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+          const dx = x - cx, dy = y - cy, r = Math.hypot(dx, dy);
+          let m = 0;
+          if (r < R) {
+            const rrU = r / R;
+            const radU = rrU * R0;
+            const ang = Math.atan2(dy, dx);
+            const a6 = ((ang + Math.PI) / (2 * Math.PI)) * 6;     // 6 扇区，每扇一条绕心螺旋
+            const fract = a6 - Math.floor(a6);
+            const spD = fract - (0.20 + 0.72 * rrU);
+            const dist = Math.abs(spD - Math.round(spD));
+            const spiral = (1 - ss(0.012, 0.030, dist)) * (1 - ss(0.90, 1.02, rrU));
+            const ring = 1 - ss(0.010, 0.022, Math.abs(radU - R0));
+            const core = 1 - ss(0.05, 0.09, radU);
+            m = Math.max(ring, Math.max(spiral, core));
+          }
+          mask[y * S + x] = m;
+        }
+        for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+          const i = y * S + x, m = mask[i], b = [159, 166, 164];
+          ad[i * 4] = b[0] * (1 - m * 0.32); ad[i * 4 + 1] = b[1] * (1 - m * 0.32); ad[i * 4 + 2] = b[2] * (1 - m * 0.32); ad[i * 4 + 3] = 255;
+          const xl = mask[i - 1] || 0, xr = mask[i + 1] || 0, yt = mask[(y - 1) * S + x] || 0, yb = mask[(y + 1) * S + x] || 0;
+          let nx = xl - xr, ny = yt - yb; const nz = 1.0, len = Math.hypot(nx, ny, nz) || 1;
+          nd[i * 4] = (nx / len * 0.5 + 0.5) * 255; nd[i * 4 + 1] = (ny / len * 0.5 + 0.5) * 255;
+          nd[i * 4 + 2] = (nz / len * 0.5 + 0.5) * 255; nd[i * 4 + 3] = 255;
+        }
+        cc.putImageData(al, 0, 0); nc.putImageData(nl, 0, 0);
+        const map = new THREE.CanvasTexture(cv), normalMap = new THREE.CanvasTexture(nv);
+        map.colorSpace = THREE.SRGBColorSpace;
+        map.anisotropy = 4; normalMap.anisotropy = 4;
+        return { map, normalMap };
+      };
+
+      const tex = makeHeartTextures();
+      const heartMat = tex
+        ? mat.std({ color: 0xffffff, roughness: 0.82, metalness: 0, map: tex.map, normalMap: tex.normalMap }, {})
+        : granite;
+      heartMat.name = 'bridgeHeartStone';
+      const heartGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.02, 96);
+      B.add(heartGeo, heartMat, mat4([X0, yTop + 0.011, ZC]));
     }
   }
 

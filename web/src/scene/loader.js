@@ -205,6 +205,17 @@ export function loadGardenAssets(scene, onProgress) {
                 const isBridgePart = parentName === 'bridge' || /bridge/i.test(child.name);
                 if (isBridgePart) {
                   const vCount = child.geometry.attributes.position ? child.geometry.attributes.position.count : 0;
+                  // 0. 桥心石：保留 glb 自带六旋水纹贴图（bridge.js 程序化生成的
+                  //    albedo+normal，导出时 resolveStdMat 因材质带 map 原样保留进 glb）。
+                  //    不能再用 stonePbr 覆盖 —— 否则 web 版桥心石退回无纹素的青石板。
+                  if (/heart/i.test(combined)) {
+                    child.material.color.setHex(0x9fa6a4);
+                    child.material.roughness = 0.82;
+                    child.material.metalness = 0.02;
+                    if (!child.material.normalMap && stonePbr.normalMap) child.material.normalMap = stonePbr.normalMap;
+                    child.material.needsUpdate = true;
+                    return;
+                  }
                   // 1. 望柱莲瓣柱头 (青石雕刻望柱头，对齐母本 bridge.js: gib = carved bluestone，绝非白光灯泡)
                   if (/stonegib|gib|lotuscap/i.test(combined) || vCount > 100000) {
                     child.material.map = null;
