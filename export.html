@@ -365,20 +365,32 @@
       const sizeMB = (glbBuffer.byteLength / 1024 / 1024).toFixed(2);
       log(`[${targetName}] GLB 导出完成: ${sizeMB} MB`);
 
-      log(`正在上传 [${targetName}] 至本地中转服务 (http://localhost:5192)...`);
-      try {
-        const resp = await fetch(`http://localhost:5192/upload?name=${targetName}`, {
-          method: 'POST',
-          body: new Blob([glbBuffer])
-        });
-        const respText = await resp.text();
-        if (resp.ok) {
-          log(`✓ [${targetName}] 自动化上传成功！(${respText})`);
-        } else {
-          log(`✗ [${targetName}] 上传失败: HTTP ${resp.status} ${respText}`);
+      log(`正在分块上传 [${targetName}] 至本地中转服务 (http://localhost:5192)...`);
+      // headless Chromium 下把 291 MB 整包 new Blob(...) 会触发 ERR_BLOB_OUT_OF_MEMORY
+      // （blob 存储配额），改以 8 MB 分块直接 POST ArrayBuffer 视图绕开
+      const CHUNK = 8 * 1024 * 1024;
+      const totalChunks = Math.ceil(glbBuffer.byteLength / CHUNK);
+      let okUp = true;
+      for (let i = 0; i < totalChunks && okUp; i++) {
+        const piece = glbBuffer.slice(i * CHUNK, Math.min((i + 1) * CHUNK, glbBuffer.byteLength));
+        try {
+          const r = await fetch(`http://localhost:5192/upload?name=${targetName}&mode=chunk&i=${i}`, { method: 'POST', body: piece });
+          if (!r.ok) { okUp = false; log(`✗ [${targetName}] 分块 ${i} 上传失败: HTTP ${r.status}`); }
+        } catch (e) { okUp = false; log(`✗ [${targetName}] 分块 ${i} 上传异常: ${e.message}`); }
+        if ((i + 1) % 8 === 0) log(`  [${targetName}] 上传进度 ${i + 1}/${totalChunks} 块`);
+      }
+      if (okUp) {
+        try {
+          const r = await fetch(`http://localhost:5192/upload?name=${targetName}&mode=end&total=${totalChunks}`, { method: 'POST', body: 'done' });
+          const respText = await r.text();
+          if (r.ok) {
+            log(`✓ [${targetName}] 自动化上传成功！(${respText})`);
+          } else {
+            log(`✗ [${targetName}] 上传收尾失败: HTTP ${r.status} ${respText}`);
+          }
+        } catch (e) {
+          log(`上传收尾失败: ${e.message}`);
         }
-      } catch (e) {
-        log(`上传失败: ${e.message}`);
       }
     }
 

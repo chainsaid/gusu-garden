@@ -91,33 +91,22 @@ async function main() {
     if (req.method === 'POST' && req.url.startsWith('/upload')) {
       const u = new URL(req.url, 'http://localhost');
       const assetType = u.searchParams.get('name') || 'core';
-      const chunks = [];
-      let receivedBytes = 0;
-      req.on('data', (c) => {
-        chunks.push(c);
-        receivedBytes += c.length;
-        if (receivedBytes % (50 * 1024 * 1024) < c.length) {
-          console.log(`[exporter] 上传进度: ${(receivedBytes / 1024 / 1024).toFixed(1)} MB...`);
-        }
-      });
-      req.on('end', async () => {
-        const buf = Buffer.concat(chunks);
-        uploadedFiles[assetType] = buf;
-        console.log(`[exporter] 收到资产 [${assetType}] 上传，大小: ${(buf.length / 1024 / 1024).toFixed(2)} MB`);
-        res.writeHead(200, {
-          'Content-Type': 'text/plain',
-          'Content-Length': '2',
-          'Connection': 'close',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': '*'
-        });
-        res.end('OK');
+      const mode = u.searchParams.get('mode') || 'single';   // single | chunk | end
+      const idx = parseInt(u.searchParams.get('i') || '0', 10);
+      const respond = (code, text) => {
+        res.writeHead(code, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
+        res.end(text);
+      };
 
+      // 收尾：拼齐分块 → raw glb → Draco 压缩
+      const finalize = (buf) => {
+        uploadedFiles[assetType] = buf;
+        console.log(`[exporter] 收到资产 [${assetType}] 完整数据: ${(buf.length / 1024 / 1024).toFixed(2)} MB`);
+        respond(200, 'OK');
         setTimeout(async () => {
           // 处理 Draco 压缩
           const isCore = assetType === 'core';
-          const targetFile = isCore 
+          const targetFile = isCore
             ? path.join(ROOT, 'web', 'public', 'assets', 'gusu-garden-core.glb')
             : path.join(ROOT, 'web', 'public', 'assets', 'beisi-pagoda.glb');
           const rawFile = targetFile.replace('.glb', '-raw.glb');
@@ -147,6 +136,39 @@ async function main() {
             if (uploadResolve) uploadResolve();
           }
         }, 50);
+      };
+
+      if (mode === 'end') {
+        // 顺序拼回分块，逐块读盘，不在内存里同时持有全部块
+        const total = parseInt(u.searchParams.get('total') || '0', 10);
+        const part = (i) => path.join(tmpUpDir, `${assetType}-${i}.part`);
+        const parts = [];
+        for (let i = 0; i < total; i++) parts.push(fs.readFileSync(part(i)));
+        const buf = Buffer.concat(parts);
+        for (let i = 0; i < total; i++) { try { fs.unlinkSync(part(i)); } catch {} }
+        finalize(buf);
+        return;
+      }
+
+      // single 与 chunk 共用流式收 body
+      const chunks = [];
+      let receivedBytes = 0;
+      req.on('data', (c) => {
+        chunks.push(c);
+        receivedBytes += c.length;
+        if (receivedBytes % (50 * 1024 * 1024) < c.length) {
+          console.log(`[exporter] 上传进度: ${(receivedBytes / 1024 / 1024).toFixed(1)} MB...`);
+        }
+      });
+      req.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        if (mode === 'chunk') {
+          fs.writeFileSync(path.join(tmpUpDir, `${assetType}-${idx}.part`), buf);
+          console.log(`[exporter] [${assetType}] 分块 ${idx} 落盘 (${(buf.length / 1024 / 1024).toFixed(1)} MB)`);
+          respond(200, 'OK');
+        } else {
+          finalize(buf);
+        }
       });
       return;
     }
@@ -155,6 +177,7 @@ async function main() {
     res.end();
   });
 
+  const tmpUpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gusu-up-'));   // 分块落盘目录
   server.listen(EXPORT_PORT);
   console.log(`[exporter] 资产上传中转服务运行于端口 ${EXPORT_PORT}...`);
 
@@ -223,6 +246,7 @@ async function main() {
     server.close();
     if (devServerProc) devServerProc.kill();
     try { fs.rmSync(tmpUserDataDir, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(tmpUpDir, { recursive: true, force: true }); } catch {}
   }
 }
 

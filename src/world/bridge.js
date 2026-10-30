@@ -635,7 +635,9 @@ export async function build(ctx) {
 
   // 把旋转体沿周向切成 n 瓣：半径按 cos(nθ) 起伏出瓣脊，同时在瓣区把瓣中线
   // 沿 ±y 抬起 —— 正值为瓣尖朝上（仰莲），负值为瓣尖朝下（覆莲）。
-  const petalize = (g, n, ampR, ampY, yLo, yHi) => {
+  // (tipY, tipH, tipW)：高斯窗在瓣端再叠一道瓣尖，方向随 tipH。没有这道尖峰，
+  // 整个柱头读作"两颗圆鼓叠着"；有了它，瓣才有了朝向。
+  const petalize = (g, n, ampR, ampY, yLo, yHi, tipY = 0, tipH = 0, tipW = 0.01) => {
     const p = g.attributes.position;
     for (let i = 0; i < p.count; i++) {
       const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
@@ -643,10 +645,13 @@ export async function build(ctx) {
       if (r < 1e-4) continue;
       const th = Math.atan2(z, x);
       const w = sm(yLo, yHi, y);
-      const rr = r * (1 + ampR * Math.cos(n * th) * w);
+      const cn = Math.cos(n * th);
+      const rr = r * (1 + ampR * cn * w);
+      let dy = ampY * cn * w;
+      if (tipH) dy += tipH * cn * cn * Math.exp(-Math.pow((y - tipY) / tipW, 2));   // 瓣脊尖峰
       p.setX(i, Math.cos(th) * rr);
       p.setZ(i, Math.sin(th) * rr);
-      p.setY(i, y + ampY * Math.cos(n * th) * w);
+      p.setY(i, y + dy);
     }
     g.computeVertexNormals();
     return g;
@@ -660,8 +665,8 @@ export async function build(ctx) {
                [0.050, 0.155], [0.026, 0.166], [0, 0.173]];
     const g = new THREE.LatheGeometry(P.map((q) => new THREE.Vector2(q[0] * s, q[1] * s)), 32);
     // 幅度要小：莲瓣是 8 道浅竖棱，不是横向齿轮。大振幅会在轮廓转折处变成尖锯齿
-    petalize(g, 8, 0.070, 0.004 * s, 0.012 * s, 0.068 * s);   // 下仰莲
-    petalize(g, 8, 0.070, -0.004 * s, 0.096 * s, 0.146 * s);  // 上覆莲
+    petalize(g, 8, 0.070, 0.004 * s, 0.012 * s, 0.068 * s, 0.056 * s, +0.015 * s, 0.012 * s);   // 下仰莲：瓣尖朝上
+    petalize(g, 8, 0.070, -0.004 * s, 0.096 * s, 0.146 * s, 0.102 * s, -0.015 * s, 0.012 * s);  // 上覆莲：瓣尖垂向束腰
     return mergeGeo([[g, null]]);
   };
 
