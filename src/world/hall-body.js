@@ -363,8 +363,8 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
     const nLeaves = 4;
     const leafW = (2 * half) / nLeaves;
     const fw = 0.052; // 边梃宽度
-    const ySkirt = 3.22; // 裙板上口
-    const yWaist = 3.52; // 绦环板上口
+    const ySkirt = 3.45; // 裙板上口
+    const yWaist = 3.72; // 绦环板上口
 
     // 底层内衬：暗色内壁（格心透出的是幽暗室内 / 明瓦灰光，不是白粉墙 —— 白格子是障子做法）
     panel(inW, -half, half, Y.sill1, Y.nag0, 0.03, 0.045, 0.002);
@@ -391,15 +391,15 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
       // 4. 格心（上部高挑透光花格：步步锦棂花构架）
       const gx0 = u0 + fw + 0.015, gx1 = u1 - fw - 0.015;
       const gy0 = yWaist + 0.02, gy1 = Y.nag0 - 0.075;
-      // 竖向棂条 (3 vertical bars)
-      const nV = 3;
+      // 竖向棂条 (2 vertical bars)
+      const nV = 2;
       const du = (gx1 - gx0) / (nV + 1);
       for (let vi = 1; vi <= nV; vi++) {
         const vx = gx0 + vi * du;
         panel(redA, vx - 0.012, vx + 0.012, gy0, gy1, 0.048, 0.078, 0.003);
       }
-      // 横向棂条 (8 horizontal crossbars)
-      const nH = 8;
+      // 横向棂条 (4 horizontal crossbars)
+      const nH = 4;
       const dy = (gy1 - gy0) / (nH + 1);
       for (let hi = 1; hi <= nH; hi++) {
         const hy = gy0 + hi * dy;
@@ -425,7 +425,7 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
         }
       }
     }
-  } else if (type === 'renji' || type === 'window') {
+  } else if (type === 'window') {
     // ---- 苏式半窗（白粉矮墙 + 步步锦花窗，彻底取代日式連子窓）----
     panel(white, -half, half, Y.sill1, Y.koshi, 0.0, 0.06, 0.006);
     panel(inP, -half, half, Y.sill0, Y.koshi, -0.06, 0.0, 0.006);
@@ -470,7 +470,7 @@ function bay(acc, mats, R, p0, p1, out, type, ctx2) {
       const ringX = sx * 0.18;
       pullRing(black, M(ringX, (Y.sill1 + Y.nag0) / 2, 0.075), 0.042, 0.006);
     }
-  } else if (type === 'board' || type === 'leak') {
+  } else if (type === 'leak') {
     // ---- 苏式白粉墙开漏窗（移步换景，取代原日式粗厚板墙）----
     panel(white, -half, half, Y.sill1, Y.nag0, 0.0, 0.05, 0.006);
     panel(inP, -half, half, Y.sill1, Y.nag0, -0.05, 0.0, 0.006);
@@ -506,7 +506,7 @@ export function buildWalls(acc, mats, R, frontTypes, backTypes, westTypes, eastT
     if (!edge) continue;
     column(acc, mats, x, z, HB.colBase + 0.14, HB.colTop, HB.colR, { foot: true, soseki: HB.colBase - 0.02 });
   }
-  // 木鼻 (plain beam ends) projecting at the corner columns
+  // 梁枋出头（霸王拳）：角柱外挑梁头，中式梁头不做日式「木鼻」平头
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     for (const [dx, dz] of [[1, 0], [0, 1]]) {
       const c = [sx * 13, 7.5, sz * 8.5];
@@ -662,7 +662,7 @@ export function placeBrackets(acc, mats, xs, zs, top, type, opts = {}) {
 }
 
 // 栱眼壁 plaster walls behind bracket sets (wall plane), from column top to y1
-export function kentoku(acc, mats, xw, zw, y0, y1, colR) {
+export function gongyanbi(acc, mats, xw, zw, y0, y1, colR) {
   const white = acc.m(mats.plaster), inP = acc.m(mats.intPlaster);
   for (const sz of [-1, 1]) cbox(white, xf([0, (y0 + y1) / 2, sz * zw]), xw, (y1 - y0) / 2, 0.06, 0.004);
   for (const sx of [-1, 1]) cbox(white, xf([sx * xw, (y0 + y1) / 2, 0]), 0.06, (y1 - y0) / 2, zw, 0.004);

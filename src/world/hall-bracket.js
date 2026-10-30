@@ -52,7 +52,7 @@ export function bracketSet(acc, mats, X, type = 'qimai', opts = {}) {
     return 0.6;
   } else {
     // 大斗 (bearing block)
-    cbox(red, mul(X, xf([0, 0.13, 0])), 0.34, 0.13, 0.34, C, { taper: [0.8, 0.8] });
+    cbox(red, mul(X, xf([0, 0.13, 0])), 0.20, 0.13, 0.20, C, { taper: [0.8, 0.8] });
     y = 0.26;
   }
   // level 1: lateral arm at wall line + outward arm

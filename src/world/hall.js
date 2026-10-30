@@ -10,7 +10,7 @@ import { makeProfile, makeWarp, buildTiles, buildEaves, buildXieshanRidges, buil
 import { chiwen } from './hall-orn.js';
 // hall-kara.js（唐破风抱厦 / 千鸟破风天窗）已删除且不再导入：
 // 两者均为和风独有屋顶形式，已从江南主厅移除。
-import { HB, buildPodium, buildStairs, buildVeranda, buildWalls, buildInterior, buildUpper, placeBrackets, kentoku, railing } from './hall-body.js';
+import { HB, buildPodium, buildStairs, buildVeranda, buildWalls, buildInterior, buildUpper, placeBrackets, gongyanbi, railing } from './hall-body.js';
 import { stairBalustrade } from './hall-stair.js';
 import { aoVariant, weatherHooks, mergeHooks, agedGiltHooks, lacquerMicroHooks } from './hall-mats.js';
 
@@ -176,17 +176,17 @@ export async function build(ctx) {
   const xi = HB.up.xs[HB.up.xs.length - 1], zi = HB.up.zs[HB.up.zs.length - 1];
   // no 唐破风(已移除) porch any more, so the lower roof is continuous all the way round
   const mok = {
-    kind: 'skirt', ex: 16.8, ez: 12.3, y0: 8.55, prof: makeProfile(0.28, 0.40, 7.5, 1.5), xi, zi,
+    kind: 'skirt', ex: 16.8, ez: 12.3, y0: 8.55, prof: makeProfile(0.28, 0.38, 7.5, 1.75), xi, zi,
     E: { dP: 3.36, yP: 9.2, sb: 0.32, dTip: 0.85, yF0: 8.36, sf: 0.22, dFly: 1.7, rafW: 0.11, rafH: 0.13, frafW: 0.1, frafH: 0.115, dwX: 3.8, dwZ: 3.8, purW: 0.22, purH: 0.26, spacing: 0.3 },
     bellScale: 0.85,
   };
   const main = {
-    kind: 'xieshan', ex: xi + 5.4, ez: zi + 5.4, y0: 13.95, prof: makeProfile(0.30, 1.155, zi + 5.4, 1.5), xg: 10.7, xb: 11.6,
+    kind: 'xieshan', ex: xi + 5.4, ez: zi + 5.4, y0: 13.95, prof: makeProfile(0.32, 0.68, zi + 5.4, 1.75), xg: 10.7, xb: 11.6,
     E: { dP: 4.08, yP: 14.82, sb: 0.33, dTip: 0.9, yF0: 13.74, sf: 0.22, dFly: 1.95, rafW: 0.13, rafH: 0.15, frafW: 0.12, frafH: 0.13, dwX: 5.4, dwZ: 5.4, purW: 0.26, purH: 0.3, spacing: 0.3 },
     bellScale: 1.1,
   };
-  const warpM = makeWarp(mok.ex, mok.ez, 1.15, 0.55, Math.max(13 / mok.ex, 8.5 / mok.ez) - 0.04);
-  const warpU = makeWarp(main.ex, main.ez, 1.75, 0.85, Math.max(xi / main.ex, zi / main.ez) - 0.04);
+  const warpM = makeWarp(mok.ex, mok.ez, 0.95, 0.45, Math.max(13 / mok.ex, 8.5 / mok.ez) - 0.04, 1.9);
+  const warpU = makeWarp(main.ex, main.ez, 1.30, 0.60, Math.max(xi / main.ex, zi / main.ez) - 0.04, 1.9);
   const tmp = [0, 0, 0];
   // lower roof tile height (with warp lift) for intersections
   const mokY = (x, z) => {
@@ -218,8 +218,8 @@ export async function build(ctx) {
     for (const sz of [-1, 1]) { const pts = []; for (let i = 0; i <= 20; i++) { const x = -(xi + 0.15) + (2 * (xi + 0.15) * i) / 20; pts.push([x, yF(mok.ez - zi - 0.14), sz * (zi + 0.14)]); } pf(pts); }
     for (const sx of [-1, 1]) { const pts = []; for (let i = 0; i <= 12; i++) { const z = -(zi + 0.15) + (2 * (zi + 0.15) * i) / 12; pts.push([sx * (xi + 0.14), yF(mok.ex - xi - 0.14), z]); } pf(pts); }
   }
-  placeBrackets(accM, mats, HB.colX, HB.colZ, HB.colTop, 'sanmai');
-  kentoku(accM, mats, 13, 8.5, HB.colTop - 0.02, mok.E.yP + mok.E.sb * (mok.E.dwX - mok.E.dP) + 0.02, HB.colR);
+  placeBrackets(accM, mats, HB.colX, HB.colZ, HB.colTop, 'sanmai', { fullInter: true });
+  gongyanbi(accM, mats, 13, 8.5, HB.colTop - 0.02, mok.E.yP + mok.E.sb * (mok.E.dwX - mok.E.dP) + 0.02, HB.colR);
   accM.warp(warpM);
   for (const b of bellsM.bells) { warpM(b.pos[0], b.pos[1], b.pos[2], tmp); b.pos = [tmp[0], tmp[1], tmp[2]]; anchors.bells.push(b); }
 
@@ -233,7 +233,7 @@ export async function build(ctx) {
   // (was: buildChidori(accU, mats, R, {...}, mainYc))
   buildUpper(accU, mats, R);
   placeBrackets(accU, mats, HB.up.xs, HB.up.zs, HB.up.top, 'qimai', { kw: 1.05, fullInter: true });
-  kentoku(accU, mats, xi, zi, HB.up.top - 0.02, main.E.yP + main.E.sb * (main.E.dwX - main.E.dP) + 0.03, HB.up.r);
+  gongyanbi(accU, mats, xi, zi, HB.up.top - 0.02, main.E.yP + main.E.sb * (main.E.dwX - main.E.dP) + 0.03, HB.up.r);
   accU.warp(warpU);
   for (const b of bellsU.bells) { warpU(b.pos[0], b.pos[1], b.pos[2], tmp); b.pos = [tmp[0], tmp[1], tmp[2]]; anchors.bells.push(b); }
 

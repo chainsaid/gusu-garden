@@ -372,11 +372,16 @@ export function buildEaves(acc, T, mats, opts = {}) {
     const dirH = v3.norm([sx, 0, sz]);
     const pt = (d, y) => [sx * (T.ex - d), y, sz * (T.ez - d)];
     const dIn = Math.min(E.dwX, E.dwZ);
-    const s0 = pt(E.dTip - 0.25, rafterY(E, E.dTip - 0.25) - 0.16 + 0.05), s1 = pt(dIn, rafterY(E, dIn) - 0.16 + 0.05);
+    // 嫩戗发戗收头：老角梁与仔角梁(飞子)末端汇合成单一翼角尖。
+    // 原实现两根梁各自末端都出方形木鼻端板、且飞子额外外挑 0.32 m，翼角于是
+    // 读作「分叉双尖」（日式破风观感）。现：老角梁末端内缩、藏于仔角梁之下，
+    // 只在仔角梁末端做一套收头 + 风铎；四角共用同一逻辑，故东西对称。
+    const dTip = E.dTip - 0.25;
+    const s0 = pt(dTip + 0.16, rafterY(E, dTip + 0.16) - 0.16 + 0.05), s1 = pt(dIn, rafterY(E, dIn) - 0.16 + 0.05);
     beam(redA, s0, s1, 0.26, 0.32, 0.02);
-    const f0 = pt(-0.32, flyY(E, -0.32) - 0.12 + 0.05), f1 = pt(E.dFly + 0.2, flyY(E, E.dFly + 0.2) - 0.12 + 0.05);
+    const f0 = pt(dTip - 0.06, flyY(E, dTip - 0.06) - 0.12 + 0.05), f1 = pt(E.dFly + 0.2, flyY(E, E.dFly + 0.2) - 0.12 + 0.05);
     beam(redA, f0, f1, 0.22, 0.26, 0.02);
-    for (const [q0, q1, w, h] of [[s0, s1, 0.26, 0.32], [f0, f1, 0.22, 0.26]]) {
+    for (const [q0, q1, w, h] of [[f0, f1, 0.22, 0.26]]) {
       const dir = v3.norm(v3.sub(q0, q1));
       const side = v3.norm(v3.cross(dir, [0, 1, 0]));
       const up = v3.cross(side, dir);
