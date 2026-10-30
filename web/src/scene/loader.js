@@ -209,28 +209,30 @@ export function loadGardenAssets(scene, onProgress) {
                   //    albedo+normal，导出时 resolveStdMat 因材质带 map 原样保留进 glb）。
                   //    不能再用 stonePbr 覆盖 —— 否则 web 版桥心石退回无纹素的青石板。
                   if (/heart/i.test(combined)) {
-                    child.material.color.setHex(0x9fa6a4);
+                    child.material.color.setHex(0x8b9390);
                     child.material.roughness = 0.82;
                     child.material.metalness = 0.02;
+                    child.material.envMapIntensity = 0.7;
                     if (!child.material.normalMap && stonePbr.normalMap) child.material.normalMap = stonePbr.normalMap;
                     child.material.needsUpdate = true;
                     return;
                   }
                   // 1. 望柱莲瓣柱头 (青石雕刻望柱头，对齐母本 bridge.js: gib = carved bluestone，绝非白光灯泡)
-                  if (/stonegib|gib|lotuscap/i.test(combined) || vCount > 100000) {
+                  if (/stonegib|gib|lotuscap/i.test(combined)) {
                     child.material.map = null;
-                    child.material.color.setHex(0x768084); // 典雅青石望柱头
-                    child.material.roughness = 0.68;
+                    child.material.color.setHex(0x55666e); // 青灰冷调望柱头（对齐电影版 bluestone）
+                    child.material.roughness = 0.74;
                     child.material.metalness = 0.02;
-                    child.material.envMapIntensity = 0.95;
+                    child.material.envMapIntensity = 0.5;
                   }
                   // 2. 青石桥墩与水中基座
                   else if (/stone|granite|pier/i.test(combined) || (vCount > 60000 && vCount < 85000)) {
-                    child.material.map = stonePbr.map;
-                    child.material.color.setHex(0x768084);
-                    child.material.roughness = stonePbr.roughness;
-                    child.material.metalness = stonePbr.metalness;
-                    child.material.envMapIntensity = 0.85;
+                    child.material.map = null;
+                    child.material.normalMap = stonePbr.normalMap || child.material.normalMap;
+                    child.material.color.setHex(0x6f7c7e);
+                    child.material.roughness = 0.86;
+                    child.material.metalness = 0.02;
+                    child.material.envMapIntensity = 0.5;
                   }
                   // 3. 熟铁饰件套筒与抱箍
                   else if (/iron|dark|gold/i.test(combined) || (vCount > 20000 && vCount < 30000)) {
