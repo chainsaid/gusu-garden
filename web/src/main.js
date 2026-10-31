@@ -248,6 +248,9 @@ async function bootstrap() {
     // 更新芭蕉叶微风轻颤
     bananas.update(elapsed);
 
+    // 更新垂柳柔条风摆
+    trees.update(elapsed);
+
     // 更新锦鲤摆尾游弋
     koi.update(elapsed);
 

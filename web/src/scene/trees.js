@@ -14,6 +14,7 @@ import {
   randUnit, vnoise3, perpOf,
 } from '../../../src/world/vegetation-tree.js';
 import { CushionAccum, naturalCrownPoint } from '../../../src/world/vegetation-core.js';
+import { makeWillowStrandGeo, makeWillowTrunkGeo } from '../../../src/world/vegetation-willow.js';
 import { makeMapleAtlas, makePineAtlas, makeBlossomAtlas } from '../../../src/world/vegetation-tex.js';
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -519,52 +520,116 @@ export const createJiangnanTrees = (scene, rng) => {
   buildBank(banks.pine, pineMat);
   buildBank(banks.blossom, blossomMat);
 
-  // ---- 6 株驳岸临波垂柳 (保留原移植) ----
+  // ---- 6 株驳岸临波垂柳 (对齐母本 src/world/vegetation-willow.js: 窄带千丝垂条) ----
+  // 沿驳岸空档均匀布开, 与名木 (L.trees) 保持 ≥8m; 湖心岛不植柳
+  // (岛松/芭蕉/礁石已足, 再植柳则数树相挤)
   const willowSpots = [
-    { x: -16, z: 6.2, yaw: 0.4, scale: 1.15 },
-    { x: 34, z: 6.8, yaw: -0.5, scale: 1.1 },
+    { x: -10, z: 6.0, yaw: 0.45, scale: 1.12 },
+    { x: 3, z: 7.2, yaw: 0.45, scale: 1.05 },
     { x: 42, z: 14.0, yaw: -1.2, scale: 1.05 },
-    { x: 38, z: 28.0, yaw: -2.1, scale: 1.12 },
-    { x: -22, z: 28.0, yaw: 2.2, scale: 1.08 },
-    { x: -2, z: 18.0, yaw: 0.8, scale: 0.95 },
+    { x: 44, z: 24.0, yaw: -1.5, scale: 1.08 },
+    { x: 19, z: 32.8, yaw: 3.0, scale: 1.10 },
+    { x: -25.5, z: 16.0, yaw: 1.5, scale: 1.06 },
   ];
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5b4632, roughness: 0.9, metalness: 0.0 });
+  const willowRng = makeRng(20260601);
+  const trunkMat = new THREE.MeshStandardMaterial({ map: createWillowBarkTexture(), roughness: 0.9, metalness: 0.0 });
   const willowTex = createWillowStrandTexture();
-  const willowMat = new THREE.MeshStandardMaterial({ map: willowTex, alphaTest: 0.30, roughness: 0.45, metalness: 0.01, side: THREE.DoubleSide });
-  const willowStrandGeo = new THREE.PlaneGeometry(0.55, 2.6);
-  willowStrandGeo.translate(0, -1.3, 0);
+  const willowMat = new THREE.MeshLambertMaterial({ map: willowTex, alphaTest: 0.35, side: THREE.DoubleSide });
+  willowMat.emissive = new THREE.Color(0x090c03); // 微抬背光面 (母本叶 shader 有背光透射项)
+  // 垂端风摆 (竹梢同模式: 垂幅² 权重 + 梢部 flutter, 逐实例相位)
+  willowMat.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = { value: 0 };
+    willowMat.userData.shader = shader;
+    shader.vertexShader = `uniform float uTime;\n${shader.vertexShader}`;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      /* glsl */ `
+        #include <begin_vertex>
+        {
+          float drop = clamp(-transformed.y / 3.5, 0.0, 1.2);
+          float w = drop * drop;
+          vec3 ip = vec3(0.0);
+          #ifdef USE_INSTANCING
+            ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+          #endif
+          float swayX = sin(uTime * 1.25 + ip.x * 0.7 + ip.z * 0.9) * 0.22 * w;
+          float swayZ = sin(uTime * 1.05 + ip.x * 0.9 - ip.z * 0.6 + 1.7) * 0.16 * w;
+          float flutter = sin(uTime * 3.0 + transformed.y * 4.0 + ip.x * 3.0) * 0.035 * drop;
+          transformed.x += swayX + flutter;
+          transformed.z += swayZ - flutter * 0.8;
+        }
+      `
+    );
+  };
+  const baseTrunkGeo = makeWillowTrunkGeo(4.4, 1.8);
+  const baseStrandGeo = makeWillowStrandGeo(2.8, 10, 0.055);
+  {
+    // 梢部二次弯曲: 柔条沿 +Z 弧垂 ~0.5m, 实例随机 yaw 与 z 缩放使弧向弧长四散,
+    // 去硬直板感
+    const p = baseStrandGeo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      const tt = -p.getY(i) / 2.8;
+      p.setZ(i, p.getZ(i) + 0.5 * tt * tt);
+    }
+    baseStrandGeo.computeVertexNormals();
+  }
+  const trunkMatrices = [];
   const willowMatrices = [];
-  const willowTrunkGeos = [];
-  willowSpots.forEach((ws) => {
-    const s = ws.scale, h = 4.4 * s, leanZ = 1.8 * s;
-    const curvePts = [
-      new THREE.Vector3(ws.x, 0, ws.z),
-      new THREE.Vector3(ws.x + Math.cos(ws.yaw) * (leanZ * 0.35), h * 0.45, ws.z + Math.sin(ws.yaw) * (leanZ * 0.35)),
-      new THREE.Vector3(ws.x + Math.cos(ws.yaw) * (leanZ * 0.85), h * 0.82, ws.z + Math.sin(ws.yaw) * (leanZ * 0.85)),
-      new THREE.Vector3(ws.x + Math.cos(ws.yaw) * leanZ, h, ws.z + Math.sin(ws.yaw) * leanZ),
-    ];
-    const curve = new THREE.CatmullRomCurve3(curvePts);
-    willowTrunkGeos.push(new THREE.TubeGeometry(curve, 12, 0.18 * s, 6, false));
-    const crownPt = curve.getPoint(1.0);
-    const nStrands = 48;
-    for (let k = 0; k < nStrands; k++) {
-      const ang = (k / nStrands) * TAU, rad = (0.6 + Math.random() * 1.8) * s;
-      const px = crownPt.x + Math.cos(ang) * rad, pz = crownPt.z + Math.sin(ang) * rad, py = crownPt.y + (Math.random() - 0.4) * 0.6;
-      const scY = 0.85 + Math.random() * 0.35, scXZ = 0.80 + Math.random() * 0.30;
-      const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler((Math.random() - 0.5) * 0.12, Math.random() * TAU, (Math.random() - 0.5) * 0.12))
-        .scale(new THREE.Vector3(scXZ, scY, scXZ)).setPosition(px, py, pz);
-      willowMatrices.push(m);
+  willowSpots.forEach((t) => {
+    const s = t.scale;
+    trunkMatrices.push(new THREE.Matrix4().makeRotationY(t.yaw)
+      .scale(new THREE.Vector3(s, s, s)).setPosition(t.x, -0.2, t.z));
+    // 真实垂柳结构: 枝层先拱起成浓密穹顶, 柔条再近乎垂直披下成帘 —— 伞形靠
+    // 穹顶不是靠条外倾。分两组: 垂帘组近垂直密垂、帘脚大体齐平; 穹顶组锚于
+    // 冠顶 4.0~5.3m 沿穹面向外披下, 填出顶部体量并垂入帘幕
+    const ccx = t.x + Math.sin(t.yaw) * 1.2 * s, ccz = t.z + Math.cos(t.yaw) * 1.2 * s;
+    const pushStrand = (px, py, pz, tilt, strandLen) => {
+      const outX = px - ccx, outZ = pz - ccz;
+      const outLen = Math.hypot(outX, outZ) || 1;
+      const q = new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(-outZ / outLen, 0, outX / outLen), tilt
+      ).multiply(new THREE.Quaternion().setFromAxisAngle(UP, willowRng.next() * TAU));
+      willowMatrices.push(new THREE.Matrix4().compose(
+        new THREE.Vector3(px, py, pz), q,
+        // z 缩放作用于几何烘焙的弧垂位移 —— 逐条弧度随机
+        new THREE.Vector3(s * willowRng.range(0.9, 1.3), s * strandLen, s * willowRng.range(0.5, 1.5))
+      ));
+    };
+    // 垂帘组 ~225 条: 近垂直密垂交叠成纱, 锚 3.1~4.4m, 条长较齐出平齐帘脚
+    for (let k = 0; k < 225; k++) {
+      const az = willowRng.next() * TAU;
+      const rad = willowRng.range(0.3, 2.4) * s;
+      pushStrand(
+        ccx + Math.cos(az) * rad, willowRng.range(3.1, 4.4) * s, ccz + Math.sin(az) * rad,
+        0.02 + 0.10 * (rad / (2.4 * s)) + willowRng.range(-0.03, 0.03),
+        willowRng.range(0.95, 1.3)
+      );
+    }
+    // 穹顶组 ~110 条: 锚 4.0~5.3m 穹面, 沿穹面披下填冠顶 (倾角收紧, 防梢部上翘炸毛)
+    for (let k = 0; k < 110; k++) {
+      const az = willowRng.next() * TAU;
+      const rad = willowRng.range(0.4, 2.2) * s;
+      pushStrand(
+        ccx + Math.cos(az) * rad, willowRng.range(4.0, 5.3) * s, ccz + Math.sin(az) * rad,
+        0.22 + 0.33 * (rad / (2.2 * s)) + willowRng.range(-0.06, 0.06),
+        willowRng.range(0.55, 0.95)
+      );
     }
   });
-  if (willowTrunkGeos.length) {
-    const mesh = new THREE.Mesh(mergeGeometries(willowTrunkGeos, false), trunkMat);
-    mesh.castShadow = true; treeRoot.add(mesh);
-  }
-  if (willowMatrices.length) {
-    const inst = new THREE.InstancedMesh(willowStrandGeo, willowMat, willowMatrices.length);
+  {
+    const trunkInst = new THREE.InstancedMesh(baseTrunkGeo, trunkMat, trunkMatrices.length);
+    trunkMatrices.forEach((m, i) => trunkInst.setMatrixAt(i, m));
+    trunkInst.instanceMatrix.needsUpdate = true;
+    trunkInst.castShadow = true;
+    trunkInst.receiveShadow = true;
+    trunkInst.name = 'willow_trunks';
+    treeRoot.add(trunkInst);
+    const inst = new THREE.InstancedMesh(baseStrandGeo, willowMat, willowMatrices.length);
     willowMatrices.forEach((m, i) => inst.setMatrixAt(i, m));
     inst.instanceMatrix.needsUpdate = true;
     inst.castShadow = true;
+    inst.receiveShadow = true;
+    inst.name = 'willow_strands';
     treeRoot.add(inst);
   }
 
@@ -572,35 +637,83 @@ export const createJiangnanTrees = (scene, rng) => {
   return {
     group: treeRoot,
     setVisible: (visible) => { treeRoot.visible = visible; },
+    update: (time) => {
+      if (willowMat.userData.shader) willowMat.userData.shader.uniforms.uTime.value = time;
+    },
   };
 };
 
-// 垂柳柔条贴图 (保留)
+// 垂柳柔条贴图: 一根微摆细茎 + 两侧对生披针小叶 —— 羽状透光 (alpha 有缝),
+// 竖向嫩绿→金黄绿微渐变对齐母本配色; 实心布条会读作豆干/海苔, 故必须用叶形
 function createWillowStrandTexture() {
+  const w = 64, h = 256;
   const cv = document.createElement('canvas');
-  cv.width = 64; cv.height = 256;
+  cv.width = w; cv.height = h;
   const g = cv.getContext('2d');
-  g.clearRect(0, 0, 64, 256);
-  g.strokeStyle = '#6f9a4a';
-  g.lineWidth = 5;
+  g.clearRect(0, 0, w, h);
+  const rng = makeRng(7701);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  // 对生披针小叶 (先叶后茎, 叶根被茎压叠更自然)
+  for (let y = 4; y < h - 4; y += 7 + rng.next() * 5) {
+    const cx = w / 2 + Math.sin(y * 0.055) * 2.5;
+    const m = (y / h) * 0.55;
+    for (const side of [-1, 1]) {
+      if (rng.next() < 0.14) continue; // 偶尔缺刻, 出参差
+      const len = 14 + rng.next() * 10;
+      const ang = side * (0.55 + rng.next() * 0.35); // 向下外展
+      const jt = 0.85 + rng.next() * 0.3;
+      g.strokeStyle = `rgb(${Math.round(lerp(86, 122, m) * jt)},${Math.round(lerp(122, 148, m) * jt)},${Math.round(lerp(54, 80, m))})`;
+      g.lineWidth = 2.2 + rng.next() * 1.1;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(cx, y);
+      g.quadraticCurveTo(
+        cx + Math.sin(ang) * len * 0.55, y + Math.cos(ang) * len * 0.45 - len * 0.1,
+        cx + Math.sin(ang) * len, y + Math.cos(ang) * len
+      );
+      g.stroke();
+    }
+  }
+  // 细茎: 中轴微摆深色枝
+  g.strokeStyle = 'rgba(72,80,38,0.95)';
+  g.lineWidth = 2.0;
   g.lineCap = 'round';
-  for (let i = 0; i < 14; i++) {
-    const x = 10 + Math.random() * 44;
-    g.beginPath();
-    g.moveTo(x, 0);
-    g.quadraticCurveTo(x + (Math.random() - 0.5) * 16, 140, x + (Math.random() - 0.5) * 10, 256);
-    g.stroke();
+  g.beginPath();
+  g.moveTo(w / 2, 0);
+  for (let y = 0; y <= h; y += 16) {
+    g.lineTo(w / 2 + Math.sin(y * 0.055) * 2.5 + (rng.next() - 0.5) * 2, y);
   }
-  g.strokeStyle = '#a7c46b';
-  g.lineWidth = 2;
-  for (let i = 0; i < 22; i++) {
-    const x = 8 + Math.random() * 48;
-    g.beginPath();
-    g.moveTo(x, 0);
-    g.quadraticCurveTo(x + (Math.random() - 0.5) * 14, 150, x + (Math.random() - 0.5) * 8, 256);
-    g.stroke();
-  }
+  g.stroke();
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+// 垂柳树皮贴图: 深褐纵裂 + 零星苔痕 (对齐母本 fbm 树皮/苔着色)
+function createWillowBarkTexture() {
+  const w = 64, h = 128;
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const g = cv.getContext('2d');
+  const img = g.createImageData(w, h);
+  const d = img.data;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const crack = Math.sin(x * 0.55 + Math.sin(y * 0.11) * 3.0) * 0.5 + 0.5;
+      const lump = Math.sin(y * 0.07 + x * 0.21) * 0.5 + 0.5;
+      const shade = 0.55 + 0.45 * (crack * 0.65 + lump * 0.35);
+      let r = 48 * shade, gg = 38 * shade, b = 28 * shade;
+      const moss = Math.max(0, Math.sin(x * 0.23 + 1.3) * Math.sin(y * 0.13 + 0.7) - 0.45) * 1.0;
+      r += (62 - r) * moss; gg += (88 - gg) * moss; b += (34 - b) * moss;
+      const i = (y * w + x) * 4;
+      d[i] = r; d[i + 1] = gg; d[i + 2] = b; d[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
   return tex;
 }

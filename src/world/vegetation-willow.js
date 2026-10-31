@@ -10,7 +10,7 @@ const TAU = Math.PI * 2;
 // ---------------------------------------------------------------------------
 // Procedural Weeping Strand Geometry (cascading vertical willow branch)
 // ---------------------------------------------------------------------------
-function makeWillowStrandGeo(length = 2.8, nSegs = 8, width = 0.045) {
+export function makeWillowStrandGeo(length = 2.8, nSegs = 8, width = 0.045) {
   const pos = [], nrm = [], uv = [];
   const idx = [];
 
@@ -49,7 +49,7 @@ function makeWillowStrandGeo(length = 2.8, nSegs = 8, width = 0.045) {
 // ---------------------------------------------------------------------------
 // Leaning Gnarled Willow Trunk Geometry
 // ---------------------------------------------------------------------------
-function makeWillowTrunkGeo(height = 4.2, leanDist = 1.6) {
+export function makeWillowTrunkGeo(height = 4.2, leanDist = 1.6) {
   const segsY = 14, segsR = 10;
   const pos = [], nrm = [], uv = [];
   const idx = [];
@@ -150,14 +150,15 @@ export function buildWillows(ctx, parent) {
   const { foliageMat, trunkMat } = makeWillowMats(ctx);
   const R = ctx.rng ? ctx.rng('willow') : { range: (a, b) => a + Math.random() * (b - a), float: () => Math.random() };
 
-  // Shoreline tree positions (leaning over water)
+  // Shoreline tree positions (leaning over water) — 沿驳岸空档均匀布开,
+  // 与名木 L.trees 保持 ≥8m; 湖心岛不植柳 (岛松/芭蕉/礁石已足, 相挤)
   const trees = [
-    { x: -16, z: 6.2, yaw: 0.4, scale: 1.15 },
-    { x: 34, z: 6.8, yaw: -0.5, scale: 1.1 },
+    { x: -10, z: 6.0, yaw: 0.45, scale: 1.12 },
+    { x: 3, z: 7.2, yaw: 0.45, scale: 1.05 },
     { x: 42, z: 14.0, yaw: -1.2, scale: 1.05 },
-    { x: 38, z: 28.0, yaw: -2.1, scale: 1.12 },
-    { x: -22, z: 28.0, yaw: 2.2, scale: 1.08 },
-    { x: -2, z: 18.0, yaw: 0.8, scale: 0.95 }, // island willow
+    { x: 44, z: 24.0, yaw: -1.5, scale: 1.08 },
+    { x: 19, z: 32.8, yaw: 3.0, scale: 1.10 },
+    { x: -25.5, z: 16.0, yaw: 1.5, scale: 1.06 },
   ];
 
   const trunkMatrices = [];
