@@ -644,7 +644,9 @@ export function buildBellPavilion(ctx, K, lb, anchors, toW) {
 }
 
 // ---------------------------------------------------------------------------
-// 抱厦 (baosha) — a Chinese step canopy on two posts in front of a hall: a
+// 抱厦 (baosha) — [已停用·当前无调用] 见 buildSideHall :811：其「独立两柱+横梁+卷棚
+// 小顶」读作鸟居，实为日式向拜/唐破风残留，江南厅前不设此制，故阶前抱厦已删除。
+// (原注释) a step canopy on two posts in front of a hall: a
 // straight-eaved lean-to roof whose front line is almost level and turns UP at
 // the two ends, with a plain ridge.
 // o = { W (roof half width), zb, zf (back / front of the roof), yE (side eave),
@@ -808,25 +810,13 @@ export function buildSideHall(ctx, K, lb, anchors, toW, spec) {
     chiwen: { s: 0.85 }, lo: true, gableLattice: true, infill: true,
   });
   for (const h of H.E.hooks) anchors.bells.push({ pos: toW(h.local), scale: 0.9, rotY: 0 });
-  // 抱厦 (baosha) canopy over the front stairs
-  const postX = bw * 0.8 + 0.4, Wk = postX + 0.75, yEk = 4.1, cut = 0.1;
-  const profK = (x) => {
-    const u = Math.min(Math.abs(x) / Wk, 1);
-    return yEk + 0.68 * (0.10 * (1 - u) * (1 - u) + 0.90 * Math.pow(u, 3.0));
-  };
-  const kh = baosha(lb, K, {
-    W: Wk, zb: cz + 1.25, zf: cz + 3.05, yE: yEk, H: 0.68, postX, postZ: cz + 2.55,
-    yTop: profK(postX) - cut - 0.2 - 0.17, zWall: cz + 0.1,
-  });
-  {
-    const yh = kh.prof(0) - cut - 0.2, zl = cz + 1.8;
-    lb.add(new THREE.CylinderGeometry(0.012, 0.012, 0.2, 8), K.gold, m4([0, yh - 0.1, zl]));
-    anchors.hangingLanterns.push({ pos: toW([0, yh - 0.2, zl]), scale: 0.95, rotY: 0 });
-  }
+  // 厅前不设独立两柱抱厦：原 baosha 为日式唐破风「向拜」残留（见 baosha 注释
+  // "was: karaKohai / 向拜 with 唐破风"），其「独立两柱 + 横梁 + 卷棚小顶」读作鸟居。
+  // 江南厅堂前制为「厅堂出檐 + 前檐廊(带栏杆) + 台阶」，前檐廊已在上方 :785 建成、
+  // 且厅堂出檐 ov=1.9 已罩住廊深 0.85，故删除阶前这一独立两柱小顶。
   // lanterns under the front eave, one per bay (a rhythm of lanterns along the eaves)
   for (let i = 0; i < nb; i++) {
     const x = (xs[i] + xs[i + 1]) / 2;
-    if (Math.abs(x) < Wk + 0.35) continue;   // the baosha covers the middle bays
     const d = 0.9, zl = cz + 1.9 - d;
     const yr = H.E.yBB(d) + H.lift(x, zl);
     lb.add(new THREE.CylinderGeometry(0.012, 0.012, 0.28, 8), K.gold, m4([x, yr - 0.15, zl]));
