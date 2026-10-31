@@ -192,7 +192,7 @@ flowchart TD
 - [x] **P0-13** **日式黑松仕立松（niwaki 云片）** — 已改**自然形古松 / 罗汉松**：`vegetation-tree.js:797` 放宽 `squash` 由 0.2 至 0.45~0.55，拔除扁平云片修剪，枝冠恢复自然饱满舒展
 - [x] **P0-14** **樱花去日化** — 已改**江南碧桃 / 红梅**：`vegetation-tex.js` 将 `drawSakura` 重构为 `drawPeachBlossom`，去除花瓣 V 型樱花缺口，呈现圆润饱满的五瓣桃花/梅花与花蕊
 - [x] **P0-15** **太鼓桥** — 已改为**江南青石平拱桥**：`layout.js` 与 `bridge.js` 将矢高由 2.6 m 陡拱收敛为 1.55 m（矢跨比约 1/14），桥身金属构件全部降为暗哑熟铁，柱头改制为青石素雕莲瓣柱头
-- [x] **P0-16** 两座侧厅的**唐破风向拜 karaKohai** — 已改为中式**抱厦**：`buildings-halls.js` 的 `karaKohai` → `baosha`，檐口线由唐破风的钟形曲线（中凸、两侧内凹）改为中式檐口线 `y = yE + H*(0.10*(1-u)^2 + 0.90*u^3)`——中间平直、两端起翘；博风板去鎏金边，注释改称博风板/山墙/额枋/荷叶墩
+- [x] **P0-16** 两座侧厅的**唐破风向拜 karaKohai** — 阶前小顶**已整体删除**：初改曾将 `karaKohai` → `baosha`（檐口线由钟形曲线改 `y = yE + H*(0.10*(1-u)^2 + 0.90*u^3)`），但其「独立两柱 + 横梁 + 卷棚小顶」仍读作鸟居；江南厅前制为「出檐 + 前檐廊(带栏杆) + 台阶」，故 `buildSideHall` 删除该抱厦及其下灯笼、檐下灯笼不再跳过中央开间，`baosha` 函数标注停用保留备查（`buildings-halls.js`）
 - [x] **P0-17** **手水钵 tsukubai**（筧 + 柄杓 + 前石/手烛石/汤桶石）+ **常香炉 jōkōro** 冒烟 — 已删除：`props.js` 的 `PLAZA` 只保留 `stepping`（汀步），`placePlaza` 不再产生香炉/石钵/烟/火点光，`STATE.plaza` 与 showcase 同步；`props-plaza.js` 的 `buildJokoro / buildTsukubai / smokeGeo` 已随 **P2-8** 删除
 - [x] **P0-17b** **补景：庭院古井 / 石桌石凳** — 已落地：`props-plaza.js` 新增 `buildStoneTableSet`（青石圆桌 + 4座石鼓墩）与 `buildStoneWell`（八角青石井栏与幽深水面），布置于东广场与西侧角隅
 - [x] **P0-18** **真金色仍在渲染** — 已清除：`buildings.js:100` 的 `K.capPaint` 由 `PROC.gold('vec3(0.80,0.56,0.24)')` 改为 `PROC.chestnutWood('vec3(0.105,0.062,0.038)')`（metalness 0.55→0.08）；`hall-mats.js` 的 `agedGiltHooks` 里强制暖金的 `fragLight` 由 `vec3(1.45,0.92,0.38)` 改为微冷 `vec3(0.92,0.98,1.10)`（强度 0.55→0.28）；`buildings-kanagu.js` 的 `gilt` 由 `vec3(1.0,0.69,0.29)` 改为熟铁 `vec3(0.135,0.125,0.115)`，磨损色由 `vec3(0.50,0.26,0.10)` 改为 `vec3(0.20,0.11,0.055)`
