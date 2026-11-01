@@ -522,7 +522,7 @@ export const createJiangnanTrees = (scene, rng) => {
 
   // ---- 6 株驳岸临波垂柳 (对齐母本 src/world/vegetation-willow.js: 窄带千丝垂条) ----
   // 沿驳岸空档均匀布开, 与名木 (L.trees) 保持 ≥8m; 湖心岛不植柳
-  // (岛松/芭蕉/礁石已足, 再植柳则数树相挤)
+  // (湖心亭为岛上主体, 芭蕉/礁石衬边, 再植柳则相挤)
   const willowSpots = [
     { x: -10, z: 6.0, yaw: 0.45, scale: 1.12 },
     { x: 3, z: 7.2, yaw: 0.45, scale: 1.05 },

@@ -151,7 +151,7 @@ export function buildWillows(ctx, parent) {
   const R = ctx.rng ? ctx.rng('willow') : { range: (a, b) => a + Math.random() * (b - a), float: () => Math.random() };
 
   // Shoreline tree positions (leaning over water) — 沿驳岸空档均匀布开,
-  // 与名木 L.trees 保持 ≥8m; 湖心岛不植柳 (岛松/芭蕉/礁石已足, 相挤)
+  // 与名木 L.trees 保持 ≥8m; 湖心岛不植柳 (湖心亭为岛上主体, 芭蕉/礁石衬边, 相挤)
   const trees = [
     { x: -10, z: 6.0, yaw: 0.45, scale: 1.12 },
     { x: 3, z: 7.2, yaw: 0.45, scale: 1.05 },
