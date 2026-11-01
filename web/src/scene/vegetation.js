@@ -2,8 +2,20 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { WATER_Y } from './water.js';
 import { L } from '../../../shared/layout.js';
+import { makeShrubAtlas } from '../../../src/world/vegetation-tex.js';
 
 const TAU = Math.PI * 2;
+
+// 确定性种子随机 —— 植被散布每次刷新保持一致
+function makeRng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6D2B79F5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 // 水岸边界与岛屿碰撞多边形判别，确保水生植被严格生成在真实水体内
 function pointInPoly(x, z, poly) {
@@ -448,26 +460,74 @@ export function createJiangnanFoliage(scene) {
   const shrubTufts = [];
   {
     // 一个丛生单体：中央低矮叶团 + 三四根斜向外伸的枝端叶团，各自高低不一，
-    // 没有公共竖直轴，实例化后仍保持丛生剪影而非球体
+    // 没有公共竖直轴，实例化后仍保持丛生剪影而非球体；叶团顶点径向噪声位移，
+    // 破二十面体光球感
     const nShoot = 4;
     for (let k = 0; k <= nShoot; k++) {
       const a = (k / nShoot) * Math.PI * 2 + 0.5;
       const out = k === 0 ? 0 : 0.30 + (k % 2) * 0.14;
       const h = k === 0 ? 0.26 : 0.30 + (k % 3) * 0.09;
       const r = k === 0 ? 0.38 : 0.24 + (k % 2) * 0.07;
-      const g = new THREE.IcosahedronGeometry(r, 1);
+      const g = new THREE.IcosahedronGeometry(r, 2);
       g.scale(1.0, 0.78 + (k % 2) * 0.1, 0.92);
+      const pp = g.attributes.position;
+      for (let vi = 0; vi < pp.count; vi++) {
+        const vx = pp.getX(vi), vy = pp.getY(vi), vz = pp.getZ(vi);
+        const n1 = Math.sin(vx * 11.0 + k * 7.7) * Math.sin(vy * 8.2 + k * 3.3) * Math.sin(vz * 9.6 + k * 5.1);
+        const n2 = Math.sin(vx * 23.5 + k * 1.9) * Math.sin(vz * 19.7 + k * 4.4);
+        const d = 1.0 + n1 * 0.16 + n2 * 0.06;
+        pp.setXYZ(vi, vx * d, vy * d, vz * d);
+      }
+      g.computeVertexNormals();
       g.translate(Math.cos(a) * out, h, Math.sin(a) * out);
       shrubTufts.push(g);
     }
   }
   const shrubGeo = mergeGeometries(shrubTufts, false);
   shrubTufts.forEach((g) => g.dispose());
+  // 核心墩: 叶簇下暗色内芯, 承担剪影纵深与投影 —— 与母本 shrub_mounds 同职能
   const shrubMat = new THREE.MeshStandardMaterial({
-    color: 0x2f4d20, // 江南灌木丛沉稳深绿（南天竹 / 栀子叶色）
-    roughness: 0.66,
-    metalness: 0.02,
+    color: 0x1d2c14,
+    roughness: 0.8,
+    metalness: 0.0,
   });
+
+  // 叶簇: 母本 3x2 叶形图集 (南天竹 / 栀子 / 八角金盘 / 迎春 / 阔叶) 实例化叶卡,
+  // 每丛 16 张朝外披洒 —— 多孔蓬松的江南灌木丛生剪影, 而非光球修剪
+  // 母本直接返回成品 DataTexture (含 mipmap / sRGB / flipY=false)
+  const shrubAtlasTex = makeShrubAtlas({ next: makeRng(77889911) }, 384);
+  const shrubCardGeo = new THREE.PlaneGeometry(1, 1);
+  {
+    // uv 收进图集 0 号格 (与母本 shrubCardGeo 同约定: u 0~1/3, v 0~0.5)
+    const uv = shrubCardGeo.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 3, uv.getY(i) * 0.5);
+    // 法线朝卡面中心偏斜 —— 近似球面法线, 叶簇受光柔和不成硬片
+    const pos = shrubCardGeo.attributes.position;
+    const nrm = shrubCardGeo.attributes.normal;
+    for (let i = 0; i < pos.count; i++) {
+      const n = new THREE.Vector3(pos.getX(i) * 0.6, pos.getY(i) * 0.6, 1).normalize();
+      nrm.setXYZ(i, n.x, n.y, n.z);
+    }
+  }
+  const shrubCardMat = new THREE.MeshLambertMaterial({
+    map: shrubAtlasTex,
+    alphaTest: 0.35,
+    side: THREE.DoubleSide,
+    emissive: new THREE.Color(0x111a0a), // 逆光防死黑, 等效母本透光下限
+  });
+  shrubCardMat.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      `#include <common>\nattribute float aCell;`
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <uv_vertex>',
+      `#include <uv_vertex>
+      #ifdef USE_MAP
+        vMapUv += vec2(mod(aCell, 3.0) / 3.0, floor(aCell / 3.0 + 0.01) / 2.0);
+      #endif`
+    );
+  };
 
   const fernFrondGeo = new THREE.PlaneGeometry(0.24, 0.95);
   fernFrondGeo.translate(0, 0.45, 0);
@@ -506,32 +566,68 @@ export function createJiangnanFoliage(scene) {
     { x: -13.5, z: -5.0 }, { x: -16.0, z: -8.0 }, { x: -11.0, z: 2.5 },
   ];
 
+  const CARDS_PER_TUFT = 22;
+  const cardCells = new Float32Array(shrubSpots.length * CARDS_PER_TUFT);
+  shrubCardGeo.setAttribute('aCell', new THREE.InstancedBufferAttribute(cardCells, 1));
   const shrubInst = new THREE.InstancedMesh(shrubGeo, shrubMat, shrubSpots.length);
+  const shrubCardInst = new THREE.InstancedMesh(shrubCardGeo, shrubCardMat, shrubSpots.length * CARDS_PER_TUFT);
   const fernInst = new THREE.InstancedMesh(fernGeo, fernMat, shrubSpots.length);
   shrubInst.castShadow = true;
   shrubInst.receiveShadow = true;
+  shrubCardInst.receiveShadow = true; // 叶卡不投影 —— alpha 卡在深度通道投实心方片, 投影由内芯承担
   fernInst.castShadow = true;
   fernInst.receiveShadow = true;
 
+  const rng = makeRng(20260714);
+  const _cardCol = new THREE.Color();
+  const _cardDir = new THREE.Vector3();
   shrubSpots.forEach((sp, idx) => {
-    const sScale = 0.75 + Math.random() * 0.45;
-    dummy.position.set(sp.x + (Math.random() - 0.5) * 0.4, 0.05, sp.z + (Math.random() - 0.5) * 0.4);
-    dummy.rotation.set((Math.random() - 0.5) * 0.1, Math.random() * TAU, (Math.random() - 0.5) * 0.1);
-    dummy.scale.set(sScale, sScale, sScale);
+    const sScale = 0.75 + rng() * 0.45;
+    const cx0 = sp.x + (rng() - 0.5) * 0.4;
+    const cz0 = sp.z + (rng() - 0.5) * 0.4;
+    dummy.position.set(cx0, 0.05, cz0);
+    dummy.rotation.set((rng() - 0.5) * 0.1, rng() * TAU, (rng() - 0.5) * 0.1);
+    const coreScale = sScale * 0.62; // 内芯退居幕后: 叶卡承担剪影, 芯只衬纵深
+    dummy.scale.set(coreScale, coreScale, coreScale);
     dummy.updateMatrix();
     shrubInst.setMatrixAt(idx, dummy.matrix);
 
-    const fScale = 0.65 + Math.random() * 0.35;
-    dummy.position.set(sp.x + (Math.random() - 0.5) * 0.6, 0.05, sp.z + (Math.random() - 0.5) * 0.6);
-    dummy.rotation.set(0, Math.random() * TAU, 0);
+    // 叶卡披洒于内芯表层半球壳: 朝外翻开, 顶部更仰, 参差成簇
+    for (let c = 0; c < CARDS_PER_TUFT; c++) {
+      const ci = idx * CARDS_PER_TUFT + c;
+      const az = rng() * TAU;
+      const el = Math.acos(1 - rng()) * 0.58;
+      const rad = (0.42 + rng() * 0.30) * sScale;
+      const cx = cx0 + Math.cos(az) * Math.sin(el) * rad;
+      const cy = 0.22 + Math.cos(el) * rad * 0.72 + rng() * 0.10;
+      const cz = cz0 + Math.sin(az) * Math.sin(el) * rad;
+      _cardDir.set(Math.cos(az) * Math.sin(el + 0.5), Math.cos(el) * 0.75 + 0.3, Math.sin(az) * Math.sin(el + 0.5)).normalize();
+      dummy.position.set(cx, cy, cz);
+      dummy.lookAt(cx + _cardDir.x, cy + _cardDir.y, cz + _cardDir.z);
+      dummy.rotateZ((rng() - 0.5) * 1.1);
+      const cs = (0.50 + rng() * 0.30) * sScale;
+      dummy.scale.set(cs, cs, cs);
+      dummy.updateMatrix();
+      shrubCardInst.setMatrixAt(ci, dummy.matrix);
+      cardCells[ci] = Math.floor(rng() * 6);
+      shrubCardInst.setColorAt(ci, _cardCol.setScalar(0.72 + rng() * 0.28));
+    }
+
+    const fScale = 0.65 + rng() * 0.35;
+    dummy.position.set(sp.x + (rng() - 0.5) * 0.6, 0.05, sp.z + (rng() - 0.5) * 0.6);
+    dummy.rotation.set(0, rng() * TAU, 0);
     dummy.scale.set(fScale, fScale, fScale);
     dummy.updateMatrix();
     fernInst.setMatrixAt(idx, dummy.matrix);
   });
 
   shrubInst.instanceMatrix.needsUpdate = true;
+  shrubCardInst.instanceMatrix.needsUpdate = true;
+  shrubCardGeo.attributes.aCell.needsUpdate = true;
+  if (shrubCardInst.instanceColor) shrubCardInst.instanceColor.needsUpdate = true;
   fernInst.instanceMatrix.needsUpdate = true;
   foliageGroup.add(shrubInst);
+  foliageGroup.add(shrubCardInst);
   foliageGroup.add(fernInst);
 
   scene.add(foliageGroup);

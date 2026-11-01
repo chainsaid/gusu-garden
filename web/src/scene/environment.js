@@ -103,7 +103,7 @@ export function setupEnvironment(scene, renderer) {
   const courtTerraceGeo = new THREE.PlaneGeometry(108, 49);
   courtTerraceGeo.rotateX(-Math.PI / 2);
   const courtTerraceMat = new THREE.MeshStandardMaterial({
-    color: 0x6e6b63, // 经典暖灰苏式青石板与古砂砾露台
+    color: 0x60666a, // 苏式青石板与古砂砾露台 (冷灰青石)
     roughness: 0.88,
     metalness: 0.02,
   });
@@ -161,6 +161,59 @@ export function setupEnvironment(scene, renderer) {
     metalness: 0.02,
     side: THREE.BackSide,
   });
+  // 剪影环上色: 林相斑驳 + 「远山如黛」青黛烟罩 + 峰顶薄雾 ——
+  // 逆光暖天光下不再读作土黄沙丘
+  mountainMat.onBeforeCompile = (shader) => {
+    shader.uniforms.uHazeCyan = { value: new THREE.Color(0x354d4f) };
+    shader.uniforms.uFogColor = { value: new THREE.Color(0xb6a48f) };
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <common>',
+      `#include <common>\nvarying vec3 vMtnW;`
+    );
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <project_vertex>',
+      `#include <project_vertex>\nvMtnW = (modelMatrix * vec4(transformed, 1.0)).xyz;`
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      /* glsl */ `
+      #include <common>
+      uniform vec3 uHazeCyan;
+      uniform vec3 uFogColor;
+      varying vec3 vMtnW;
+      float mtHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float mtNoise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mtHash(i), mtHash(i + vec2(1.0, 0.0)), f.x),
+                   mix(mtHash(i + vec2(0.0, 1.0)), mtHash(i + vec2(1.0, 1.0)), f.x), f.y);
+      }
+      `
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      /* glsl */ `
+      #include <color_fragment>
+      {
+        // 林相: 簇状树冠颗粒斑驳
+        float fA = mtNoise(vMtnW.xz * 0.03) * 0.6 + mtNoise(vMtnW.xz * 0.11) * 0.4;
+        diffuseColor.rgb = mix(vec3(0.055, 0.130, 0.095), vec3(0.260, 0.360, 0.210), fA);
+      }
+      `
+    );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <dithering_fragment>',
+      /* glsl */ `
+      #include <dithering_fragment>
+      {
+        float hFac = clamp((vMtnW.y + 5.0) / 100.0, 0.0, 1.0);   // 峰顶偏雾
+        vec3 col = mix(gl_FragColor.rgb, uHazeCyan, 0.55);        // 苍黛为主调
+        col = mix(col, uFogColor, hFac * 0.30);
+        gl_FragColor = vec4(col, 1.0);
+      }
+      `
+    );
+  };
   const mountains = new THREE.Mesh(mountainGeom, mountainMat);
   mountains.position.set(0, -35, 0);
   mountains.name = 'distant_mountains';

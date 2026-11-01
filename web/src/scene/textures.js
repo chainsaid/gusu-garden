@@ -392,19 +392,19 @@ export function createPavingTextures() {
   const ctx = canvas.getContext('2d');
 
   // 古旧石灰砂浆底
-  ctx.fillStyle = '#585248';
+  ctx.fillStyle = '#4b4f4e';
   ctx.fillRect(0, 0, S, S);
 
-  // 绘制方形青石大砖拼缝网格 (温润暖灰花岗岩方砖)
+  // 绘制方形青石大砖拼缝网格 (苏州青石冷灰方砖)
   const tileSize = 64;
   for (let x = 0; x < S; x += tileSize) {
     for (let y = 0; y < S; y += tileSize) {
       const tone = 0.88 + Math.random() * 0.24;
-      ctx.fillStyle = `rgb(${Math.floor(148 * tone)}, ${Math.floor(142 * tone)}, ${Math.floor(132 * tone)})`;
+      ctx.fillStyle = `rgb(${Math.floor(138 * tone)}, ${Math.floor(144 * tone)}, ${Math.floor(146 * tone)})`;
       ctx.fillRect(x + 2, y + 2, tileSize - 4, tileSize - 4);
 
       // 砖缝泥灰阴影
-      ctx.fillStyle = '#3e3830';
+      ctx.fillStyle = '#333a39';
       ctx.fillRect(x, y, tileSize, 2);
       ctx.fillRect(x, y, 2, tileSize);
     }

@@ -183,7 +183,7 @@ export function loadGardenAssets(scene, onProgress) {
                 if (combined.includes('terrainpaving') || combined.includes('paving')) {
                   child.material.map = pavingPbr.map;
                   child.material.normalMap = pavingPbr.normalMap;
-                  child.material.color.setHex(0xb8b2a5); // 庭院花街铺地海棠人字锦纹与散水明沟
+                  child.material.color.setHex(0xa8aea9); // 庭院花街铺地海棠人字锦纹与散水明沟 (冷灰青石)
                   child.material.roughness = 0.75;
                   child.material.metalness = 0.02;
                   child.material.needsUpdate = true;

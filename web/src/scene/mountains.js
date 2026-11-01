@@ -121,10 +121,10 @@ export function createDistantMountains() {
     );
 
     shader.vertexShader = shader.vertexShader.replace(
-      '#include <worldpos_vertex>',
+      '#include <project_vertex>',
       /* glsl */ `
-      #include <worldpos_vertex>
-      vWorldPosition = worldPosition.xyz;
+      #include <project_vertex>
+      vWorldPosition = (modelMatrix * vec4(transformed, 1.0)).xyz;
       `
     );
 
@@ -136,6 +136,29 @@ export function createDistantMountains() {
       uniform vec3 uFogColor;
       uniform vec3 uHazeCyan;
       varying vec3 vWorldPosition;
+      float mHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float mNoise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mHash(i), mHash(i + vec2(1.0, 0.0)), f.x),
+                   mix(mHash(i + vec2(0.0, 1.0)), mHash(i + vec2(1.0, 1.0)), f.x), f.y);
+      }
+      `
+    );
+
+    // 吴中丘陵林相斑驳: 双频噪点叠成簇状树冠颗粒, 近丘可见林相起伏,
+    // 中远山由空气透视 (dithering_fragment) 接管渐隐成青黛 —— 破单层地形皮的沙丘感
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <color_fragment>',
+      /* glsl */ `
+      #include <color_fragment>
+      {
+        float fA = mNoise(vWorldPosition.xz * 0.045);
+        float fB = mNoise(vWorldPosition.xz * 0.14);
+        float fC = mNoise(vWorldPosition.xz * 0.006);
+        vec3 canopy = mix(vec3(0.055, 0.135, 0.095), vec3(0.260, 0.380, 0.220), fA * 0.55 + fB * 0.45);
+        diffuseColor.rgb = canopy * (0.70 + 0.60 * fC);
+      }
       `
     );
 
@@ -146,13 +169,15 @@ export function createDistantMountains() {
       // 距离渐变空气透视 (350m ~ 4500m 平滑过渡至天际暖雾)
       float dist = length(vWorldPosition.xz - cameraPosition.xz);
       float distFactor = smoothstep(350.0, 4200.0, dist);
+      // 「远山如黛」: 青黛烟罩自近丘起渐染 —— 夕照逆光下不再被暖光洗成土黄山丘
+      float inkFactor = smoothstep(250.0, 1800.0, dist);
 
       // 顺逆光空气透视微调
       vec3 V = normalize(cameraPosition - vWorldPosition);
       float sunFacing = max(dot(-V, uSunDir), 0.0);
       vec3 sunsetRim = vec3(0.95, 0.62, 0.35) * pow(sunFacing, 3.5) * 0.28;
 
-      vec3 inkHaze = mix(gl_FragColor.rgb, uHazeCyan, distFactor * 0.75);
+      vec3 inkHaze = mix(gl_FragColor.rgb, uHazeCyan, max(distFactor * 0.75, inkFactor * 0.5));
       vec3 finalCol = mix(inkHaze, uFogColor + sunsetRim, pow(distFactor, 1.25) * 0.95);
 
       gl_FragColor = vec4(finalCol, 1.0);
