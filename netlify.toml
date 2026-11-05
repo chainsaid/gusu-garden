@@ -1,0 +1,3 @@
+[build]
+publish = "web/dist-web"
+command = "npm run build:web"
