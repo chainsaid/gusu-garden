@@ -7,7 +7,6 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { gap, cnt } from '../core/detail.js';
 
 export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 export const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -307,10 +306,10 @@ export function roundProfile(r, y0 = 0, seg = 10) {
 // T: tile params or null (smooth surface, e.g. soffits).
 // Returns { geo (indexed, position/normal/color), caps: [{pos:[x,y,z], out:[x,z], up:[...]}] }
 // ---------------------------------------------------------------------------
-export function tileParams(o = {}) {
+export function tileParams(o = {}, detail) {
   const T = Object.assign({ p: 0.27, phase: 0, rw: 0.13, rh: 0.058, pd: 0.018, c: 0.26, thR: 0.022, thP: 0.013, neck: 0.008, lip: 0.06, eps: 0.007, detail: 2 }, o);
-  T.p = gap(T.p); // realtime: wider tile pitch -> fewer tiles (identity at s=1)
-  T.detail = Math.min(T.detail, cnt(Math.max(T.detail, 1))); // cheap cap/tile geometry; never raises detail 0
+  T.p = detail.gap(T.p); // realtime: wider tile pitch -> fewer tiles (identity at s=1)
+  T.detail = Math.min(T.detail, detail.cnt(Math.max(T.detail, 1))); // cheap cap/tile geometry; never raises detail 0
   const rr = T.rw / 2 / T.p;
   const panMid = rr + 0.4 * (0.5 - rr);
   T.phis = T.detail >= 2

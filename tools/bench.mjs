@@ -60,7 +60,7 @@ const browser = await puppeteer.launch({
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function measureInPage(ms) {
-  const r = window.__ctx.renderer;
+  const r = window.__services.renderer;
   const t0 = performance.now();
   const times = [];
   await new Promise((done) => {

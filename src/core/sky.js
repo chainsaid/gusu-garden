@@ -1,23 +1,14 @@
 import * as THREE from 'three';
 import { NOISE } from './glsl.js';
-import { G, ENV } from './env.js';
 
 // ---------------------------------------------------------------------------
 // Physically based sky: single-scattering Rayleigh/Mie/ozone (Nishita style),
 // golden-hour altocumulus cloud layer lit through the atmosphere, HDR sun disc.
 // The dome follows the active camera (also for cube captures & reflections).
+//
+// The sky owns its uniforms: a sky handle is the only way to hide the sun disc
+// (environment captures, the pond reflection pass), and nesting is safe.
 // ---------------------------------------------------------------------------
-
-export const SKY_UNIFORMS = {
-  uSunI: { value: ENV.skySunIntensity },
-  uSunDisc: { value: 1.0 },
-  uCloudCover: { value: 0.50 },
-  uCloudOpacity: { value: 1.0 },
-  uCloudScale: { value: 1.0 },
-  uCloudOffset: { value: new THREE.Vector2(0, 0) },
-  uGroundColor: { value: new THREE.Vector3(0.10, 0.10, 0.11) },
-  uSkyTint: { value: new THREE.Vector3(1.0, 1.0, 1.0) },
-};
 
 export const SKY_GLSL = /* glsl */ `
 ${NOISE}
@@ -163,13 +154,24 @@ vec3 skyColor(vec3 dir, vec3 sun, float sunI, float disc){
 }
 `;
 
-export function createSky() {
+export function createSky({ u, atmosphere } = {}) {
+  if (!u || !atmosphere) throw new Error('createSky requires { u, atmosphere }');
+  const uniforms = {
+    uSunI: { value: atmosphere.skySunIntensity },
+    uSunDisc: { value: 1.0 },
+    uCloudCover: { value: 0.50 },
+    uCloudOpacity: { value: 1.0 },
+    uCloudScale: { value: 1.0 },
+    uCloudOffset: { value: new THREE.Vector2(0, 0) },
+    uGroundColor: { value: new THREE.Vector3(0.10, 0.10, 0.11) },
+    uSkyTint: { value: new THREE.Vector3(1.0, 1.0, 1.0) },
+  };
   const geo = new THREE.SphereGeometry(4800, 64, 32);
   const mat = new THREE.ShaderMaterial({
     uniforms: {
-      uSunDir: G.uSunDir,
-      uTime: G.uTime,
-      ...SKY_UNIFORMS,
+      uSunDir: u.uSunDir,
+      uTime: u.uTime,
+      ...uniforms,
     },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
@@ -204,5 +206,18 @@ export function createSky() {
   mesh.frustumCulled = false;
   mesh.renderOrder = 1000; // draw after other opaques so only visible sky pixels are shaded
   mesh.onBeforeRender = (r, s, cam) => { mesh.position.copy(cam.position); mesh.updateMatrixWorld(); };
-  return mesh;
+
+  // hide the disc for cube captures / planar reflections; nested calls restore once
+  let hideDepth = 0, prevDisc = 1.0;
+  const withSunDiscHidden = (fn) => {
+    if (hideDepth++ === 0) { prevDisc = uniforms.uSunDisc.value; uniforms.uSunDisc.value = 0.0; }
+    let out, restored = false;
+    const restore = () => { if (restored) return; restored = true; if (--hideDepth === 0) uniforms.uSunDisc.value = prevDisc; };
+    try { out = fn(); } catch (e) { restore(); throw e; }
+    if (out && typeof out.then === 'function') return out.then((v) => { restore(); return v; }, (e) => { restore(); throw e; });
+    restore();
+    return out;
+  };
+
+  return { object: mesh, uniforms, withSunDiscHidden };
 }

@@ -14,9 +14,9 @@ page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 await page.goto('http://localhost:5173/?modules=bridge&sunelev=35&q=realtime&mode=dev', { waitUntil: 'load', timeout: 180000 });
 await page.waitForFunction('window.__READY === true', { timeout: 180000, polling: 500 });
 const out = await page.evaluate(() => {
-  const v3 = new window.__ctx.THREE.Vector3();
+  const v3 = new window.__services.THREE.Vector3();
   let mesh = null;
-  window.__ctx.scene.traverse((o) => { if (o.isMesh && o.material && o.material.name === 'bridgeGranite') mesh = o; });
+  window.__services.scene.traverse((o) => { if (o.isMesh && o.material && o.material.name === 'bridgeGranite') mesh = o; });
   if (!mesh) return 'no granite mesh';
   mesh.updateMatrixWorld(true);
   const p = mesh.geometry.attributes.position;

@@ -16,7 +16,6 @@ import { POND_GLSL, UW_FRAGEND } from './pond-water.js';
 import { makeNoise, clamp, smooth, pointInPoly } from './pond-util.js';
 import { lotusFlower, lotusSpent, fallenPetal } from './pond-lotusgeo.js';
 import { LEAK_UNIFORM, LEAK_COV, LEAK_SHOT } from './pond-lotusplan.js';
-import { seg as dseg, cnt } from '../core/detail.js';
 import { sampleBeads, buildBeads, DROP_GLSL } from './pond-beads.js';
 
 const TAU = Math.PI * 2;
@@ -51,9 +50,10 @@ const LEAK_GLSL = /* glsl */ `
 uniform vec4 uLeak;
 uniform float uLeakCov;
 uniform float uLeakShot;
+uniform float uFilmShot;
 // only in the macro shot (and free cameras): elsewhere the bed reads at a
 // distance next to its real shadow, where lit leaves would look wrong
-float lotusLeakOn(){ return (uLeak.z > 0.0 && (uShot < -0.5 || abs(uShot - uLeakShot) < 0.5)) ? 1.0 : 0.0; }
+float lotusLeakOn(){ return (uLeak.z > 0.0 && (uFilmShot < -0.5 || abs(uFilmShot - uLeakShot) < 0.5)) ? 1.0 : 0.0; }
 float lotusDapple(vec3 wp){
   if (lotusLeakOn() < 0.5) return 0.0;
   vec3 sd = normalize(uSunDir);
@@ -289,7 +289,7 @@ export { planLotus } from './pond-lotusplan.js';
 // Materials
 // ---------------------------------------------------------------------------
 function leafMaterial(ctx, U, { floating = false, lily = false } = {}) {
-  const uni = { ...U, uWaterYV: U.uWaterY, uLeak: LEAK_UNIFORM, uLeakCov: LEAK_COV, uLeakShot: LEAK_SHOT };
+  const uni = { ...U, uWaterYV: U.uWaterY, uLeak: LEAK_UNIFORM, uLeakCov: LEAK_COV, uLeakShot: LEAK_SHOT, uFilmShot: ctx.film.shotUniform };
   const hooks = {
     uniforms: uni,
     vertexHead: /* glsl */ `
@@ -501,7 +501,7 @@ function leafMaterial(ctx, U, { floating = false, lily = false } = {}) {
 }
 
 function flowerMaterial(ctx, U, { merged = false, macro = false } = {}) {
-  const uni = { ...U, uWaterYV: U.uWaterY, uLeak: LEAK_UNIFORM, uLeakCov: LEAK_COV, uLeakShot: LEAK_SHOT };
+  const uni = { ...U, uWaterYV: U.uWaterY, uLeak: LEAK_UNIFORM, uLeakCov: LEAK_COV, uLeakShot: LEAK_SHOT, uFilmShot: ctx.film.shotUniform };
   const defs = `${merged ? '#define LOTUS_MERGED\n' : ''}${macro ? '#define LOTUS_MACRO\n' : ''}`;
   const hooks = {
     uniforms: uni,
@@ -760,7 +760,7 @@ function flowerMaterial(ctx, U, { merged = false, macro = false } = {}) {
 }
 
 function stemMaterial(ctx, U) {
-  const uni = { ...U, uWaterYV: U.uWaterY, uLeak: LEAK_UNIFORM, uLeakCov: LEAK_COV, uLeakShot: LEAK_SHOT };
+  const uni = { ...U, uWaterYV: U.uWaterY, uLeak: LEAK_UNIFORM, uLeakCov: LEAK_COV, uLeakShot: LEAK_SHOT, uFilmShot: ctx.film.shotUniform };
   const hooks = {
     uniforms: uni,
     vertexHead: /* glsl */ `
@@ -826,6 +826,7 @@ function stemMaterial(ctx, U) {
 // Build
 // ---------------------------------------------------------------------------
 export function buildLotus(ctx, site, U, plan) {
+  const { seg: dseg, cnt } = ctx.detail; // injected per build
   const r = ctx.rng('pond-lotus-geo');
   const waterY = site.waterY;
   const group = new THREE.Group();
@@ -971,16 +972,17 @@ export function buildLotus(ctx, site, U, plan) {
   // instanced variants for the colonies; every hero flower of the macro shot is
   // a unique geometry (merged into one mesh with per-vertex sway origins)
   const HS = 1.3;
+  const LF = (rr, o) => lotusFlower(rr, o, ctx.detail); // detail policy injected per build
   const V = {
-    openHi: [lotusFlower(r, { open: 1.0, hi: true, S: HS }), lotusFlower(r, { open: 0.78, hi: true, S: HS }),
-      lotusFlower(r, { open: 0.9, hi: true, S: HS, petalScale: 1.05 }), lotusFlower(r, { open: 0.64, hi: true, S: HS, petalScale: 0.96 })],
-    openLo: [lotusFlower(r, { open: 0.97, hi: false, S: HS }), lotusFlower(r, { open: 0.72, hi: false, S: HS }),
-      lotusFlower(r, { open: 0.86, hi: false, S: HS, petalScale: 1.08 }), lotusFlower(r, { open: 0.6, hi: false, S: HS, petalScale: 0.94 })],
-    halfHi: lotusFlower(r, { open: 0.42, hi: true, S: HS }),
-    halfHi2: lotusFlower(r, { open: 0.3, hi: true, S: HS, petalScale: 1.04 }),
-    halfLo: [lotusFlower(r, { open: 0.42, hi: false, S: HS }), lotusFlower(r, { open: 0.3, hi: false, S: HS, petalScale: 1.05 })],
-    budHi: lotusFlower(r, { open: 0.04, hi: true, S: HS * 0.95 }),
-    budLo: [lotusFlower(r, { open: 0.04, hi: false, S: HS * 0.95 }), lotusFlower(r, { open: 0.13, hi: false, S: HS * 0.9 })],
+    openHi: [LF(r, { open: 1.0, hi: true, S: HS }), LF(r, { open: 0.78, hi: true, S: HS }),
+      LF(r, { open: 0.9, hi: true, S: HS, petalScale: 1.05 }), LF(r, { open: 0.64, hi: true, S: HS, petalScale: 0.96 })],
+    openLo: [LF(r, { open: 0.97, hi: false, S: HS }), LF(r, { open: 0.72, hi: false, S: HS }),
+      LF(r, { open: 0.86, hi: false, S: HS, petalScale: 1.08 }), LF(r, { open: 0.6, hi: false, S: HS, petalScale: 0.94 })],
+    halfHi: LF(r, { open: 0.42, hi: true, S: HS }),
+    halfHi2: LF(r, { open: 0.3, hi: true, S: HS, petalScale: 1.04 }),
+    halfLo: [LF(r, { open: 0.42, hi: false, S: HS }), LF(r, { open: 0.3, hi: false, S: HS, petalScale: 1.05 })],
+    budHi: LF(r, { open: 0.04, hi: true, S: HS * 0.95 }),
+    budLo: [LF(r, { open: 0.04, hi: false, S: HS * 0.95 }), LF(r, { open: 0.13, hi: false, S: HS * 0.9 })],
     spentHi: lotusSpent(r, { hi: true, S: HS, petalsLeft: 2, age: 0.3 }),
     spentLo: lotusSpent(r, { hi: false, S: HS, petalsLeft: 2, age: 0.3 }),
     podLo: lotusSpent(r, { hi: false, S: HS, petalsLeft: 0, age: 0.9 }),
@@ -1044,7 +1046,7 @@ export function buildLotus(ctx, site, U, plan) {
     for (const p of heroList) {
       const g = p.kind === 'pods'
         ? lotusSpent(r, { hi: true, S: HS, petalsLeft: p.petalsLeft ?? 3, age: 0.45 })
-        : lotusFlower(ctx.rng(p.macro ? 'pond-macro-flower' : 'pond-hero-' + heroList.indexOf(p)), { open: p.kind === 'buds' ? (p.open ?? 0.04) : p.open, hi: true, macro: !!p.macro, dew: p.macro ? 9 : 0, S: p.kind === 'buds' ? HS * 0.95 : HS });
+        : LF(ctx.rng(p.macro ? 'pond-macro-flower' : 'pond-hero-' + heroList.indexOf(p)), { open: p.kind === 'buds' ? (p.open ?? 0.04) : p.open, hi: true, macro: !!p.macro, dew: p.macro ? 9 : 0, S: p.kind === 'buds' ? HS * 0.95 : HS });
       g.applyMatrix4(flowerPose(p));
       const n = g.attributes.position.count;
       const a = flowerInst(p);

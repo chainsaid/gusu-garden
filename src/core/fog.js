@@ -1,11 +1,15 @@
 import * as THREE from 'three';
-import { sunDir } from './env.js';
 
 // ---------------------------------------------------------------------------
 // Aerial perspective + height fog, applied inside every material's shader
 // (so planar water reflections get identical fog). Activated by scene.fog =
 // new THREE.FogExp2(color, density); `fogDensity` acts as a runtime multiplier
 // and `fogColor` as the ambient haze colour (away from the sun).
+//
+// This module patches global THREE.ShaderChunk strings, so installation is
+// explicit: the assembly layer calls installAtmosphere() after the renderer
+// exists and before any material compiles, then setVolumes() once the world
+// (and its ambient-light boxes) is built. Nothing happens at import time.
 // ---------------------------------------------------------------------------
 
 export const FOG_PARAMS = {
@@ -19,11 +23,17 @@ export const FOG_PARAMS = {
 
 function f(x) { return Number(x).toFixed(6); }
 
+const LIGHTS_MAPS_ORIG = THREE.ShaderChunk.lights_fragment_maps;
+
+export function installAtmosphere({ environment, params = FOG_PARAMS, volumes = [] } = {}) {
+  if (!environment) throw new Error('installAtmosphere requires { environment }');
+  const s = environment.sunDir;
+  const P = params;
+
 // Ambient (IBL) attenuation volumes: boxes where sky light is mostly blocked
 // (hall interior, under deep eaves). {min:[x,y,z], max:[x,y,z], tint:[r,g,b], soft:m}
-// Baked as GLSL constants — call setAmbientVolumes() BEFORE the first render.
-let AMBIENT_VOLUMES = [];
-export function setAmbientVolumes(list) { AMBIENT_VOLUMES = list.slice(0, 48); installFog(); }
+// Baked as GLSL constants — setVolumes() must run BEFORE the first render.
+let AMBIENT_VOLUMES = volumes.slice(0, 48);
 function ambientGLSL() {
   const V = AMBIENT_VOLUMES;
   if (!V.length) return 'vec3 ambientVolume(vec3 p){ return vec3(1.0); }';
@@ -47,22 +57,19 @@ function ambientGLSL() {
   }`;
 }
 
-const LIGHTS_MAPS_ORIG = THREE.ShaderChunk.lights_fragment_maps;
+function patch() {
 // PCF: three rotates its Vogel taps with screen-space noise, which crawls when the camera
 // moves (flickering penumbrae). Our soft shadows come from sun-disc jitter across
 // sub-frames, so use a fixed rotation instead -> temporally stable shadows.
 THREE.ShaderChunk.shadowmap_pars_fragment = THREE.ShaderChunk.shadowmap_pars_fragment
   .split('float phi = interleavedGradientNoise( gl_FragCoord.xy ) * PI2;').join('float phi = 0.785;');
 
-export function installFog() {
-  const s = sunDir;
-  const P = FOG_PARAMS;
-  THREE.ShaderChunk.fog_pars_vertex = /* glsl */ `
+THREE.ShaderChunk.fog_pars_vertex = /* glsl */ `
 #ifdef USE_FOG
   varying vec3 vFogWorldPos;
 #endif
 `;
-  THREE.ShaderChunk.fog_vertex = /* glsl */ `
+THREE.ShaderChunk.fog_vertex = /* glsl */ `
 #ifdef USE_FOG
   {
     vec4 _fw = vec4( transformed, 1.0 );
@@ -77,7 +84,7 @@ export function installFog() {
   }
 #endif
 `;
-  THREE.ShaderChunk.fog_pars_fragment = /* glsl */ `
+THREE.ShaderChunk.fog_pars_fragment = /* glsl */ `
 #ifdef USE_FOG
   uniform vec3 fogColor;
   varying vec3 vFogWorldPos;
@@ -115,7 +122,7 @@ export function installFog() {
   }
 #endif
 `;
-  THREE.ShaderChunk.lights_fragment_maps = LIGHTS_MAPS_ORIG + /* glsl */ `
+THREE.ShaderChunk.lights_fragment_maps = LIGHTS_MAPS_ORIG + /* glsl */ `
 #ifdef USE_FOG
   {
     vec3 _av = ambientVolume(vFogWorldPos);
@@ -132,7 +139,7 @@ export function installFog() {
   }
 #endif
 `;
-  THREE.ShaderChunk.fog_fragment = /* glsl */ `
+THREE.ShaderChunk.fog_fragment = /* glsl */ `
 #ifdef USE_FOG
   #ifdef FOG_EXP2
     gl_FragColor.rgb = applyAerial(gl_FragColor.rgb, vFogWorldPos, cameraPosition, fogDensity);
@@ -143,7 +150,12 @@ export function installFog() {
 `;
 }
 
-// GLSL usable in custom ShaderMaterials (sky, water...) – same formula but explicit.
-export function aerialGLSL() {
-  return THREE.ShaderChunk.fog_pars_fragment;
+  patch();
+
+  return {
+    // must run once the world's ambient-light boxes are known, before the first render
+    setVolumes(list) { AMBIENT_VOLUMES = list.slice(0, 48); patch(); },
+    // GLSL usable in custom ShaderMaterials (sky, water...) – same formula but explicit
+    aerialGLSL() { return THREE.ShaderChunk.fog_pars_fragment; },
+  };
 }

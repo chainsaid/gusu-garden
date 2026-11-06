@@ -130,7 +130,7 @@ function placeStoneStands(ctx, group) {
   for (const e of list) (kinds[e.kind] = kinds[e.kind] || []).push(e);
   const out = [];
   for (const [kind, items] of Object.entries(kinds)) {
-    const stand = buildStoneStand(kind);
+    const stand = buildStoneStand(kind, ctx.detail);
     const mats = items.map((e) => {
       const s = standHeight(kind, e.h) / stand.height;
       const y = groundY(ctx, e.x, e.z) - 0.02;

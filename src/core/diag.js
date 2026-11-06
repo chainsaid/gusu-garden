@@ -3,13 +3,13 @@
 // they are dev-only tooling and change often.
 //   ?probe=tris      per-object triangle census (top 30, instancing-aware)
 //   ?probe=materials material/program variant census + registry stats
+// The material registry is injected by the caller (kit.registry); this module does
+// not import the material implementation.
 // ---------------------------------------------------------------------------
-import { matRegistry } from './materials.js';
 
 // ?probe=materials: registry stats + cache keys grouped by hook-slot structure.
 // Keys sharing a structure differ only in shader literals -> mergeable via uniforms.
-export function probeMaterials(scene) {
-  const reg = matRegistry();
+export function probeMaterials(scene, reg) {
   let autoN = 0, collide = 0; const collideNames = [];
   for (const [nm, e] of reg) { if (nm.startsWith('hook_')) autoN++; if (e.collide) { collide++; collideNames.push(nm); } }
   console.log('[info] registry: entries=' + reg.size, `autoNamed=${autoN}`, `userNamed=${reg.size - autoN}`, `collisions=${collide}`, collideNames.length ? 'names: ' + collideNames.join(', ') : '');

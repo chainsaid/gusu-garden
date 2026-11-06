@@ -198,8 +198,8 @@ export async function build(ctx) {
 
   // ------------------------------------------------------------ 下檐 (lower roof tier)
   const accM = new Acc();
-  buildTiles(accM, mok, mats, R);
-  const bellsM = buildEaves(accM, mok, mats);
+  buildTiles(accM, mok, mats, R, {}, ctx.detail);
+  const bellsM = buildEaves(accM, mok, mats, {}, ctx.detail);
   {
     const tile = accM.m(mats.tile), gold = accM.m(mats.gold);
     const Y = (d) => mok.y0 + mok.prof.P(d);
@@ -225,8 +225,8 @@ export async function build(ctx) {
 
   // ------------------------------------------------------------ main tier
   const accU = new Acc();
-  buildTiles(accU, main, mats, R);
-  const bellsU = buildEaves(accU, main, mats);
+  buildTiles(accU, main, mats, R, {}, ctx.detail);
+  const bellsU = buildEaves(accU, main, mats, {}, ctx.detail);
   buildXieshanRidges(accU, main, mats);
   buildXieshanGables(accU, main, mats);
   // 千鸟破风天窗已移除：中式歇山顶不在前坡立抱厦天窗

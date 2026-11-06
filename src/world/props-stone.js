@@ -13,7 +13,6 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { Acc, polyStack, lathe, taperTube } from './props-geo.js';
-import { seg as dseg, cnt } from '../core/detail.js';
 
 const T = (moss) => [0, 0, moss, 0];
 
@@ -26,7 +25,7 @@ function wob(t, s) {
 // 石笋 — a stone spur: tall, slender, always a little out of plumb, the tip
 // rounded off by water. Reads as a vertical accent beside a wall or a path.
 // ---------------------------------------------------------------------------
-function shisun(S) {
+function shisun(S, detail) {
   const H = 2.2;
   const lean = 0.17, dir = 0.9;
   const pts = [];
@@ -38,7 +37,7 @@ function shisun(S) {
   }
   const r0 = 0.225;
   taperTube(S, pts, (t) => r0 * Math.pow(1 - t, 0.42) * (1 + 0.15 * wob(t * 2.2, 1.7)), {
-    radial: cnt(12), segs: dseg(30), tag: T(0.3), capStart: false, capEnd: true,
+    radial: detail.cnt(12), segs: detail.seg(30), tag: T(0.3), capStart: false, capEnd: true,
   });
   // buried plinth: the spur is set into the paving, moss gathers at the join
   polyStack(S, {
@@ -55,17 +54,17 @@ function shisun(S) {
 // ---------------------------------------------------------------------------
 // 石鼓墩 — a waisted stone drum: seat, plinth or stand for a potted plant.
 // ---------------------------------------------------------------------------
-function drumStool(S) {
+function drumStool(S, detail) {
   const H = 0.5, R = 0.235;
   lathe(S, [
     [0.0, 0.0], [R * 1.08, 0.0], [R * 1.08, 0.04], [R * 0.99, 0.062],
     [R * 0.86, 0.105], [R * 0.93, 0.20], [R * 1.0, 0.30], [R * 0.965, 0.385],
     [R * 0.9, 0.44], [R * 0.985, 0.468], [R * 0.985, 0.5], [0.0, 0.5],
-  ], dseg(36), T(0.5));
+  ], detail.seg(36), T(0.5));
   // a shallow dished top, the way the old ones are worn
   lathe(S, [
     [0.0, 0.494], [R * 0.62, 0.494], [R * 0.78, 0.5],
-  ], dseg(36), T(0.15));
+  ], detail.seg(36), T(0.15));
   S.jitter(0, S.n, 0.0045, 6.0, 7);
   S.jitter(0, S.n, 0.002, 15.0, 23);
   return H;
@@ -75,7 +74,7 @@ function drumStool(S) {
 // 散置湖石 — two or three lobes leaning together, the small standing rock that
 // sits at a path corner or answers a leak window across the court.
 // ---------------------------------------------------------------------------
-function lakeRock(S) {
+function lakeRock(S, detail) {
   const H = 1.3;
   const lobe = (h, rBase, dir, bend, seed) => {
     const pts = [];
@@ -84,7 +83,7 @@ function lakeRock(S) {
       pts.push(new THREE.Vector3(Math.cos(dir) * bend * t * t, h * t, Math.sin(dir) * bend * t * t));
     }
     taperTube(S, pts, (t) => rBase * Math.pow(1 - t, 0.5) * (1 + 0.24 * wob(t * 1.8, seed)), {
-      radial: cnt(10), segs: dseg(22), tag: T(0.35), capStart: false,
+      radial: detail.cnt(10), segs: detail.seg(22), tag: T(0.35), capStart: false,
     });
   };
   lobe(H, 0.285, 0.4, 0.22, 3.1);
@@ -103,9 +102,9 @@ function lakeRock(S) {
 const KINDS = { A: shisun, B: drumStool, C: lakeRock };
 
 // kind: 'A' 石笋 | 'B' 石鼓墩 | 'C' 散置湖石. Returns { stone, height }.
-export function buildStoneStand(kind) {
+export function buildStoneStand(kind, detail) {
   const S = new Acc();
-  const height = (KINDS[kind] || KINDS.C)(S);
+  const height = (KINDS[kind] || KINDS.C)(S, detail);
   return { stone: S, height };
 }
 

@@ -21,18 +21,24 @@ const TOL = parseFloat(arg('--tol', '0.02'));
 async function movieBridgeStats() {
   globalThis.window = globalThis.window || {};
   globalThis.document = globalThis.document || { createElement: () => ({ getContext: () => null }) };
-  const { materials, patch, std, phys, glow, PROC, depthMaterialFor } = await import('../src/core/materials.js');
+  const { createMaterialKit } = await import('../src/world/materials/kit.js');
+  const { createEnvironment } = await import('../src/core/environment.js');
+  const { WIND_GLSL } = await import('../src/core/uniforms.js');
+  const { ATMOSPHERE } = await import('../src/data/atmosphere.js');
   const { L } = await import('../src/layout.js');
-  const { setDetailTier } = await import('../src/core/detail.js');
-  const { ENV, G, sunDir } = await import('../src/core/env.js');
+  const { createDetailPolicy } = await import('../src/core/detail.js');
+  const ENVIRONMENT = createEnvironment({ atmosphere: ATMOSPHERE });
+  const { u: G, env: ENV, sunDir } = ENVIRONMENT;
+  // 与 export-web-assets.mjs 的 core 档位一致：realtime 0.38
+  const DETAIL = createDetailPolicy({ tier: 'realtime', override: 0.38 });
+  const KIT = createMaterialKit({ u: G, windGLSL: WIND_GLSL, isRealtime: DETAIL.isRealtime });
   const geom = await import('../src/core/geom.js');
   const { rng } = await import('../src/core/rng.js');
   const { build: bridgeBuild } = await import('../src/world/bridge.js');
-  setDetailTier('realtime', 0.38);   // 与 export-web-assets.mjs 的 core 档位一致
   const scene = new THREE.Scene();
   const ctx = {
-    THREE, scene, L, G, ENV, sunDir, geom, rng, quality: 'realtime',
-    M: materials(), mat: { patch, std, phys, glow, PROC, depthMaterialFor },
+    THREE, scene, L, G, ENV, sunDir, geom, rng, quality: 'realtime', detail: DETAIL,
+    M: KIT.materials(), mat: KIT,
     onUpdate: () => {}, captureEnv: () => {}, modules: {},
   };
   const res = await bridgeBuild(ctx);

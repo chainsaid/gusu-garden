@@ -9,7 +9,6 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import * as PP from './pagoda-parts.js';
-import { seg as dseg, gap } from '../core/detail.js';
 import { woodProc, tileProc } from './pagoda-mat.js';
 
 const { V3 } = PP;
@@ -86,6 +85,7 @@ const fixX = (f, x0, tan = TAN_DEF) => { let x = x0; for (let i = 0; i < 40; i++
 
 export async function build(ctx) {
   const { M, geom, L, mat } = ctx;
+  const DET = ctx.detail; // injected per build
   const PG = L.pagoda;
   const C = PG.center;
   const S = makeStoreys(L);
@@ -214,13 +214,13 @@ export async function build(ctx) {
   const toWorld = (j, v) => (j === null || j === undefined ? v.clone() : v.clone().applyMatrix4(R[j])).add(new THREE.Vector3(C[0], CY, C[2]));
 
   // ---------------------------------------------------------------- instanced parts
-  I.def('daito', PP.masuCoveGeo(0.58, 0.34, { c: 0.016 }), MT.wood, { jitter: 0.07, tint: [0.1, -0.05, -0.1] });
-  I.def('makito', PP.masuCoveGeo(0.30, 0.18), MT.wood, { jitter: 0.08, tint: [0.1, -0.05, -0.1] });
+  I.def('daito', PP.masuCoveGeo(0.58, 0.34, { c: 0.016 }, DET), MT.wood, { jitter: 0.07, tint: [0.1, -0.05, -0.1] });
+  I.def('makito', PP.masuCoveGeo(0.30, 0.18, {}, DET), MT.wood, { jitter: 0.08, tint: [0.1, -0.05, -0.1] });
   I.def('arm', PP.armGeo(0.24, 0.14, 1), MT.wood, { jitter: 0.06, tint: [0.1, -0.05, -0.1] });
   I.def('armEye', PP.armEyeGeo(), MT.wood, { jitter: 0.06, tint: [0.1, -0.05, -0.1] });
   I.def('rafter', PP.chamferBox(RW, RH, 1, 0.012), MT.wood, { jitter: 0.09, tint: [0.12, -0.04, -0.12] });
-  I.def('cap', PP.capGeo(), MT.red);
-  I.def('capBig', PP.capGeo(), MT.red);
+  I.def('cap', PP.capGeo(DET), MT.red);
+  I.def('capBig', PP.capGeo(DET), MT.red);
   const tj = { jitter: 0.14, tint: [-0.12, -0.04, 0.14] };
   I.def('tileR', PP.roundTileGeo(), MT.tileRound, tj);
   I.def('tileRs', PP.roundTileGeo(6, true), MT.tileRound, tj);
@@ -321,8 +321,8 @@ export async function build(ctx) {
     for (let j = 0; j < NS; j++) {
       const jy = (j % 2) * 0.01;
       for (const x of cols) {
-        B.add(new THREE.CylinderGeometry(rc * 0.97, rc, Hc, dseg(24), 1), MT.red, m4(j, x, F + Hc / 2, a));
-        B.add(new THREE.CylinderGeometry(rc + 0.014, rc + 0.016, 0.1, dseg(24), 1), MT.iron, m4(j, x, F + 0.05, a));
+        B.add(new THREE.CylinderGeometry(rc * 0.97, rc, Hc, DET.seg(24), 1), MT.red, m4(j, x, F + Hc / 2, a));
+        B.add(new THREE.CylinderGeometry(rc + 0.014, rc + 0.016, 0.1, DET.seg(24), 1), MT.iron, m4(j, x, F + 0.05, a));
         if (i === 0) {
           B.add(new THREE.CylinderGeometry(0.42, 0.46, 0.16, 24, 1), MT.granite, m4(j, x, F - 0.08, a));
         }
@@ -545,8 +545,8 @@ export async function build(ctx) {
         const x = w * p * TAN;
         return V3(x, roofY(s, x, p) - 0.048, p);
       };
-      addG(j, PP.gridSurface(sheath, dseg(36), 6, V3(0, -1, 0)), MT.wood);
-      addG(j, PP.gridSurface(sheath, dseg(36), 6, V3(0, 1, 0)), MT.wood);
+      addG(j, PP.gridSurface(sheath, DET.seg(36), 6, V3(0, -1, 0)), MT.wood);
+      addG(j, PP.gridSurface(sheath, DET.seg(36), 6, V3(0, 1, 0)), MT.wood);
       // 外廊木天花 (veranda walkway ceiling between inner wall and outer colonnade lintel)
       {
         const rCol = s.a + (s.i === 0 ? s.O * 0.5 : 1.15 * k);
@@ -655,7 +655,7 @@ export async function build(ctx) {
   // ROOF: 青瓦 tiling, disc eave tiles, hip ridges with 螭吻
   // =====================================================================
   function roof(s) {
-    const tp = gap(0.29), Ls = gap(0.295);
+    const tp = DET.gap(0.29), Ls = DET.gap(0.295);
     const n = Math.floor((s.Xc - 0.14) / tp);
     const e = 0.02;
     const nrm = (x, p) => {

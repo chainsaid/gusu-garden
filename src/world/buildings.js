@@ -114,6 +114,7 @@ function localize(ctx, K, keys, sets, center, off, floorY = 0.5) {
 // VIEWING PAVILION (east shore, open to the west)
 // ---------------------------------------------------------------------------
 function buildPavilion(ctx, K, builder, ix, anchors) {
+  const detail = ctx.detail;
   const P = ctx.L.pavilion;
   const base = frameFor(P.center, P.facing);
   const lb = new LB(builder, base, ix);
@@ -265,7 +266,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
   }
 
   // ---- roof
-  const T = tileParams({ p: 0.27, c: 0.26, detail: 2 });
+  const T = tileParams({ p: 0.27, c: 0.26, detail: 2 }, detail);
   const y0 = E.fasciaTop + T.lip + T.pd;
   const b2 = (3.45 - 0.4 * ezT) / (ezT * ezT);
   const prof = (d) => 0.4 * d + b2 * d * d;

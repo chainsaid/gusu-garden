@@ -11,12 +11,11 @@ const TAU = Math.PI * 2;
 // ---------------------------------------------------------------------------
 // Procedural Bamboo Culm Geometry (single cane with nodes and slight bend)
 // ---------------------------------------------------------------------------
-import { cnt, seg as dseg } from '../core/detail.js';
 
-function makeCulmGeo(height = 6.0, rBase = 0.045, rTop = 0.022, nodeStep = 0.38) {
+function makeCulmGeo(height = 6.0, rBase = 0.045, rTop = 0.022, nodeStep = 0.38, detail) {
   const nNodes = Math.floor(height / nodeStep);
-  const segsY = nNodes * Math.max(2, cnt(4));
-  const segsR = dseg(12);
+  const segsY = nNodes * Math.max(2, detail.cnt(4));
+  const segsR = detail.seg(12);
   const pos = [], nrm = [], uv = [];
 
   for (let j = 0; j <= segsY; j++) {
@@ -214,7 +213,7 @@ export function buildBamboo(ctx, parent) {
   const culmMatrices = [];
   const leafMatrices = [];
 
-  const baseCulmGeo = makeCulmGeo(6.2, 0.045, 0.02, 0.38);
+  const baseCulmGeo = makeCulmGeo(6.2, 0.045, 0.02, 0.38, ctx.detail);
   const baseLeafGeo = makeLeafSprayGeo();
 
   for (const clump of clumps) {

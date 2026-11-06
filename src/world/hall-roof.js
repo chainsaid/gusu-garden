@@ -8,7 +8,6 @@
 import { cbox, beam, lathe, extrude, sweep, bar, xf, basis, mul, v3, clamp, lerp, sstep, circlePts } from './hall-lib.js';
 import { chiwen, tileDisc, xuanyu, lotusBlock, bez } from './hall-orn.js';
 import { carveSideGable } from './hall-gable.js';
-import { gap, cnt } from '../core/detail.js';
 import { rafterCap, cornerPlate } from './hall-detail.js';
 // orthonormal end-face frame for a member ending at p0 pointing along dir (+Z = dir)
 const endFrame = (p0, dir) => { const side = v3.norm(v3.cross([0, 1, 0], dir)); const up = v3.cross(dir, side); return basis(p0, side, up, dir); };
@@ -88,7 +87,7 @@ const inExcl = (F, a, pad = 0) => F.excl.some(([a0, a1]) => a > a0 - pad && a < 
 // ---------------------------------------------------------------------------
 // tiles
 // ---------------------------------------------------------------------------
-export const TILE = { S: gap(0.335), r0: 0.097, L: 0.355, dR: 0.008, panT: 0.024, dip: 0.038 };
+export const TILE = { r0: 0.097, L: 0.355, dR: 0.008, panT: 0.024, dip: 0.038 };
 
 function samples(prof, d0, d1) {
   const L = TILE.L;
@@ -108,8 +107,8 @@ function samples(prof, d0, d1) {
 
 // Generic row emitters working on a "row geometry" callback rowPt(s) -> {p, n, t}
 // (t = across unit vector). Used by both straight faces and the 唐破风(已移除).
-export function emitRound(ms, smp, rowPt, R, hide, opts = {}) {
-  const J = Math.max(3, cnt(7)); const r0 = opts.r0 || TILE.r0; const dR = TILE.dR;
+export function emitRound(ms, smp, rowPt, R, hide, opts = {}, detail) {
+  const J = Math.max(3, detail.cnt(7)); const r0 = opts.r0 || TILE.r0; const dR = TILE.dR;
   let prev = null; const jit = new Map();
   ms.begin(null);
   for (const [s, ph, k] of smp) {
@@ -205,18 +204,19 @@ function eaveEnds(acc, mats, T, F, rows, goldDiscs) {
   }
 }
 
-export function buildTiles(acc, T, mats, R, opts = {}) {
+export function buildTiles(acc, T, mats, R, opts = {}, detail) {
   const ms = acc.m(mats.tile);
+  const S = detail.gap(0.335);
   for (const F of faceList(T)) {
-    const K = Math.floor((F.aMax - 0.1) / TILE.S);
+    const K = Math.floor((F.aMax - 0.1) / S);
     const rows = [];
-    for (let k = -K; k <= K; k++) rows.push(k * TILE.S);
+    for (let k = -K; k <= K; k++) rows.push(k * S);
     const tv = [F.t[0], 0, F.t[1]];
     const rowPtFor = (a) => (s) => { const d = T.prof.dOf(s); const { p, n } = facePt(T, F, a, d); return { p, n, t: tv }; };
     for (let i = 0; i < rows.length; i++) {
       const a = rows[i];
       const dm = F.dmax(a) - 0.03;
-      if (dm > 0.1) emitRound(ms, samples(T.prof, 0, dm), rowPtFor(a), R, T.hide);
+      if (dm > 0.1) emitRound(ms, samples(T.prof, 0, dm), rowPtFor(a), R, T.hide, {}, detail);
       if (i < rows.length - 1) {
         const a2 = rows[i + 1];
         const dm2 = Math.min(F.dmax(a), F.dmax(a2)) - 0.02;
@@ -266,7 +266,7 @@ export function ridgeAlong(ms, path, w0, layers, lh, capR, bury = 0.45) {
 function rafterY(E, d) { return E.yP + E.sb * (d - E.dP); } // base rafter TOP at depth d
 function flyY(E, d) { return E.yF0 + E.sf * d; } // flying rafter TOP at depth d
 
-export function buildEaves(acc, T, mats, opts = {}) {
+export function buildEaves(acc, T, mats, opts = {}, detail) {
   const E = T.E;
   const red = acc.m(mats.red), redD = acc.m(mats.soffit || mats.redDark);
   const redA = acc.m(mats.redA || mats.red);
@@ -283,7 +283,7 @@ export function buildEaves(acc, T, mats, opts = {}) {
       for (const [a0, a1] of ex) { if (a0 - 0.15 > cur) spans.push([cur, a0 - 0.15]); cur = Math.max(cur, a1 + 0.15); }
       if (cur < aLim) spans.push([cur, aLim]); }
     // rafters
-    const sp = gap(E.spacing || 0.3);
+    const sp = detail.gap(E.spacing || 0.3);
     const K = Math.floor(aLim / sp);
     for (let k = -K; k <= K; k++) {
       const a = k * sp;

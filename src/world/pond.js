@@ -11,10 +11,6 @@ import { buildStone } from './pond-stone.js';
 import { buildLotus, planLotus } from './pond-lotus.js';
 import { buildKoi, buildDebris } from './pond-koi.js';
 import { buildShore } from './pond-shore.js';
-import { sunDir } from '../core/env.js';
-
-let SHOTS = null, evalShot = null, SHOT_DUR = 7;
-try { const m = await import('../shots.js'); SHOTS = m.SHOTS; evalShot = m.evalShot; SHOT_DUR = m.SHOT_DUR || 7; } catch (e) { SHOTS = null; }
 
 // ---------------------------------------------------------------------------
 // Site: shore distance field, floor depth, map texture
@@ -149,10 +145,12 @@ function finalizeMap(site) {
 }
 
 // Camera paths of shots that skim the pond (kept free of stems/leaves)
-function pondCameraPaths(site) {
+function pondCameraPaths(ctx, site) {
   const paths = [];
-  if (SHOTS) {
-    SHOTS.forEach((s, si) => {
+  const FILM = ctx.film;
+  const shots = FILM.shots, evaluate = FILM.evalShot, shotDur = FILM.shotDur;
+  if (shots) {
+    shots.forEach((s, si) => {
       const keys = s.keys || [];
       const low = keys.length && keys.every((k) => k.pos[1] < 2.0 && site.sdExact(k.pos[0], k.pos[2]) > -0.5);
       if (!low) return;
@@ -161,8 +159,8 @@ function pondCameraPaths(site) {
       const N = 48;
       for (let i = 0; i <= N; i++) {
         let pos, look, focal;
-        if (evalShot) {
-          const c = evalShot(si, (i / N) * SHOT_DUR);
+        if (evaluate) {
+          const c = evaluate(si, (i / N) * shotDur);
           pos = c.pos.toArray(); look = c.look.toArray(); focal = c.focal;
         } else {
           const u = i / N, seg = u * (keys.length - 1);
@@ -234,7 +232,7 @@ export async function build(ctx) {
   const group = new THREE.Group();
   group.name = 'pond';
   const site = await makeSite(ctx);
-  site.camPaths = pondCameraPaths(site);
+  site.camPaths = pondCameraPaths(ctx, site);
   const tSite = performance.now();
 
   // lotus plan first (it shapes the calm-water mask and keeps koi lanes open)
@@ -250,17 +248,18 @@ export async function build(ctx) {
     const padPath = site.camPaths.find((p) => p.kind === 'pad' && p.hero);
     if (padPath) {
       const c = padPath.hero.cam;
-      const sl = Math.hypot(sunDir.x, sunDir.z) || 1;
-      const sx = sunDir.x / sl, sz = sunDir.z / sl;
-      const T0 = (padPath.shot ?? 8) * SHOT_DUR + 37.0; // shader clock = film time + 37 (main.js)
+      const sl = Math.hypot(ctx.sunDir.x, ctx.sunDir.z) || 1;
+      const sx = ctx.sunDir.x / sl, sz = ctx.sunDir.z / sl;
+      const G = ctx.film.choreography.POND_GLITTER;
+      const T0 = ctx.film.shaderTimeOf(padPath.shot ?? 8); // shader clock = film time + offset (app layer)
       // a sunlit breeze patch along the sun's reflection (only during that shot)
-      site.glitter = [c[0] + sx * 2.3, c[2] + sz * 2.3, 2.8, 1.3];
+      site.glitter = [c[0] + sx * G.ahead, c[2] + sz * G.ahead, G.radius, G.strength];
       site.glitterShot = padPath.shot ?? 8;
-      site.glitterT = [T0 + 1.5, T0 + 4.2]; // the gust dies down as the camera rises to the mirror view
-      for (const [d, lat, per, age0, amp] of [[1.05, 0.06, 7, 1.0, 2.2], [1.7, -0.18, 7, 2.0, 2.2], [2.6, 0.3, 7, 0.4, 2.0]]) {
-        const x = c[0] + sx * d - sz * lat, z = c[2] + sz * d + sx * lat;
+      site.glitterT = [T0 + G.gustStart, T0 + G.gustEnd]; // the gust dies down as the camera rises to the mirror view
+      for (const R of ctx.film.choreography.POND_RINGS) {
+        const x = c[0] + sx * R.dist - sz * R.lateral, z = c[2] + sz * R.dist + sx * R.lateral;
         if (site.sd(x, z) < 0.6) continue;
-        rings.push([x, z, per, ((age0 - T0) % per + per) % per, amp]);
+        rings.push([x, z, R.period, ((R.age - T0) % R.period + R.period) % R.period, R.amp]);
       }
     }
     let guard = 0;

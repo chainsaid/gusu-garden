@@ -12,6 +12,7 @@ import { gutterCurbs, buildGutterBed } from './terrain-gutter.js';
 
 export function buildPaving(ctx, F) {
   const { THREE } = ctx;
+  const detail = ctx.detail; // injected per build
   const R = ctx.rng('terrain-paving');
   const rnd = () => R.next();
   const noise = F.noise.n3;
@@ -93,7 +94,7 @@ export function buildPaving(ctx, F) {
         const w0 = side * (W / 2 - kerbW + joint / 2), w1 = side * W / 2;
         if (!clipped(u0, u1, Math.min(w0, w1), Math.max(w0, w1), true)) {
           const [cx, cz] = toWorld((u0 + u1) / 2, (w0 + w1) / 2);
-          const g = slabGeometry(kerbW - joint, u1 - u0, 0.22, 0.03, rnd, 1.2, noise);
+          const g = slabGeometry(kerbW - joint, u1 - u0, 0.22, 0.03, rnd, 1.2, noise, detail);
           const M = place(g, cx, cz, yaw, yBase(cx, cz, 0.2, (u1 - u0) / 2) + R.range(-0.008, 0.004), walk ? 1.25 : 1, 0.008, wetOf() * 0.85);
           stones.push({ x: cx, z: cz, w: kerbW - joint, d: u1 - u0, yaw, kind: 1, path: pi, m: M, side });
         }
@@ -115,7 +116,7 @@ export function buildPaving(ctx, F) {
         const u0 = u + joint / 2, u1 = u + dd - joint / 2, w0 = w + joint / 2, w1 = w + ww - joint / 2;
         if (!clipped(u0, u1, w0, w1)) {
           const [cx, cz] = toWorld((u0 + u1) / 2, (w0 + w1) / 2);
-          const g = slabGeometry(w1 - w0, u1 - u0, 0.2, 0.017, rnd, 1.4, noise);
+          const g = slabGeometry(w1 - w0, u1 - u0, 0.2, 0.017, rnd, 1.4, noise, detail);
           const M = place(g, cx, cz, yaw + R.range(-0.009, 0.009), yBase(cx, cz, (w1 - w0) / 2, (u1 - u0) / 2) + R.range(-0.008, 0.008), walk ? 0.25 : 0, 0.005, wetOf());
           stones.push({ x: cx, z: cz, w: w1 - w0, d: u1 - u0, yaw, kind: 0, path: pi, m: M });
         }
@@ -196,7 +197,7 @@ export function buildPaving(ctx, F) {
             const mid = (s0 + s1) / 2;
             const off = -c.depth / 2 + 0.06 + c.inset; // centre inside the peninsula edge (out = +off along -out)
             const cx = sg.a[0] + tx * mid - sg.out[0] * off, cz = sg.a[1] + tz * mid - sg.out[1] * off;
-            const g = slabGeometry(c.depth, s1 - s0 - 0.012, c.h, c.coping ? 0.035 : 0.045, rnd, 1.6, noise);
+            const g = slabGeometry(c.depth, s1 - s0 - 0.012, c.h, c.coping ? 0.035 : 0.045, rnd, 1.6, noise, detail);
             place(g, cx, cz, yaw, c.top + R.range(-0.008, 0.008), 3, 0.01, c.coping ? 0.2 : 0);
           }
           s += len;
@@ -206,7 +207,7 @@ export function buildPaving(ctx, F) {
   }
 
   // ---- drip-line gutter curbs (round the podiums and along the corridor plinth) ----
-  const nGutter = gutterCurbs(F, R, rnd, noise, place, stones);
+  const nGutter = gutterCurbs(F, R, rnd, noise, place, stones, detail);
 
   // ---- merge ----
   const merged = ctx.geom.mergeGeometries(geos, false);

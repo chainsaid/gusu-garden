@@ -22,10 +22,12 @@
   <script type="module">
     import * as THREE from 'three';
     import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-    import { materials, patch, std, phys, glow, PROC, depthMaterialFor } from './src/core/materials.js';
+    import { createMaterialKit } from './src/world/materials/kit.js';
     import { L } from './src/layout.js';
-    import { setDetailTier } from './src/core/detail.js';
-    import { ENV, G, sunDir } from './src/core/env.js';
+    import { createDetailPolicy } from './src/core/detail.js';
+    import { createEnvironment } from './src/core/environment.js';
+    import { WIND_GLSL } from './src/core/uniforms.js';
+    import { ATMOSPHERE } from './src/data/atmosphere.js';
     import * as geom from './src/core/geom.js';
     import { rng } from './src/core/rng.js';
 
@@ -114,14 +116,17 @@
     //   单个瓦当在屏幕上不足 2px，高频几何没有信息量却主导了闪碎感，必须大幅减面。
     // 注: 此设置只作用于导出的 GLB，不影响 src/ 离线电影渲染 (那边仍为 DETAIL.s = 1 的完整精细节奏)。
     const _detailOverride = parseFloat(new URLSearchParams(location.search).get('detail'));
-    setDetailTier('realtime', Number.isFinite(_detailOverride) ? _detailOverride : 0.38);
+    const DETAIL = createDetailPolicy({ tier: 'realtime', override: Number.isFinite(_detailOverride) ? _detailOverride : 0.38 });
+    const ENVIRONMENT = createEnvironment({ atmosphere: ATMOSPHERE });
+    const { u: G, env: ENV, sunDir } = ENVIRONMENT;
+    const KIT = createMaterialKit({ u: G, windGLSL: WIND_GLSL, isRealtime: DETAIL.isRealtime });
 
     const scene = new THREE.Scene();
     scene.userData = {};
     const ctx = {
-      THREE, scene, L, G, ENV, sunDir, geom, rng, quality: 'realtime',
-      M: materials(),
-      mat: { patch, std, phys, glow, PROC, depthMaterialFor },
+      THREE, scene, L, G, ENV, sunDir, geom, rng, quality: 'realtime', detail: DETAIL,
+      M: KIT.materials(),
+      mat: KIT,
       onUpdate: () => {},
       captureEnv: () => {},
       modules: {},

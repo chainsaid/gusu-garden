@@ -20,6 +20,6 @@
     window.addEventListener("error", function (e) { if (e.target && e.target.tagName === "SCRIPT") { window.__ERROR = "module load failed"; window.__READY = true; } }, true);
     window.addEventListener("unhandledrejection", function (e) { console.error("[fatal] " + (e.reason && e.reason.stack || e.reason)); });
   </script>
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/app/main.js"></script>
 </body>
 </html>

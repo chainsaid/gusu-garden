@@ -10,7 +10,6 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { cnt } from '../core/detail.js';
 
 const TAU = Math.PI * 2;
 const sm = (a, b, x) => { const t = Math.min(Math.max((x - a) / (b - a), 0), 1); return t * t * (3 - 2 * t); };
@@ -229,7 +228,7 @@ const WHORLS = [
 // dense petal grids with a midrib keel and soft pleats, arched stamens,
 // sculpted carpels (stigma nubs) on the receptacle, dew drops (part 13).
 // Parts: 12 stigma nub, 13 water drop.
-export function lotusFlower(r, { open = 1, hi = true, S = 1.3, petalScale = 1, macro = false, dew = 0 } = {}) {
+export function lotusFlower(r, { open = 1, hi = true, S = 1.3, petalScale = 1, macro = false, dew = 0 } = {}, detail) {
   const out = newOut();
   out._m = new THREE.Matrix4();
   const m = out._m;
@@ -261,7 +260,7 @@ export function lotusFlower(r, { open = 1, hi = true, S = 1.3, petalScale = 1, m
       m.identity();
     }
     // stamens: dense ring around the receptacle base, arching outward
-    const ns = macro ? cnt(240) : hi ? cnt(160) : cnt(34);
+    const ns = macro ? detail.cnt(240) : hi ? detail.cnt(160) : detail.cnt(34);
     const so = sm(0.18, 1.0, open);
     const d1 = new THREE.Vector3(), d2 = new THREE.Vector3();
     for (let k = 0; k < ns; k++) {

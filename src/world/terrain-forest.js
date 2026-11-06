@@ -8,7 +8,6 @@
 import { leafAtlas } from './terrain-tex.js';
 import { smoothstep, clamp, lerp } from './terrain-field.js';
 import { CANOPY } from './terrain-land.js';
-import { gap, dens, isRealtime } from '../core/detail.js';
 
 // ---- template geometry helpers --------------------------------------------
 class Tpl {
@@ -272,6 +271,7 @@ function forestMaterial(ctx, atlas) {
 // ---- placement ----------------------------------------------------------------
 export function buildForest(ctx, F) {
   const { THREE } = ctx;
+  const { gap, dens, isRealtime } = ctx.detail; // injected per build
   const atlas = leafAtlas(ctx);
   const { mat, depth } = forestMaterial(ctx, atlas);
   const R = ctx.rng('terrain-forest');
@@ -298,7 +298,7 @@ export function buildForest(ctx, F) {
     if (kind !== 'shrub') fd *= 0.55 + 0.45 * smoothstep(-0.5, 0.05, F.noise.f3(x / 26 + 9.3, z / 26 - 4.1, 2));
     if (R.next() > fd * dens(0.98)) return;
     const ground = F.landHeight(x, z);
-    const cap = F.treeTopCap(x, z) - ground;
+    const cap = ctx.placement.capHeight(x, z) - ground;
     if (cap < 2.6) return;
     if (kind === 'shrub') {
       const wf = R.range(0.9, 1.4);
@@ -487,6 +487,6 @@ export function buildForest(ctx, F) {
     tris += (geo.index.count / 3) * list.length;
   }
   group.userData.stats = { trees: trees.length, tris: Math.round(tris), meshes: buckets.size };
-  if (isRealtime() && ctx.noRefl) ctx.noRefl.push(group); // distant treeline is invisible in pond reflections
+  if (isRealtime() && ctx.layers.noRefl) ctx.layers.noRefl.push(group); // distant treeline is invisible in pond reflections
   return group;
 }

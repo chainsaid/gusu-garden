@@ -82,7 +82,7 @@ export function buildLand(ctx, F) {
       const r = Math.hypot(x - C[0], z - C[1]);
       const fdNear = F.forestDensity(x, z);
       // height caps (sun / camera clearances) only concern the near forest, not the far mountains
-      const cap = r > 720 ? Infinity : F.treeTopCap(x, z) + smoothstep(460, 720, r) * 400;
+      const cap = r > 720 ? Infinity : ctx.placement.capHeight(x, z) + smoothstep(460, 720, r) * 400;
       const room = smoothstep(4, 12, cap - ground);
       // far forest: almost everything wooded, open patches by noise
       const farF = smoothstep(-0.55, -0.2, F.noise.f2(x / 900, z / 900, 3)) * 0.85 + 0.15;

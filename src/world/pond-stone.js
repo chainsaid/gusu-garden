@@ -8,7 +8,6 @@ import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { POND_GLSL, UW_FRAGEND } from './pond-water.js';
 import { makeNoise, smooth, clamp, pointInPoly, contourLines, resample } from './pond-util.js';
-import { cnt } from '../core/detail.js';
 
 // ---- boulder generator ------------------------------------------------------
 // Faceted granite boulder: a random convex polyhedron (plane cuts) blended with
@@ -132,6 +131,7 @@ export function stoneMaterial(ctx, U, mossAmt, tint, { cut = false, pebble = fal
 
 export function buildStone(ctx, site, U) {
   const { geom } = ctx;
+  const { cnt } = ctx.detail; // injected per build
   const group = new THREE.Group();
   group.name = 'pondStone';
   const r = ctx.rng('pond-stone');

@@ -16,11 +16,11 @@
 // colours, coursing/joints/weathering in the fragment shader.
 // ---------------------------------------------------------------------------
 
-import { seg as dseg } from '../core/detail.js';
 import { Mesher, basis, extrude } from './hall-lib.js';
 
 export async function build(ctx) {
   const { THREE, L, geom, mat } = ctx;
+  const { seg: dseg } = ctx.detail; // detail policy is injected per build, never frozen at import
   const { Builder, mat4 } = geom;
   const RBox = geom.RoundedBoxGeometry;
   const rnd = ctx.rng('bridge');

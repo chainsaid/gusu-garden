@@ -40,7 +40,10 @@
     "fetch-music": "node tools/fetch-music.mjs",
     "score": "node tools/score.mjs",
     "camcheck": "node tools/camcheck.mjs",
-    "flicker": "node tools/lumaflicker.mjs"
+    "flicker": "node tools/lumaflicker.mjs",
+    "golden:capture": "node tools/golden.mjs capture",
+    "golden:verify": "node tools/golden.mjs verify",
+    "dep:lint": "node tools/dep-lint.mjs"
   },
   "dependencies": {
     "three": "0.186.1"

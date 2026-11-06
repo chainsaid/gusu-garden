@@ -6,7 +6,6 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { LB, m4, beamM, chamferBox, block, lathe, lotusFinial, sweep, rectProfile, roundProfile, tileParams, tileCapGeos, makeLift, extrude, hash3, armGeo, ni, kibanaGeo, scrollPlate } from './buildings-kit.js';
 import { eaves, bracketSet, column, xieshanRoof, railing, loopPath, linePath, ridgeProfile } from './buildings-arch.js';
-import { gap, seg as dseg } from '../core/detail.js';
 
 const V3 = THREE.Vector3;
 
@@ -73,7 +72,7 @@ export function wallBay(lb, K, a, b, c, type, Y, o = {}) {
 // ---------------------------------------------------------------------------
 // Generic 歇山 hall. lb in the building frame (origin at ground center).
 // ---------------------------------------------------------------------------
-export function hallBuilding(lb, K, S) {
+export function hallBuilding(lb, K, S, detail) {
   const xs = S.xs, zs = S.zs;
   const cx = Math.max(...xs), cz = Math.max(...zs);
   const colR = S.colR, y0 = S.y0, yct = S.yct;
@@ -173,7 +172,7 @@ export function hallBuilding(lb, K, S) {
     lb.add(sweep(loopPath(cx - 0.1, cz - 0.1, () => yC - 0.12, 0.6), rectProfile(0.12, 0.12), { closed: true, outward: true }), K.red);
   }
   // roof
-  const T = tileParams({ p: S.tileP || 0.28, c: 0.27, detail: S.tileDetail ?? 2 });
+  const T = tileParams({ p: S.tileP || 0.28, c: 0.27, detail: S.tileDetail ?? 2 }, detail);
   const ry0 = E.fasciaTop + T.lip + T.pd;
   const a0 = S.slope0 ?? 0.4;
   const b2 = (S.roofRise - a0 * ezT) / (ezT * ezT);
@@ -535,7 +534,7 @@ export function buildGate(ctx, K, lb, anchors, toW) {
     K: { rafter: K.rafter, soffit: K.soffit, cap: K.cap, beam: K.beam, rafterCap: K.capPaint },
   });
 
-  const T = tileParams({ p: 0.26, c: 0.25, detail: 1 });
+  const T = tileParams({ p: 0.26, c: 0.25, detail: 1 }, ctx.detail);
   const ry0 = E.fasciaTop + T.lip + T.pd;
   const a0 = 0.38;
   const b2 = (2.1 - a0 * ezT) / (ezT * ezT);
@@ -614,7 +613,7 @@ export function buildBellPavilion(ctx, K, lb, anchors, toW) {
     ridge: { w: 0.56, h: 0.5, layers: 5, capR: 0.1, drop: 0.4 }, hip: { w: 0.3, h: 0.3, layers: 3, capR: 0.07, drop: 0.2 }, chiwen: { s: 0.8 }, xuanyu: 0.55, hafuH: 0.34,
     ceiling: true, ceilingMat: K.ceilingBell,
     bands: [{ y: yF, h: 0.15, studs: 10 }, { y: yF + 4.1 - 0.26 - 0.12, h: 0.1 }],
-  });
+  }, ctx.detail);
   for (const h of H.E.hooks) anchors.bells.push({ pos: toW(h.local), scale: 1.0, rotY: 0 });
   // 穿枋 between columns at mid height + hanging beam for the bell
   for (const s of [-1, 1]) {
@@ -654,7 +653,7 @@ export function buildBellPavilion(ctx, K, lb, anchors, toW) {
 // (was: karaKohai / 向拜(已移除) with a 唐破风(已移除) — a bell-curved convex crest with
 //  concave flanks, which is a Japanese-only roof form)
 // ---------------------------------------------------------------------------
-function baosha(lb, K, o) {
+function baosha(lb, K, o, detail) {
   const { W, zb, zf, yE, H, postX, postZ, yTop, zWall } = o;
   // 中式檐口线：中间平直、两端起翘。u = |x|/W.
   const prof = (x) => {
@@ -732,9 +731,9 @@ function baosha(lb, K, o) {
   }
   // round-tile ribs running down both flanks, with plain end caps
   const [cd, cg] = tileCapGeos(0.062, 1);
-  for (let z = zb + 0.14; z < zf - 0.06; z += gap(0.27)) {
+  for (let z = zb + 0.14; z < zf - 0.06; z += detail.gap(0.27)) {
     const pts = [];
-    for (let i = 0; i <= dseg(36, 8); i++) { const x = -W + (2 * W * i) / dseg(36, 8); pts.push(new V3(x, prof(x) + 0.03, z)); }
+    for (let i = 0; i <= detail.seg(36, 8); i++) { const x = -W + (2 * W * i) / detail.seg(36, 8); pts.push(new V3(x, prof(x) + 0.03, z)); }
     lb.add(sweep(pts, roundProfile(0.062, 0, 6), { smooth: true }), K.tile);
     for (const s of [-1, 1]) lb.add(cd, K.tile, m4([s * (W + 0.005), prof(W) + 0.03, z], [0, s * Math.PI / 2, 0])), lb.add(cg, K.cap, m4([s * (W + 0.005), prof(W) + 0.03, z], [0, s * Math.PI / 2, 0]));
   }
@@ -808,7 +807,7 @@ export function buildSideHall(ctx, K, lb, anchors, toW, spec) {
     BS: { tiers: 3, proj: [0.42, 0.8], armH: 0.14, armW: 0.12, blockH: 0.11, daito: [0.32, 0.19], mak: [0.18, 0.11], wall: [0.85, 1.05, 1.2], inner: false, goldCaps: false, goldMak: false, goldDaito: false, K: { wood: K.red, gold: K.red } },
     ov: 1.9, liftL: 0.42, roofRise: spec.w >= 13 ? 3.6 : 3.2, ovG: 0.6, tileP: 0.28, tileDetail: 1,
     chiwen: { s: 0.85 }, lo: true, gableLattice: true, infill: true,
-  });
+  }, ctx.detail);
   for (const h of H.E.hooks) anchors.bells.push({ pos: toW(h.local), scale: 0.9, rotY: 0 });
   // 厅前不设独立两柱抱厦：原 baosha 为日式唐破风「向拜」残留（见 baosha 注释
   // "was: karaKohai / 向拜 with 唐破风"），其「独立两柱 + 横梁 + 卷棚小顶」读作鸟居。

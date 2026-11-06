@@ -131,10 +131,9 @@ export function masuGeo(s, h, footFrac = 0.42, footScale = 0.76, c = 0.012) {
 
 // Bearing block (masu) with a true concave (cove) lower profile, a crisp ledge and a
 // chamfered upper box. Origin at bottom centre, size s x s, height h.
-import { cnt, seg as dseg } from '../core/detail.js';
 import { chunkedInstanced } from '../core/geom.js';
 
-export function masuCoveGeo(s, h, { footFrac = 0.44, footScale = 0.72, c = 0.012 } = {}) {
+export function masuCoveGeo(s, h, { footFrac = 0.44, footScale = 0.72, c = 0.012 } = {}, detail) {
   const X = s / 2, hb = h * footFrac, b = X * footScale;
   const ring = (r, y, cc = c) => {
     const q = Math.max(r - cc, 0.0001);
@@ -144,7 +143,7 @@ export function masuCoveGeo(s, h, { footFrac = 0.44, footScale = 0.72, c = 0.012
   const push = (r, y, cc) => { secs.push(ring(r, y, cc)); refs.push(V3(0, y, 0)); };
   push(b - 0.004, 0, c * 0.5);
   push(b, 0.006, c * 0.5);
-  const NC = cnt(6);
+  const NC = detail.cnt(6);
   for (let i = 0; i <= NC; i++) {
     const t = i / NC;
     push(b + (X - 0.006 - b) * Math.pow(t, 2.3), 0.012 + (hb - 0.012) * t, c * 0.6);
@@ -188,7 +187,7 @@ export function armEyeGeo(r = 0.034) {
 }
 
 // Gold end cap (木鼻 金物): plate in XY facing +Z, back at z=0, unit 1x1 (scale x,y).
-export function capGeo() {
+export function capGeo(detail) {
   const parts = [];
   const plate = chamferBox(1, 1, 0.03, 0.01).clone(); plate.translate(0, 0, 0.003);
   parts.push(plate);
@@ -196,14 +195,14 @@ export function capGeo() {
   const fr = new THREE.CylinderGeometry(0.33 * Math.SQRT2 * 0.82, 0.33 * Math.SQRT2, 0.012, 4, 1);
   fr.rotateY(Math.PI / 4); fr.rotateX(Math.PI / 2); fr.translate(0, 0, 0.024);
   parts.push(fr);
-  const boss = new THREE.SphereGeometry(0.17, dseg(8, 3), 2, 0, Math.PI * 2, 0, Math.PI / 2);
+  const boss = new THREE.SphereGeometry(0.17, detail.seg(8, 3), 2, 0, Math.PI * 2, 0, Math.PI / 2);
   boss.rotateX(Math.PI / 2); boss.scale(1, 1, 0.07); boss.translate(0, 0, 0.029);
   parts.push(boss);
   for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
-    const nail = new THREE.SphereGeometry(0.04, dseg(6, 3), 2, 0, Math.PI * 2, 0, Math.PI / 2);
+    const nail = new THREE.SphereGeometry(0.04, detail.seg(6, 3), 2, 0, Math.PI * 2, 0, Math.PI / 2);
     nail.rotateX(Math.PI / 2); nail.scale(1, 1, 0.3); nail.translate(sx * 0.37, sy * 0.37, 0.016); parts.push(nail);
   }
-  const lipR = new THREE.TorusGeometry(0.2, 0.022, dseg(3, 3), dseg(12, 4)); lipR.scale(1, 1, 0.5); lipR.translate(0, 0, 0.03); parts.push(lipR);
+  const lipR = new THREE.TorusGeometry(0.2, 0.022, detail.seg(3, 3), detail.seg(12, 4)); lipR.scale(1, 1, 0.5); lipR.translate(0, 0, 0.03); parts.push(lipR);
   return mergeGeometries(parts.map(cleanGeo));
 }
 

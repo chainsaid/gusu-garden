@@ -1,7 +1,10 @@
 // CPU-only camera motion check: samples every shot at 60 fps and reports speed,
 // acceleration spikes (jerks) and angular speed of the view direction.
 // usage: node tools/camcheck.mjs
-import { evalShot, SHOTS, SHOT_DUR } from '../src/shots.js';
+import { SHOTS, SHOT_DUR } from '../src/data/film/shots.js';
+import { createShotEvaluator } from '../src/core/film/shot-eval.js';
+
+const { evalShot } = createShotEvaluator({ shots: SHOTS, duration: SHOT_DUR });
 
 const fps = 60, dt = 1 / fps;
 for (let i = 0; i < SHOTS.length; i++) {

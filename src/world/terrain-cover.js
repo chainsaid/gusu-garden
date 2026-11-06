@@ -6,11 +6,11 @@
 import { MOSS_GLSL, TG_GLSL } from './terrain-glsl.js';
 import { fernTexture } from './terrain-tex.js';
 import { clamp, lerp, smoothstep } from './terrain-field.js';
-import { seg as dseg, cnt, isRealtime } from '../core/detail.js';
 import { chunkedInstanced } from '../core/geom.js';
 
 export function buildCover(ctx, F, stones) {
   const { THREE } = ctx;
+  const { seg: dseg, cnt, isRealtime } = ctx.detail; // injected per build
   const R = ctx.rng('terrain-cover');
   const group = new THREE.Group();
   group.name = 'groundCover';
@@ -630,6 +630,6 @@ export function buildCover(ctx, F, stones) {
   }
 
   group.userData.stats = { rocks: rocks.length, moss: moss.length, ferns: ferns.length, grass: grass.length, pebbles: peb.length, petals: petals.length, leaves: leaves.length };
-  if (isRealtime() && ctx.noRefl) ctx.noRefl.push(group); // centimetre-scale cover is invisible in pond reflections
+  if (isRealtime() && ctx.layers.noRefl) ctx.layers.noRefl.push(group); // centimetre-scale cover is invisible in pond reflections
   return group;
 }

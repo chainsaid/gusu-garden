@@ -7,7 +7,6 @@
 import * as THREE from 'three';
 import { LB, m4, beamM, chamferBox, block, lathe, sweep, rectProfile, roundProfile, roofSurface, tileCapGeos, tileParams, armGeo, extrude, hash3, buildIx } from './buildings-kit.js';
 import { ridgeProfile, rafterField, linePath } from './buildings-arch.js';
-import { gap } from '../core/detail.js';
 
 export const CW = 2.68;          // tile eave half width
 const TIP = 0.08;                // rafter tip line inset from the tile eave
@@ -183,7 +182,7 @@ function outerWall(lb, K, a, b, zw) {
 }
 
 // roof package over faces: tiles, caps, soffit, rafters
-function roofPackage(lb, K, faces, T, { rafSp = 0.26 } = {}) {
+function roofPackage(lb, K, faces, T, detail, { rafSp = 0.26 } = {}) {
   const tf = faces.map((F) => ({ ...F, y0: Y0, prof, lip: F.lip !== false }));
   const { geo, caps } = roofSurface(tf, T, () => 0);
   lb.addIx(geo, K.tileVC);
@@ -193,7 +192,7 @@ function roofPackage(lb, K, faces, T, { rafSp = 0.26 } = {}) {
     lb.add(cd, K.tile, mm); lb.add(cg, K.cap, mm);
   }
   const sf = faces.map((F) => ({ ...F, y0: 0, prof: yRT, dmin: (u) => Math.max(TIP, F.dmin ? F.dmin(u) : 0) }));
-  const s = roofSurface(sf, null, () => 0, { flip: true, du: gap(0.4), dd: gap(0.4) }).geo;
+  const s = roofSurface(sf, null, () => 0, { flip: true, du: detail.gap(0.4), dd: detail.gap(0.4) }).geo;
   s.deleteAttribute('color');
   lb.add(s, K.soffit);
   rafterField(lb, faces, { sp: rafSp, w: RAF[0], h: RAF[1], yBot: yRB, dStart: TIP, mat: K.red, capMat: K.capPaint, lo: true });
@@ -207,15 +206,15 @@ function fascia(lb, K, pts, inside) {
 // ---------------------------------------------------------------------------
 // The repeating bay unit (built for bay = 3.6, instanced with x-scale)
 // ---------------------------------------------------------------------------
-function unitBay(lb, K) {
+function unitBay(lb, K, detail) {
   const bay = 3.6;
   body(lb, K, bay);
-  const T = tileParams({ ...TILE, phase: 0 });
+  const T = tileParams({ ...TILE, phase: 0 }, detail);
   const faces = [
     { O: [0, CW], a: [1, 0], n: [0, -1], u0: 0, u1: bay, dmax: () => CW },
     { O: [0, -CW], a: [-1, 0], n: [0, 1], u0: -bay, u1: 0, dmax: () => CW },
   ];
-  roofPackage(lb, K, faces, T, { rafSp: bay / 14 });
+  roofPackage(lb, K, faces, T, detail, { rafSp: bay / 14 });
   for (const s of [-1, 1]) fascia(lb, K, [[0, s * (CW - TIP - 0.045)], [bay, s * (CW - TIP - 0.045)]], [bay / 2, 0]);
   lb.add(sweep(linePath([0, 0], [bay, 0], () => CORRIDOR_RIDGE_Y - 0.02, 0.9), ridgeProfile(0.42, 0.36, 4, 0.08, 0.3)), K.tile);
 }
@@ -253,7 +252,7 @@ function unitColumn(lb, K) {
 // Corner piece (canonical): corner at the origin; run A extends toward -x,
 // run B toward +z; outer quadrant (+x,-z). Includes one bay of each run.
 // ---------------------------------------------------------------------------
-function cornerPiece(lb, K, bayA, bayB) {
+function cornerPiece(lb, K, bayA, bayB, detail) {
   const W = CW;
   const Lx = COLZ + bayA, Lz = COLZ + bayB;
   // bodies of the two included bays
@@ -286,8 +285,8 @@ function cornerPiece(lb, K, bayA, bayB) {
     { O: [-W, 0], a: [0, 1], n: [1, 0], u0: 0, u1: Lz, dmin: (u) => Math.max(0, W - u), dmax: () => W, phase: COLZ, p: bayB / 13 },
   ];
   for (const F of faces) {
-    const T = tileParams({ ...TILE, p: F.p, phase: F.phase });
-    roofPackage(lb, K, [F], T, { rafSp: 0.26 });
+    const T = tileParams({ ...TILE, p: F.p, phase: F.phase }, detail);
+    roofPackage(lb, K, [F], T, detail, { rafSp: 0.26 });
   }
   // fascia L's
   const f = CW - TIP - 0.045;
@@ -309,6 +308,7 @@ function cornerPiece(lb, K, bayA, bayB) {
 // ---------------------------------------------------------------------------
 export function buildCorridor(ctx, K, parent) {
   const { geom, L } = ctx;
+  const detail = ctx.detail;
   const R = L.corridor.rect;
   const gate = L.gate;
   const gx0 = gate.center[0] - 5.14, gx1 = gate.center[0] + 5.14; // corridor ends flush at the gate side walls
@@ -349,7 +349,7 @@ export function buildCorridor(ctx, K, parent) {
   for (const c of corners) {
     const base = new THREE.Matrix4().makeRotationY(c.yaw).setPosition(c.at[0], 0, c.at[1]);
     const lb = new LB(cb, base, cix);
-    cornerPiece(lb, K, c.A, c.B);
+    cornerPiece(lb, K, c.A, c.B, detail);
     // outer corner column
     const oc = new THREE.Vector3(COLZ, 0, -COLZ).applyMatrix4(base);
     addCol(oc.x, oc.z);
@@ -360,7 +360,7 @@ export function buildCorridor(ctx, K, parent) {
   // instanced sets
   const mkInst = (fn, mats, name) => {
     const b = new geom.Builder(); const ix = new Map();
-    fn(new LB(b, new THREE.Matrix4(), ix), K);
+    fn(new LB(b, new THREE.Matrix4(), ix), K, detail);
     const g = b.build({ name: name + 'Proto' });
     const meshes = [];
     g.children.forEach((m) => meshes.push({ geo: m.geometry, mat: m.material }));

@@ -50,7 +50,7 @@ export function gutterSides(F) {
 }
 
 // curb stones -> emitted through the paving's place() (kind 1 = kerb)
-export function gutterCurbs(F, R, rnd, noise, place, stones) {
+export function gutterCurbs(F, R, rnd, noise, place, stones, detail) {
   const sides = gutterSides(F);
   let n = 0;
   const TOP = 0.1;
@@ -69,7 +69,7 @@ export function gutterCurbs(F, R, rnd, noise, place, stones) {
           const ua = u + joint / 2, ub = u + len - joint / 2;
           const [x, z] = s.at((ua + ub) / 2, (o0 + o1) / 2);
           const w = o1 - o0 - 0.012;
-          const g = slabGeometry(w, ub - ua, 0.26, 0.022, rnd, 1.3, noise);
+          const g = slabGeometry(w, ub - ua, 0.26, 0.022, rnd, 1.3, noise, detail);
           const y = F.heightAt(x, z) + TOP + R.range(-0.007, 0.004);
           const M = place(g, x, z, yaw + R.range(-0.004, 0.004), y, 4, 0.006, 0.05);
           stones.push({ x, z, w, d: ub - ua, yaw, kind: 1, gutter: true, m: M, side: 0 });
@@ -83,7 +83,7 @@ export function gutterCurbs(F, R, rnd, noise, place, stones) {
             if (ue <= c0 + 0.01 || ue >= c1 - 0.01) continue;
             const uc = ue + sg * s.CW / 2;
             const [x, z] = s.at(uc, s.GW / 2);
-            const g = slabGeometry(s.GW - 2 * s.CW - 0.012, s.CW - 0.01, 0.26, 0.02, rnd, 1.3, noise);
+            const g = slabGeometry(s.GW - 2 * s.CW - 0.012, s.CW - 0.01, 0.26, 0.02, rnd, 1.3, noise, detail);
             const M = place(g, x, z, yaw + Math.PI / 2, F.heightAt(x, z) + TOP + R.range(-0.006, 0.003), 4, 0.006, 0.05);
             stones.push({ x, z, w: s.GW - 2 * s.CW, d: s.CW, yaw, kind: 1, gutter: true, m: M, side: 0 });
             n++;

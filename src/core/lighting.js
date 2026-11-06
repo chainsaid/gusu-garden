@@ -1,14 +1,13 @@
 import * as THREE from 'three';
-import { ENV, G, sunDir } from './env.js';
-import { SKY_UNIFORMS } from './sky.js';
 
 // ---------------------------------------------------------------------------
 // Sun (directional, shadowed), and image based ambient light captured from the
 // procedural sky (and optionally the built scene) through PMREM.
 // ---------------------------------------------------------------------------
 
-export function createSun(scene, { mapSize = 4096 } = {}) {
-  const sun = new THREE.DirectionalLight(ENV.sunColor.clone(), ENV.sunIntensity);
+export function createSun(scene, { mapSize = 4096, env } = {}) {
+  if (!env) throw new Error('createSun requires { env }');
+  const sun = new THREE.DirectionalLight(env.sunColor.clone(), env.sunIntensity);
   sun.name = 'sun';
   sun.castShadow = true;
   sun.shadow.autoUpdate = false; // rendered on demand: fitSunShadow re-fits only when its frustum/sun dir changes
@@ -21,7 +20,7 @@ export function createSun(scene, { mapSize = 4096 } = {}) {
   cam.far = 900;
   scene.add(sun);
   scene.add(sun.target);
-  sun.userData.baseDir = sunDir.clone();
+  sun.userData.baseDir = env.sunDir.clone();
   fitSunShadow(sun, new THREE.Vector3(0, 0, 0), 90);
   return sun;
 }
@@ -30,7 +29,7 @@ export function createSun(scene, { mapSize = 4096 } = {}) {
 // 4k shadow map is spent where the camera looks. `jitter` (vec2, radians) offsets
 // the sun direction inside the solar disc for soft penumbrae across sub-frames.
 export function fitSunShadow(sun, center, radius, jitter = null) {
-  const d = sunDir.clone();
+  const d = sun.userData.baseDir.clone();
   if (jitter) {
     const up = new THREE.Vector3(0, 1, 0);
     const right = new THREE.Vector3().crossVectors(d, up).normalize();
@@ -64,24 +63,25 @@ const nextFrame = () => new Promise((res) => requestAnimationFrame(() => res()))
 // progress callback can report how far along the 6-face pass is, and so the caller can yield
 // a frame between faces to let a status overlay repaint. `onProgress(done, total)` is called
 // after each of the 6 faces.
-export async function captureEnvironment(renderer, scene, position, { size = 256, near = 0.5, far = 5000, hideSunDisc = true, layers = null, onProgress = null } = {}) {
+export async function captureEnvironment(renderer, scene, position, { size = 256, near = 0.5, far = 5000, hideSunDisc = true, sky = null, layers = null, onProgress = null } = {}) {
   const rt = new THREE.WebGLCubeRenderTarget(size, { type: THREE.HalfFloatType, generateMipmaps: false });
   const cubeCam = new THREE.CubeCamera(near, far, rt);
   cubeCam.position.copy(position);
   if (layers) cubeCam.layers.mask = layers;
-  const prevDisc = SKY_UNIFORMS.uSunDisc.value;
-  if (hideSunDisc) SKY_UNIFORMS.uSunDisc.value = 0.0;
   const prevTarget = renderer.getRenderTarget();
   const faces = cubeCam.children; // 6 perspective cameras, one per cube face
-  for (let i = 0; i < 6; i++) {
-    renderer.setRenderTarget(rt, i);
-    renderer.clear();
-    renderer.render(scene, faces[i]);
-    if (onProgress) onProgress(i + 1, 6);
-    await nextFrame(); // repaint the status overlay between faces
-  }
+  const facesPass = async () => {
+    for (let i = 0; i < 6; i++) {
+      renderer.setRenderTarget(rt, i);
+      renderer.clear();
+      renderer.render(scene, faces[i]);
+      if (onProgress) onProgress(i + 1, 6);
+      await nextFrame(); // repaint the status overlay between faces
+    }
+  };
+  const done = hideSunDisc && sky ? sky.withSunDiscHidden(facesPass) : facesPass();
+  await done;
   renderer.setRenderTarget(prevTarget);
-  SKY_UNIFORMS.uSunDisc.value = prevDisc;
   const pmrem = new THREE.PMREMGenerator(renderer);
   const env = pmrem.fromCubemap(rt.texture).texture;
   pmrem.dispose();
@@ -91,7 +91,6 @@ export async function captureEnvironment(renderer, scene, position, { size = 256
 
 export async function captureSkyEnvironment(renderer, sky) {
   const s = new THREE.Scene();
-  const clone = sky.clone();
-  s.add(clone);
-  return captureEnvironment(renderer, s, new THREE.Vector3(0, 2, 0), { size: 256 });
+  s.add(sky.object.clone()); // clone shares material + uniforms with the source sky
+  return captureEnvironment(renderer, s, new THREE.Vector3(0, 2, 0), { size: 256, sky });
 }

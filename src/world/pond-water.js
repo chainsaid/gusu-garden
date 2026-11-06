@@ -7,7 +7,6 @@
 // alpha-blended (One, OneMinusSrcAlpha) over the underwater geometry.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { SKY_UNIFORMS } from '../core/sky.js';
 
 // GLSL shared by the water surface and by every submerged pond material so
 // that their water-column maths agree exactly.
@@ -101,6 +100,7 @@ export function buildWater(ctx, site, U) {
     // sunlit breeze patch of the water-level shot: (x, z, radius, strength), w.r.t. shot uGlitterShot
     uGlitter: { value: new THREE.Vector4(...(site.glitter || [0, 0, 0, 0])) },
     uGlitterShot: { value: site.glitterShot ?? -99 },
+    uFilmShot: ctx.film.shotUniform,
     uGlitterT: { value: new THREE.Vector2(...(site.glitterT || [1e9, 1e9 + 1])) }, // gust dies down (shader time)
     uRingAmp: { value: Array.from({ length: 8 }, (_, i) => (site.rings[i] && site.rings[i][4]) || 1) },
     uDbg: { value: (() => { try { return +new URLSearchParams(location.search).get('pondDbg') || 0; } catch (e) { return 0; } })() },
@@ -120,6 +120,7 @@ export function buildWater(ctx, site, U) {
       uniform vec4 uRings[8];
       uniform float uRingAmp[8];
       uniform vec4 uGlitter;
+      uniform float uFilmShot;
       uniform float uGlitterShot;
       uniform vec2 uGlitterT;
       uniform float uDbg;
@@ -190,7 +191,7 @@ export function buildWater(ctx, site, U) {
         // sunlit breeze patch (water-level shot facing the low sun): short choppy
         // wavelets, steep enough to break the sun's reflection into glitter. Fades
         // to slope variance (no sparkle) once the wavelets are sub-pixel.
-        if (uGlitter.w > 0.0 && (abs(uShot - uGlitterShot) < 0.5 || uShot < -0.5)) {
+        if (uGlitter.w > 0.0 && (abs(uFilmShot - uGlitterShot) < 0.5 || uFilmShot < -0.5)) {
           float gk = uGlitter.w * (1.0 - smoothstep(uGlitter.z * 0.35, uGlitter.z, length(p - uGlitter.xy))) * (1.0 - smoothstep(uGlitterT.x, uGlitterT.y, t));
           if (gk > 0.001) {
             w = w_fade(fp / 0.11);
@@ -406,7 +407,7 @@ export function buildWater(ctx, site, U) {
     // realtime: reuse the previous reflection frame every other frame — the scene is
     // static, the camera slow, and the rippled normal hides the one-frame lag
     const reuse = quality === 'realtime' && (reflTick++ & 1) === 1;
-    const noRefl = scene.userData.noRefl;
+    const noRefl = ctx.layers.noRefl;
     if (!reuse) {
     // mirrored position
     const mirPos = camPos.clone(); mirPos.y = 2 * waterY - camPos.y;
@@ -439,19 +440,19 @@ export function buildWater(ctx, site, U) {
 
     const prevRT = renderer.getRenderTarget();
     const prevShadowAuto = renderer.shadowMap.autoUpdate;
-    const prevDisc = SKY_UNIFORMS.uSunDisc.value;
     const prevAutoClear = renderer.autoClear;
     mesh.visible = false;
     renderer.shadowMap.autoUpdate = false;
-    SKY_UNIFORMS.uSunDisc.value = 0.0;
-    renderer.setRenderTarget(reflRT);
-    renderer.state.buffers.depth.setMask(true);
-    renderer.autoClear = true;
-    renderer.clear(true, true, true);
-    renderer.render(scene, reflCam);
+    // the reflection must not see the sun disc; the sky handle hides it and restores it
+    ctx.sky.withSunDiscHidden(() => {
+      renderer.setRenderTarget(reflRT);
+      renderer.state.buffers.depth.setMask(true);
+      renderer.autoClear = true;
+      renderer.clear(true, true, true);
+      renderer.render(scene, reflCam);
+    });
     if (noRefl) for (const g of noRefl) g.visible = true;
     renderer.autoClear = prevAutoClear;
-    SKY_UNIFORMS.uSunDisc.value = prevDisc;
     renderer.shadowMap.autoUpdate = prevShadowAuto;
     renderer.setRenderTarget(prevRT);
     mesh.visible = true;

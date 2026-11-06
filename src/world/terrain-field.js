@@ -4,6 +4,8 @@
 // instanced placement. Everything is derived from the site plan (layout.js).
 // ---------------------------------------------------------------------------
 
+import { createSunBand } from './placement/rules.js';
+
 export const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 export const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -300,35 +302,12 @@ export function createField(L) {
   // ---- outer landscape --------------------------------------------------------
   const SUN = [-0.9404, 0.3401];
   const SUN_SLOPE = 0.094;
-  function sunUpwind(x, z) {
-    // distance travelled toward ENE (shadow direction) before entering the courtyard rectangle
-    const dx = -SUN[0], dz = -SUN[1];
-    let t0 = -Infinity, t1 = Infinity;
-    for (const [p, d, lo, hi] of [[x, dx, R.minX - 2, R.maxX + 2], [z, dz, R.minZ - 2, R.maxZ + 2]]) {
-      if (Math.abs(d) < 1e-6) { if (p < lo || p > hi) return Infinity; continue; }
-      let a = (lo - p) / d, b = (hi - p) / d;
-      if (a > b) { const t = a; a = b; b = t; }
-      t0 = Math.max(t0, a); t1 = Math.min(t1, b);
-    }
-    if (t1 < Math.max(t0, 0)) return Infinity;
-    return Math.max(t0, 0);
-  }
   // The sun valley (land cut down so the low sun reaches the courtyard) and the matching tree-top
   // cap used to end abruptly at the edges of the band of rays that hit the courtyard -> vertical
   // cliffs / canopy walls along the sun direction on the western hills. Beyond the band the cut now
   // continues with sloping sides: D is taken at the nearest point of the band edge, dl is the
-  // lateral distance out of the band.
-  const SD = [-SUN[0], -SUN[1]], SNn = [-SD[1], SD[0]];
-  let latMin = Infinity, latMax = -Infinity;
-  for (const [cx, cz] of [[R.minX - 2, R.minZ - 2], [R.maxX + 2, R.minZ - 2], [R.minX - 2, R.maxZ + 2], [R.maxX + 2, R.maxZ + 2]]) {
-    const l = cx * SNn[0] + cz * SNn[1]; latMin = Math.min(latMin, l); latMax = Math.max(latMax, l);
-  }
-  function sunBand(x, z) {
-    const lat = x * SNn[0] + z * SNn[1];
-    const lc = clamp(lat, latMin + 0.5, latMax - 0.5);
-    const s = lc - lat;
-    return [sunUpwind(x + SNn[0] * s, z + SNn[1] * s), Math.abs(s)];
-  }
+  // lateral distance out of the band. The band geometry is shared with the placement rules.
+  const { sunUpwind, sunBand } = createSunBand({ rect: R, sun: SUN });
   const SIDE = 0.42;
   const sunCap = (x, z) => { const D = sunUpwind(x, z); return D === Infinity ? Infinity : -2.5 + SUN_SLOPE * D; };
 
@@ -441,34 +420,8 @@ export function createField(L) {
     f *= smoothstep(2, 12, sdBox(x, z, 76, 64, 14, 14, 6));
     return f;
   }
-  // max tree-top height above y=0 allowed at x,z (sun shadow + camera clearances)
-  function treeTopCap(x, z) {
-    // the corridor roof (~5-6 m) already shades the courtyard edge, so vegetation upwind only adds
-    // shade when it rises above the corridor's own shadow line: top < ~4 m + tan(6.8 deg) * D
-    const [D, dl] = sunBand(x, z);
-    // ...and below ~2 deg as seen from the courtyard so the sunset ridges stay visible above them
-    let cap = D === Infinity ? Infinity : Math.min(4.0 + 0.105 * D, 5.0 + 0.04 * D) + SIDE * dl;
-    // SE crane / arrival cameras: keep tree tops well below the camera paths
-    const segs = [[70, 26, 62, 58, 19, 48], [55, 6, 40, 80, 38, 72]];
-    for (const [ax, ay, az, bx, by, bz] of segs) {
-      const ex = bx - ax, ez = bz - az;
-      const t = clamp(((x - ax) * ex + (z - az) * ez) / (ex * ex + ez * ez), 0, 1);
-      const dd = Math.hypot(x - (ax + ex * t), z - (az + ez * t));
-      if (dd < 40) cap = Math.min(cap, lerp(ay, by, t) - 7 + dd * 0.35);
-    }
-    // backlit pond-side cameras (shots 1, 8, 9) look WNW: keep the forest beyond the west corridor
-    // under the corridor roofline so the ridges behind the pagoda stay visible under the low sun
-    {
-      const dx = x - 38, dz = z - 22;
-      const az = Math.atan2(-dz, dx) / DEG;
-      if (az > 120 && az < 230) {
-        const w = smoothstep(120, 138, az) * smoothstep(230, 212, az);
-        const vc = 2.0 + Math.hypot(dx, dz) * Math.tan(2.6 * DEG);
-        cap = Math.min(cap, vc + (1 - w) * 60);
-      }
-    }
-    return cap;
-  }
+  // max tree-top height above y=0 is a placement rule (src/world/placement/rules.js);
+  // terrain and forest read it through ctx.placement.capHeight(x, z)
 
   // ---- courtyard ground height ----------------------------------------------
   function moundAmp(x, z) {
@@ -564,7 +517,7 @@ export function createField(L) {
     L, R, C, HX, HZ, DOM, APRON, PEN, paths, stands, trees, pads, hallP, pagP, ISLES,
     noise: { n1, n2, n3, n4, f1, f2, f3, f4 },
     sdRect, sdPen, sdPondEff, sdPaths, sdStands, sdPads, sdMoss, sdSoil, sdTreeMoss, sdGutter, gutterBlocked, gutterRings, GUT,
-    mossAt, soilAt, groundHeight, heightAt, landHeight, landRaw, sunCap, sunUpwind, treeTopCap, forestDensity, mountains,
+    mossAt, soilAt, groundHeight, heightAt, landHeight, landRaw, sunCap, sunUpwind, forestDensity, mountains,
     grid: { CELL, NX, NZ, gMoss, gSoil, gH, gPath, gPond, sample: sampleGrid },
     sdPond: (x, z) => sdPoly(pond, x, z), sdIsland: (x, z) => sdPoly(island, x, z),
   };

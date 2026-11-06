@@ -10,7 +10,6 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { makeNoise, clamp, smooth } from './pond-util.js';
-import { dens } from '../core/detail.js';
 
 const TAU = Math.PI * 2;
 
@@ -22,6 +21,7 @@ export const LEAK_COV = { value: 0.0 };
 export const LEAK_SHOT = { value: 1.0 };
 
 export function planLotus(ctx, site) {
+  const { dens } = ctx.detail; // injected per build
   const r = ctx.rng('pond-lotus-plan');
   const noise = makeNoise(() => r.float());
   const L = site.L;
@@ -70,60 +70,8 @@ export function planLotus(ctx, site) {
     if (pav && x > pav.center[0] - pav.d / 2 - 2.6 && Math.abs(z - pav.center[2]) < pav.w / 2 + 0.8) return true;
     return false;
   }
-  // camera clearance against every pond-skimming path (per sampled camera)
-  function camOK(x, z, rad, h, floating, isHero) {
-    if (!floating && !isHero) {
-      for (const s of keepClear) {
-        const dx = s.bx - s.ax, dz = s.bz - s.az;
-        const l2 = dx * dx + dz * dz || 1;
-        const t = clamp(((x - s.ax) * dx + (z - s.az) * dz) / l2, 0, 1);
-        const d = Math.hypot(s.ax + dx * t - x, s.az + dz * t - z);
-        if (d > rad + 0.08 || t > 0.97) continue;
-        const lh = s.ah + (s.bh - s.ah) * t;
-        if (h > lh - 0.24 && h < lh + 0.14) return false;
-      }
-    }
-    for (const p of paths) {
-      for (let k = 0; k < p.pts.length; k++) {
-        const pt = p.pts[k];
-        const c = pt.pos, lk = pt.look;
-        let fx = lk[0] - c[0], fz = lk[2] - c[2];
-        const fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl;
-        const vx = x - c[0], vz = z - c[2];
-        const d = Math.hypot(vx, vz);
-        const camH = c[1] - waterY;
-        if (d < rad + 0.1) return false;
-        if (!floating && d < rad + 0.4 && h > camH - 0.55) return false;
-        const fwd = vx * fx + vz * fz, lat = Math.abs(-vx * fz + vz * fx);
-        const wide = (pt.focal ?? 35) < 30;
-        if (p.kind === 'pad') {
-          if (wide) { if (fwd > 0 && fwd < 9.5 && lat < fwd * 0.42 + 0.4) { if (!floating || r.chance(0.8)) return false; } }
-          else if (!floating && !isHero && fwd > -0.3 && fwd < 4.0 && lat < fwd * 0.55 + 0.4) return false;
-        } else if (!isHero && !floating) {
-          // lotus glide: a lane ahead of the lens stays below the eye line
-          if (fwd > 0.2 && fwd < 7.5 && lat < fwd * 0.13 + 0.32 && h + rad * 0.4 > camH - 0.26) return false;
-          // the final 26 mm frame keeps the bridge / hall view open
-          if (wide && fwd > 0.5 && fwd < 11 && lat < fwd * 0.3 + 0.3 && h > camH - 0.1) return false;
-        }
-      }
-    }
-    return true;
-  }
-  const heroDist = (x, z) => {
-    if (!heroPath) return 1e9;
-    let best = 1e9;
-    for (const pt of heroPath.pts) best = Math.min(best, Math.hypot(pt.pos[0] - x, pt.pos[2] - z));
-    return best;
-  };
-  // closest approach of the lens to (x, z) with the lens height at that moment
-  const lensPass = (x, z) => {
-    let best = 1e9, hh = 0;
-    for (const p of paths) for (const pt of p.pts) {
-      const d = Math.hypot(pt.pos[0] - x, pt.pos[2] - z);
-      if (d < best) { best = d; hh = pt.pos[1] - waterY; }
-    }
-    return { d: best, camH: hh };
-  };
+  // camera clearance against every pond-skimming path (policy lives in the placement layer)
+  const { camOK, heroDist, lensPass } = ctx.placement.pondClearance({ paths, keepClear, waterY, rng: r });
 
   function addPlant(kind, x, z, opts) {
     const p = { kind, x, z, ...opts };

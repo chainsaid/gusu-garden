@@ -1,26 +1,37 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ENV, G, sunDir } from './core/env.js';
-import { installFog, setAmbientVolumes } from './core/fog.js';
-import { createSky, SKY_UNIFORMS } from './core/sky.js';
-import { createSun, fitSunShadow, captureEnvironment } from './core/lighting.js';
-import { Pipeline, DEFAULT_POST } from './core/post.js';
-import { materials, patch, std, phys, glow, PROC, depthMaterialFor } from './core/materials.js';
-import * as diag from './core/diag.js';
-import * as geom from './core/geom.js';
-import { rng } from './core/rng.js';
-import { L } from './layout.js';
-import { setDetailTier } from './core/detail.js';
-import { SHOTS, evalShot, SHOT_DUR, FILM_DURATION } from './shots.js';
+import { createEnvironment } from '../core/environment.js';
+import { WIND_GLSL } from '../core/uniforms.js';
+import { createMaterialKit } from '../world/materials/kit.js';
+import { ATMOSPHERE } from '../data/atmosphere.js';
+import { readSunOverrides } from './runtime-config.js';
+import { installAtmosphere } from '../core/fog.js';
+import { createSky } from '../core/sky.js';
+import { createSun, fitSunShadow, captureEnvironment } from '../core/lighting.js';
+import { Pipeline, DEFAULT_POST } from '../core/post.js';
+import * as diag from '../core/diag.js';
+import * as geom from '../core/geom.js';
+import { rng } from '../core/rng.js';
+import { L } from '../layout.js';
+import { createDetailPolicy } from '../core/detail.js';
+import { SHOTS, SHOT_DUR, FILM_DURATION } from '../data/film/shots.js';
+import { PLACEMENT } from '../data/placement.js';
+import { createPlacement } from '../world/placement/index.js';
+import { createTimeline } from '../core/film/timeline.js';
+import { createDirector } from './director.js';
+import { createContext } from './context.js';
+import { createAaFilter } from '../core/render/sampling.js';
+import { applyCamera } from '../core/render/camera.js';
+import { createOfflineRenderer } from '../core/render/frame.js';
+import * as CHOREO from '../data/film/choreography.js';
 
 // ---------------------------------------------------------------------------
 // URL parameters
 //   shot=N&t=sec          still frame from the film (N = 0..9)
 //   cam=x,y,z&look=x,y,z  explicit camera (with focal=mm or fov=deg)
 //   q=preview|realtime|final  quality preset. realtime decimates geometry via
-//                             src/core/detail.js and MUST be set before world modules
-//                             load (module-level constants like hall-roof's TILE read
-//                             the tier at import - setDetailTier() below enforces it)
+//                             src/core/detail.js (policy handed to world builders as
+//                             ctx.detail - nothing reads a module singleton any more)
 //   detail=N               decimation scale override (0..1)
 //   w,h                    resolution       spp=N   sub-frames (AA / motion blur)
 //   play                   autoplay the shot sequence (dev)
@@ -47,16 +58,20 @@ const W = +Q.get('w') || (QUALITY === 'final' ? 1280 : 960);
 const H = +Q.get('h') || (QUALITY === 'final' ? 720 : 540);
 const MODE = Q.get('mode') || (Q.has('shot') || Q.has('cam') ? 'still' : 'dev');
 const SPP = +Q.get('spp') || (MODE === 'render' ? 4 : 1);
-// ?q=realtime decimates the procedural geometry through src/core/detail.js. This has to
-// run before any world module is (dynamically) imported: some module-level constants
-// (e.g. hall-roof's TILE) read the tier at import time. ?detail=N overrides the scale.
-setDetailTier(QUALITY, +Q.get('detail') || 0);
+// ?q=realtime decimates the procedural geometry through src/core/detail.js. The policy is
+// created here (before any world module is imported) and passed down as ctx.detail; world
+// modules never read a module singleton, so tiers can differ between two contexts in one
+// process. ?detail=N overrides the scale.
+const DETAIL = createDetailPolicy({ tier: QUALITY, override: +Q.get('detail') || 0 });
+
+// atmosphere data + URL overrides -> environment, shared uniforms and the material kit
+const ENVIRONMENT = createEnvironment({ atmosphere: ATMOSPHERE, overrides: readSunOverrides(location.search) });
+const { u: G, env: ENV, sunDir } = ENVIRONMENT;
+const MATS = createMaterialKit({ u: G, windGLSL: WIND_GLSL, shaderMin: Q.get('probe') === 'shadersize' ? 20000 : 0, isRealtime: DETAIL.isRealtime });
 
 export const ALL_MODULES = ['terrain', 'pond', 'hall', 'interior', 'pagoda', 'bridge', 'buildings', 'props', 'vegetation'];
 
 const status = (s) => { const el = document.getElementById('status'); if (el) el.textContent = s; };
-
-installFog();
 
 const canvas = document.createElement('canvas');
 canvas.width = W; canvas.height = H;
@@ -81,16 +96,19 @@ renderer.shadowMap.autoUpdate = true;
 renderer.info.autoReset = false; // post chain does many render() calls per frame; count the whole frame
 if (Q.has('nocheck')) renderer.debug.checkShaderErrors = false;
 
+// atmospheric fog / aerial perspective patches the live ShaderChunks: install it
+// explicitly before anything compiles (volumes follow once the world is built).
+const ATMOS = installAtmosphere({ environment: ENV });
+
 const scene = new THREE.Scene();
-scene.userData.noRefl = []; // modules register groups here to be hidden during the pond reflection pass
 scene.fog = new THREE.FogExp2(new THREE.Color().setRGB(0.32, 0.35, 0.44), 1.0);
 
 const camera = new THREE.PerspectiveCamera(40, W / H, 0.12, 6000);
 scene.add(camera);
 
-const sky = createSky();
-scene.add(sky);
-const sun = createSun(scene, { mapSize: Q.has('smap') ? +Q.get('smap') : (QUALITY === 'final' ? 4096 : QUALITY === 'realtime' ? 2048 : 1024) });
+const sky = createSky({ u: G, atmosphere: ATMOSPHERE });
+scene.add(sky.object);
+const sun = createSun(scene, { mapSize: Q.has('smap') ? +Q.get('smap') : (QUALITY === 'final' ? 4096 : QUALITY === 'realtime' ? 2048 : 1024), env: ENV });
 
 const pipeline = new Pipeline(renderer, {
   width: RW, height: RH,
@@ -102,16 +120,24 @@ pipeline.setSun(sun, sunDir, G.uSunColor.value);
 // ---------------------------------------------------------------------------
 // Build the world
 // ---------------------------------------------------------------------------
-const updates = [];
-const ctx = {
-  THREE, renderer, scene, camera, L, G, ENV, sunDir, geom, rng, quality: QUALITY,
-  M: materials(),
-  mat: { patch, std, phys, glow, PROC, depthMaterialFor },
-  onUpdate: (fn) => updates.push(fn),
-  captureEnv: (pos, opts) => captureEnvironment(renderer, scene, new THREE.Vector3(...pos), opts),
-  modules: {},
-};
-window.__ctx = ctx;
+const director = createDirector({
+  film: { shots: SHOTS, shotDur: SHOT_DUR },
+  timeline: createTimeline({ cuts: SHOTS.map(() => SHOT_DUR) }),
+  choreography: CHOREO,
+});
+const evalShot = director.evalShot;
+// placement owns keep-out volumes / protected frames / tree-top caps; created once
+// before the world so terrain and every content module read the same rules
+const placement = createPlacement({ L, data: PLACEMENT });
+const services = { THREE, renderer, scene, camera, pipeline };
+const { ctx, updates } = createContext({
+  renderer, scene, camera, L, G, ENV, sunDir, geom, rng, quality: QUALITY, sky, detail: DETAIL, film: director, placement,
+  M: MATS.materials(),
+  mat: MATS,
+  layers: { noRefl: [] },
+  services,
+});
+window.__services = ctx.services;
 
 function normalizeResult(res) {
   if (!res) return {};
@@ -127,7 +153,7 @@ async function buildWorld(names) {
     status(`building ${name}... (${mi + 1}/${names.length})`);
     await new Promise((r) => requestAnimationFrame(r)); // yield so the status text paints
     try {
-      const mod = await import(`./world/${name}.js`);
+      const mod = await import(`../world/${name}.js`);
       const res = normalizeResult(await mod.build(ctx));
       res.module = mod;
       if (res.object) { res.object.name = res.object.name || name; scene.add(res.object); }
@@ -163,50 +189,12 @@ async function buildWorld(names) {
 }
 
 // ---------------------------------------------------------------------------
-// Camera helpers
+// Film time
 // ---------------------------------------------------------------------------
-function focalToFov(focal, aspect) {
-  const sensorH = 36 / aspect;
-  return (2 * Math.atan(sensorH / (2 * focal)) * 180) / Math.PI;
-}
-
-const halton = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
-// Anti-aliasing reconstruction filter: sub-frame k samples the pixel at a Halton offset
-// inside a 2-px footprint and is weighted by a Gaussian (sigma 0.5 px). A wide, smooth
-// filter (instead of a 1-px box) is what stops fine geometry from crawling/shimmering
-// in slow camera moves.
-const AA_RADIUS = Q.has('aar') ? +Q.get('aar') : 1.0, AA_SIGMA = Q.has('aas') ? +Q.get('aas') : 0.5;
-function aaOffset(k) { return [(halton(k + 1, 2) * 2 - 1) * AA_RADIUS, (halton(k + 1, 3) * 2 - 1) * AA_RADIUS]; }
-function aaWeights(spp) {
-  const w = [];
-  for (let k = 0; k < spp; k++) { const [x, y] = aaOffset(k); w.push(Math.exp(-(x * x + y * y) / (2 * AA_SIGMA * AA_SIGMA))); }
-  const sum = w.reduce((a, b) => a + b, 0);
-  return w.map((v) => v / sum);
-}
-
-function applyCamera(cam, c, jitterIndex = -1) {
-  camera.position.copy(c.pos);
-  camera.up.set(0, 1, 0);
-  camera.lookAt(c.look);
-  if (c.roll) camera.rotateZ(c.roll);
-  camera.near = c.near || 0.12;
-  camera.far = c.far || 6000;
-  camera.fov = c.fov || focalToFov(c.focal || 35, W / H);
-  camera.aspect = W / H;
-  camera.updateProjectionMatrix();
-  if (jitterIndex >= 0) {
-    const [jx, jy] = aaOffset(jitterIndex);
-    camera.projectionMatrix.elements[8] += (2 * jx) / W;
-    camera.projectionMatrix.elements[9] += (2 * jy) / H;
-    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
-  }
-  camera.updateMatrixWorld();
-}
-
 function setTime(T) {
   G.uTime.value = T + 37.0;
   pipeline.time = T;
-  SKY_UNIFORMS.uCloudOffset.value.set(T * 0.004, T * 0.0016);
+  sky.uniforms.uCloudOffset.value.set(T * 0.004, T * 0.0016);
   for (const fn of updates) fn(T, ctx);
 }
 
@@ -250,9 +238,6 @@ function explicitCamera(q = Q) {
   };
 }
 
-// Render one final frame. getCam(tLocal) returns camera description.
-// shutter: fraction of a frame interval the shutter is open (motion blur).
-let frameCounter = 0;
 // Real-time (dev) mode: the sun is static, so freeze the shadow frustum over the whole
 // site and let the shadow map render once, instead of re-fitting (and re-rendering all
 // casters) every frame while orbiting. `?shadynamic` restores per-camera fitting (film
@@ -276,34 +261,23 @@ function setShadowExclusions(list) {
   sun.shadow.needsUpdate = true; // caster set changed → re-render the shadow map
 }
 
-function renderFrame({ getCam, T, tLocal, dt = 1 / 60, spp = 1, shutter = 0.5, fade = 1, target = null, frameIndex = frameCounter++, q = Q }) {
-  const c0 = getCam(tLocal);
-  const P = postFor(c0, q);
-  G.uShot.value = c0.index ?? -1;
-  scene.fog.density = (P.fog ?? 1) * (q.has('fog') ? +q.get('fog') : 1);
-  setShadowExclusions(q.has('noshadow') ? q.get('noshadow').split(',') : c0.noShadow);
-  P.exposure *= fade;
-  renderer.info.reset(); // frame boundary: accumulate calls/tris across all sub-passes
-  pipeline.beginFrame();
-  const shadow = FROZEN_SHADOW || c0.shadow || { center: [c0.look.x, c0.look.y * 0.3, c0.look.z], radius: 60 };
-  // all sub-frame sampling patterns depend ONLY on the sub-frame index k, never on the frame
-  // index, so static surfaces are bit-identical frame to frame (no shadow / AA / AO flicker)
-  const W8 = spp > 1 ? aaWeights(spp) : [1];
-  for (let k = 0; k < spp; k++) {
-    // shutter time: stratified, decorrelated from the AA offset (bit-reversed order)
-    const kt = spp > 1 ? (k * (spp % 5 === 0 ? 7 : 5) + 1) % spp : 0;
-    const off = spp > 1 ? ((kt + 0.5) / spp - 0.5) * shutter * dt : 0;
-    const tk = tLocal + off;
-    setTime(T + off);
-    const c = getCam(tk);
-    applyCamera(camera, c, spp > 1 ? k : -1);
-    let j = null;
-    if (spp > 1) { const r = Math.sqrt((k + 0.5) / spp), th = k * 2.39996323 + 0.7; j = [r * Math.cos(th), r * Math.sin(th)]; }
-    fitSunShadow(sun, new THREE.Vector3(...shadow.center), shadow.radius, j ? new THREE.Vector2(j[0] * 0.0065, j[1] * 0.0065) : null);
-    pipeline.subframe(scene, camera, W8[k], P, frameIndex);
-  }
-  pipeline.endFrame(camera, P, sunDir, target, frameIndex);
-}
+// ---------------------------------------------------------------------------
+// Offline renderer (mechanism layer): sub-frame loop, sampling, shadow fitting
+// ---------------------------------------------------------------------------
+const offline = createOfflineRenderer({
+  renderer, scene, camera, pipeline, shotEval: evalShot, director, sun, sunDir,
+  width: W, height: H,
+  sampling: createAaFilter({ radius: Q.has('aar') ? +Q.get('aar') : 1.0, sigma: Q.has('aas') ? +Q.get('aas') : 0.5 }),
+  resolvePost: (c, q) => postFor(c, q || Q),
+  prepareFrame: ({ c0, P, q }) => {
+    const qq = q || Q;
+    scene.fog.density = (P.fog ?? 1) * (qq.has('fog') ? +qq.get('fog') : 1);
+    setShadowExclusions(qq.has('noshadow') ? qq.get('noshadow').split(',') : c0.noShadow);
+    return { shadow: FROZEN_SHADOW || c0.shadow };
+  },
+  applyTime: setTime,
+});
+const renderFrame = (opts) => offline.renderFrame({ q: Q, ...opts });
 
 // ---------------------------------------------------------------------------
 // Boot
@@ -326,20 +300,19 @@ async function main() {
     vols.push({ min: [c[0] - 12.9, 1.8, c[2] - 8.4], max: [c[0] + 12.9, 9.4, c[2] + 8.4], tint: [0.11, 0.09, 0.075], soft: 0.7 });
   }
   for (const r of Object.values(built)) if (r.ambientVolumes) vols.push(...r.ambientVolumes);
-  if (!Q.has('noav')) setAmbientVolumes(vols);
+  if (!Q.has('noav')) ATMOS.setVolumes(vols);
 
   // image based light: sky only first, then (final quality) the built scene
   const skyScene = new THREE.Scene();
-  const skyClone = createSky();
-  skyScene.add(skyClone);
+  const skyClone = createSky({ u: G, atmosphere: ATMOSPHERE });
+  skyScene.add(skyClone.object);
   if (!Q.has('nopc')) {
     // Shader compilation is the dominant load cost (~87 s cold on integrated GPUs) and is
     // dominated by terrain's shaders, which are visible in every shot — so there is no
     // cheap first-paint subset. We compile everything once, up front, predictably.
     // ?compilemod keeps one module attached at a time to attribute compile time per module.
     const tp = performance.now();
-    applyCamera(camera, { pos: new THREE.Vector3(10, 4, 30), look: new THREE.Vector3(10, 3, 0), focal: 24 });
-    window.__shaderMin = Q.get('probe') === 'shadersize' ? 20000 : 0;
+    applyCamera(camera, { pos: new THREE.Vector3(10, 4, 30), look: new THREE.Vector3(10, 3, 0), focal: 24 }, { width: W, height: H });
     if (Q.get('probe') === 'compilemod') {
       // per-module compile attribution: keep one module attached at a time, compile, time
       // it. The distribution shows which modules' shaders eat the compile floor.
@@ -373,7 +346,7 @@ async function main() {
   }
   const tc0 = performance.now();
   status('capturing sky environment... (0/6)');
-  scene.environment = await captureEnvironment(renderer, skyScene, new THREE.Vector3(0, 2, 0), { size: 256, onProgress: (i, n) => status(`capturing sky environment... (${i}/${n})`) });
+  scene.environment = await captureEnvironment(renderer, skyScene, new THREE.Vector3(0, 2, 0), { size: 256, sky: skyClone, onProgress: (i, n) => status(`capturing sky environment... (${i}/${n})`) });
   console.log('[info] sky env capture ms', Math.round(performance.now() - tc0));
   scene.environmentIntensity = ENV.envIntensity;
   // scene-wide env capture renders EVERYTHING — under progressive compile it would stall
@@ -384,7 +357,7 @@ async function main() {
     fitSunShadow(sun, new THREE.Vector3(6, 0, 0), 90);
     const tc1 = performance.now();
     status('capturing scene environment... (0/6)');
-    scene.environment = await captureEnvironment(renderer, scene, new THREE.Vector3(10, 4, 4), { size: 256, onProgress: (i, n) => status(`capturing scene environment... (${i}/${n})`) });
+    scene.environment = await captureEnvironment(renderer, scene, new THREE.Vector3(10, 4, 4), { size: 256, sky, onProgress: (i, n) => status(`capturing scene environment... (${i}/${n})`) });
     renderer.getContext().finish();
     console.log('[info] scene env capture ms', Math.round(performance.now() - tc1));
     prevEnv.dispose();
@@ -399,7 +372,7 @@ async function main() {
   console.log('[info]', JSON.stringify(window.__info));
   // ?probe=tris|materials: dev diagnostics (see src/core/diag.js)
   if (Q.has('probe')) {
-    if (Q.get('probe') === 'materials') diag.probeMaterials(scene);
+    if (Q.get('probe') === 'materials') diag.probeMaterials(scene, MATS.registry);
     else diag.probeTris(scene);
   }
 
@@ -506,7 +479,7 @@ function runDev() {
   const hud = document.getElementById('hud');
   const controls = new OrbitControls(camera, canvas);
   const c0 = Q.has('cam') ? explicitCamera() : evalShot(0, 0);
-  applyCamera(camera, c0);
+  applyCamera(camera, c0, { width: W, height: H });
   controls.target.copy(c0.look);
   controls.update();
   let playing = Q.has('play'), shot = -1, tLocal = 0, last = performance.now();

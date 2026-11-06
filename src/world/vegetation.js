@@ -8,12 +8,10 @@
 import { makeMapleAtlas, makeMapleHeroAtlas, makeSamaraTexture, makePineAtlas, makeBlossomAtlas, makeShrubAtlas, makeFernTexture } from './vegetation-tex.js';
 import { heroLeafGeo, samaraGeo, buildHeroSpray } from './vegetation-hero.js';
 import { CushionAccum, naturalCrownPoint } from './vegetation-core.js';
-import { SHOTS } from '../shots.js';
 import { genMaple, genPeach, genPine, genTiered, genCamphor, genMagnolia, genCrabapple, padLocal, padNormal, padTopF, BarkAccum, trunkDisp, sampleBranch, envRho, envNormal, randUnit, perpOf, vnoise3 } from './vegetation-tree.js';
 import { buildBamboo } from './vegetation-bamboo.js';
 import { buildBananas } from './vegetation-banana.js';
 import { buildWillows } from './vegetation-willow.js';
-import { cnt, dens, gap, lod, isRealtime } from '../core/detail.js';
 
 const TAU = Math.PI * 2;
 
@@ -43,6 +41,7 @@ vec3 vegWind(vec3 wp, float flex){
 // with a scale fade at the box faces), slow fall + breeze, pendulum sway and slow tumbling.
 const DRIFT_HEAD = /* glsl */ `
 attribute vec4 aSeed; attribute vec4 aSeed2;
+uniform float uFilmShot;
 uniform vec4 uDC[10]; uniform vec4 uDS[10]; uniform vec4 uDW[10]; uniform vec3 uDA[10]; uniform vec3 uDB[10];
 mat3 d_rot(vec3 a, float g){
   float c = cos(g), s = sin(g), t = 1.0 - c;
@@ -53,7 +52,7 @@ mat3 d_rot(vec3 a, float g){
 `;
 const DRIFT_VW = /* glsl */ `
 {
-  int sh = int(floor(uShot + 0.5));
+  int sh = int(floor(uFilmShot + 0.5));
   vec4 C = vec4(0.0), Sz = vec4(1.0), W = vec4(0.0);
   vec3 cA = vec3(0.3, 0.02, 0.01), cB = cA;
   for (int k = 0; k < 10; k++) if (k == sh) { C = uDC[k]; Sz = uDS[k]; W = uDW[k]; cA = uDA[k]; cB = uDB[k]; }
@@ -763,24 +762,16 @@ function makeSite(L) {
 // ===========================================================================
 export async function build(ctx) {
   const { THREE, L } = ctx;
+  const FILM = ctx.film;
+  const { cnt, dens, gap, lod, isRealtime } = ctx.detail; // injected per build
   const t0 = performance.now();
   const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
   const UP = V3(0, 1, 0);
   const SUN = (ctx.sunDir ? ctx.sunDir.clone() : V3(-0.93, 0.12, 0.34)).normalize();
   const R = ctx.rng('vegetation');
   const site = makeSite(L);
-  // keep-out volumes (absolute y): the pavilion box (hero lantern of shot 1) and the east side of the
-  // pond island, low enough that the grazing WSW sun reaches the lotus bed of shot 2
-  const KEEP = [
-    { x0: 40.9, x1: 53.1, z0: 11.9, z1: 24.1, y1: 6.0 },
-    { x0: -0.2, x1: 4.0, z0: 16.0, z1: 23.0, y1: 2.7 },
-    // finale opening camera (shot 9 keys 0-1): keep the 红枫 crown out of the lens
-    { x0: 35.9, x1: 39.8, z0: 20.5, z1: 25.0, y1: 7.5 },
-  ];
-  const inKeep = (p, m = 0.1) => {
-    for (const B of KEEP) if (p.x > B.x0 - m && p.x < B.x1 + m && p.z > B.z0 - m && p.z < B.z1 + m && p.y < B.y1 + m) return true;
-    return false;
-  };
+  // keep-out volumes and framing protection come from the placement layer
+  const { keepOut: KEEP, inKeep } = ctx.placement;
 
   // ground height: prefer the terrain module's height function if it exposes one
   const T = ctx.modules && ctx.modules.terrain;
@@ -965,10 +956,10 @@ export async function build(ctx) {
     const tiered = spec.style !== 'shell';
     const common = { h: spec.h, base, lean: leanV, spread: spec.spread, detail: spec.detail ?? lod(1), sx: spec.sx, sz: spec.sz, leaders: spec.leaders, crownBase: spec.crownBase, padR: spec.padR, gaps: spec.gaps, twigDens: spec.twigDens, keepOut: KEEP, trunkFrac: spec.trunkFrac, widest: spec.widest, droop: spec.droop, squash: spec.squash, lobes: spec.lobes };
     const tree = camphor
-      ? genCamphor(rng, common)
+      ? genCamphor(rng, common, ctx.detail)
       : tiered
-        ? genTiered(rng, { ...common, species: 'maple', spread: spec.spread ?? (red ? 0.8 : 0.68), crownBase: spec.crownBase ?? (red ? 0.2 : 0.3) })
-        : genMaple(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? (red ? 0.7 : 0.62), detail: spec.detail ?? lod(1), sx: spec.sx, sz: spec.sz, leaders: spec.leaders, shellDensity: spec.shellDensity ?? (red ? dens(5.0) : dens(3.8)), tiers: red ? 1.1 : 1.6, maxTwig: spec.maxTwig, leafLen: spec.leafLen, twigWobble: spec.twigWobble, keepOut: KEEP });
+        ? genTiered(rng, { ...common, species: 'maple', spread: spec.spread ?? (red ? 0.8 : 0.68), crownBase: spec.crownBase ?? (red ? 0.2 : 0.3) }, ctx.detail)
+        : genMaple(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? (red ? 0.7 : 0.62), detail: spec.detail ?? lod(1), sx: spec.sx, sz: spec.sz, leaders: spec.leaders, shellDensity: spec.shellDensity ?? (red ? dens(5.0) : dens(3.8)), tiers: red ? 1.1 : 1.6, maxTwig: spec.maxTwig, leafLen: spec.leafLen, twigWobble: spec.twigWobble, keepOut: KEEP }, ctx.detail);
     const flexOf = addBark('maple', tree.branches, tree.rT, spec.id * 31 + 5, { red, hero: spec.hero, flexK: spec.flexK });
     tree.flexOf = flexOf;
     const env = tree.env;
@@ -1108,7 +1099,7 @@ export async function build(ctx) {
     const tiered = spec.style !== 'shell';
     const flowerOpt = { h: spec.h, base, lean: leanV, spread: spec.spread, detail: spec.detail ?? lod(1), leaders: spec.leaders, padR: spec.padR, gaps: spec.gaps, twigDens: spec.twigDens ?? 3.2, keepOut: KEEP };
     const tree = tiered
-      ? magnolia ? genMagnolia(rng, flowerOpt) : crabapple ? genCrabapple(rng, flowerOpt) : genTiered(rng, { ...flowerOpt, species: 'peach', spread: spec.spread ?? 0.8, gaps: spec.gaps ?? 0.36 })
+      ? magnolia ? genMagnolia(rng, flowerOpt, ctx.detail) : crabapple ? genCrabapple(rng, flowerOpt, ctx.detail) : genTiered(rng, { ...flowerOpt, species: 'peach', spread: spec.spread ?? 0.8, gaps: spec.gaps ?? 0.36 }, ctx.detail)
       : genPeach(rng, { h: spec.h, base, lean: leanV, spread: spec.spread ?? 0.88, detail: spec.detail ?? lod(1), keepOut: KEEP });
     const flexOf = addBark('peach', tree.branches, tree.rT, spec.id * 17 + 3, { hero: spec.hero });
     const env = tree.env;
@@ -1312,8 +1303,8 @@ export async function build(ctx) {
   // ground-level film cameras: maple leaves they see up close keep the near (translucent, glowing)
   // materials; everything else (aerials, backgrounds) uses the darker, light-tight far material
   const NEAR_CAMS = [];
-  for (const i of [1, 2, 3, 4, 5, 7, 8]) {
-    const S = SHOTS[i];
+  for (const i of FILM.choreography.NEAR_CAMERAS) {
+    const S = FILM.shots[i];
     if (!S) continue;
     for (const k of S.keys) { const c = camAvoid(k.pos, k.look, S.focal, null); c.maxD = 30 * Math.max(1, S.focal / 24); NEAR_CAMS.push(c); }
   }
@@ -1326,9 +1317,8 @@ export async function build(ctx) {
     }
     return false;
   };
-  // every pine keeps its pads out of the pagoda-eaves shot (4): only the far left edge may frame
-  const S4 = [[-0.62, 1.3, -1.3, 1.3]];
-  const PINE_AVOID = [camAvoid([-42.5, 1.8, 4.5], [-33.5, 13, -7], 24, S4, 1.5), camAvoid([-41, 1.8, 5.5], [-33, 13.5, -7.25], 24, S4, 1.5), camAvoid([-39.5, 1.8, 6.5], [-32.5, 14, -7.5], 24, S4, 1.5)];
+  // every pine keeps its pads out of the pagoda-eaves shot: only the far left edge may frame
+  const PINE_AVOID = ctx.placement.pineFrames;
   const specs = [];
   let id = 0;
   for (const t of L.trees) {
@@ -1430,7 +1420,7 @@ export async function build(ctx) {
   // ------------------------------------------------------------ macro hero spray (shot 9 opening)
   const heroParts = [];
   {
-    const S9 = SHOTS[9];
+    const S9 = FILM.shots[FILM.choreography.HERO_SHOT];
     const k0 = S9 && S9.keys && S9.keys[0];
     const off = typeof location !== 'undefined' && /veghero=0/.test(location.search);
     if (k0 && heroTree && !soloM && !off) {
@@ -1500,21 +1490,16 @@ export async function build(ctx) {
       U.uDC[i].set(c[0], c[1], c[2], 1); U.uDS[i].set(size[0], size[1], size[2], scale); U.uDW[i].set(vel[0], vel[1], vel[2], Math.min(n, NMAX));
       U.uDA[i].set(ca[0], ca[1], ca[2]); U.uDB[i].set(cb[0], cb[1], cb[2]);
     };
-    // shot 9: crimson leaves falling past the macro spray (from 0.5 m to ~3.6 m in front of the lens)
-    const k9 = SHOTS[9] && SHOTS[9].keys && SHOTS[9].keys[0];
-    if (k9) {
-      const C = V3(...k9.pos), D = V3(...k9.look).sub(C).normalize();
-      const c = C.clone().addScaledVector(D, 2.1);
-      // (tall box: leaves keep falling past the lens while the camera lifts over the spray)
-      set(9, [c.x, c.y + 1.7, c.z], [3.6, 6.6, 4.0], [0.08, 0.36, 0.05], 34, 0.085, [0.34, 0.015, 0.01], [0.5, 0.1, 0.012]);
+    // per-shot drifting-leaf volumes (data: src/data/film/choreography.js)
+    for (const d of FILM.choreography.LEAF_DRIFT) {
+      const k0 = d.shot === FILM.choreography.HERO_SHOT ? FILM.shots[d.shot].keys[0] : null;
+      let c = d.center;
+      if (k0) {
+        const C = V3(...k0.pos), D = V3(...k0.look).sub(C).normalize();
+        c = C.addScaledVector(D, d.ahead).add(V3(0, d.yOffset, 0)).toArray();
+      }
+      set(d.shot, c, d.size, d.vel, d.count, d.scale, d.colA, d.colB);
     }
-    // shot 3: yellow-green / orange 红枫 leaves across the pagoda corner
-    set(3, [-42.5, 4.4, 2.0], [9, 7, 9], [0.16, 0.4, 0.1], 40, 0.09, [0.2, 0.17, 0.025], [0.42, 0.13, 0.015]);
-    // shot 5: red leaves from the stair-side maple drifting past the hall eave corner
-    set(5, [-8.0, 4.6, -5.5], [8, 7, 8], [0.14, 0.38, 0.1], 36, 0.085, [0.34, 0.015, 0.01], [0.48, 0.09, 0.012]);
-    // shot 0: green-gold leaves drifting over the water beyond the lantern
-    // (box ends at x = 40.4: no leaves inside the pavilion around the lantern camera)
-    set(0, [36.4, 4.2, 18.5], [8, 7, 9], [0.12, 0.34, 0.08], 26, 0.1, [0.12, 0.17, 0.025], [0.36, 0.2, 0.03]);
     const g = leafCardGeo(THREE).clone();
     const seeds = new Float32Array(NMAX * 4), seeds2 = new Float32Array(NMAX * 4), folA = new Float32Array(NMAX * 4), bendA = new Float32Array(NMAX * 3), colA = new Float32Array(NMAX * 3);
     for (let i = 0; i < NMAX; i++) {
@@ -1528,6 +1513,7 @@ export async function build(ctx) {
     g.setAttribute('aFol', new THREE.InstancedBufferAttribute(folA, 4));
     g.setAttribute('aBend', new THREE.InstancedBufferAttribute(bendA, 3));
     const uni = {}; for (const k in U) uni[k] = { value: U[k] };
+    uni.uFilmShot = FILM.shotUniform;
     const dmat = foliageMaterial(ctx, 'maple', mapleTex, {
       vertexHead: DRIFT_HEAD, vertexWorld: DRIFT_VW, flatNormal: true, uniforms: uni,
       transTint: [2.1, 1.8, 1.0], transBack: 1.2, transFwd: 2.4, transDepth: 0.5, leak: 0.4, bend: 0.0, roughness: 0.55,

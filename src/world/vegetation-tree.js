@@ -5,7 +5,7 @@
 // pd = path distance from the root (metres) per point -> wind flex.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { dens } from '../core/detail.js';
+import { screenBlocked, boxBlocked } from '../core/spatial.js';
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const UP = V3(0, 1, 0);
@@ -240,7 +240,7 @@ export function trunkDisp({ seed = 0, bump = 0.08, flare = 0.6, roots = 5, flare
 // Species: Japanese maple (红枫) — broad layered dome, sinuous leaders
 // ===========================================================================
 // opts: { h, base:Vector3, lean:Vector3 (horiz offset of crown centre), spread, detail(0..1), red:boolean }
-export function genMaple(rng, o) {
+export function genMaple(rng, o, detail) {
   const h = o.h, base = o.base;
   const spread = (o.spread || 0.62) * h;
   const lean = o.lean || V3();
@@ -286,7 +286,7 @@ export function genMaple(rng, o) {
   }
   // full, lumpy, layered outer shell of leaf sprays
   const made = shellFill(rng, branches, twigs, env, {
-    density: (o.shellDensity ?? dens(4.2)) * (0.6 + 0.4 * det), clump: o.clump ?? 0.4, clumpFreq: 0.5, tiers: o.tiers ?? 1.6,
+    density: (o.shellDensity ?? detail.dens(4.2)) * (0.6 + 0.4 * det), clump: o.clump ?? 0.4, clumpFreq: 0.5, tiers: o.tiers ?? 1.6,
     depth0: 0.8, depth1: 1.0, minDirY: -0.45, minY: base.y + 1.2, twigR: 0.0038, leafLen: o.leafLen ?? 0.5, minLevel: 2, maxTwig: o.maxTwig, keepOut: o.keepOut,
   });
   return { branches, twigs, env, rT, shellSprays: made };
@@ -483,7 +483,7 @@ export function genPeach(rng, o) {
 
 // Jiangnan evergreen canopy: a heavy, rounded umbrella crown with dense,
 // three-dimensional leaf masses and stout scaffold branches.
-export function genCamphor(rng, o) {
+export function genCamphor(rng, o, detail) {
   return genTiered(rng, {
     ...o,
     species: 'camphor',
@@ -498,11 +498,11 @@ export function genCamphor(rng, o) {
     gaps: o.gaps ?? 0.2,
     trunkFrac: o.trunkFrac ?? 0.27,
     rT: o.rT ?? (0.027 * o.h + 0.06),
-  });
+  }, detail);
 }
 
 // Upright white magnolia: an open vase of ascending limbs and pale spring bloom.
-export function genMagnolia(rng, o) {
+export function genMagnolia(rng, o, detail) {
   return genTiered(rng, {
     ...o,
     species: 'magnolia',
@@ -514,11 +514,11 @@ export function genMagnolia(rng, o) {
     squash: o.squash ?? 0.42,
     gaps: o.gaps ?? 0.28,
     leaders: o.leaders ?? 4,
-  });
+  }, detail);
 }
 
 // Drooping flowering crabapple: a lower asymmetric crown with pink blossom sprays.
-export function genCrabapple(rng, o) {
+export function genCrabapple(rng, o, detail) {
   return genTiered(rng, {
     ...o,
     species: 'crabapple',
@@ -530,7 +530,7 @@ export function genCrabapple(rng, o) {
     squash: o.squash ?? 0.4,
     droop: o.droop ?? 1.25,
     gaps: o.gaps ?? 0.3,
-  });
+  }, detail);
 }
 
 // ===========================================================================
@@ -571,7 +571,7 @@ export function arcCurve(rng, a, b, r0, r1, P = {}) {
 // skeleton grows toward each mass and keeps open sky gaps between branches.
 // returns { branches, twigs:[{br,t0,pad}], pads, env, rT }
 // ===========================================================================
-export function genTiered(rng, o) {
+export function genTiered(rng, o, detail) {
   const flowering = o.species === 'peach' || o.species === 'magnolia' || o.species === 'crabapple';
   const h = o.h, base = o.base;
   const lean = o.lean || V3();
@@ -753,7 +753,7 @@ export function genTiered(rng, o) {
   for (let i = branches.length - 1; i >= 0; i--) if (branches[i].dead) branches.splice(i, 1);
 
   // ------------------------------------------------------------ twigs fanning inside each pad
-  const twigDens = o.twigDens ?? (flowering ? dens(4.5) : dens(4.0));
+  const twigDens = o.twigDens ?? (flowering ? detail.dens(4.5) : detail.dens(4.0));
   const det = o.detail ?? 1;
   for (const P of pads) {
     const limb = P.limb;
@@ -794,32 +794,8 @@ export function genTiered(rng, o) {
   return { branches, twigs, pads: pads.filter((P) => P.limb), env, rT };
 }
 
-// Framing control. avoid: [{pos,f,r,u,tx,ty, rects:[[x0,x1,y0,y1],...] (NDC), minD}]
-// true if a foliage mass at c (radius r) would cover a protected screen rectangle of a film
-// camera, or come closer than minD to it.
-export function screenBlocked(avoid, c, r, yScale = 1) {
-  if (!avoid) return false;
-  for (const A of avoid) {
-    const v = c.clone().sub(A.pos);
-    if (A.minD && v.length() < A.minD + r) return true;
-    const z = v.dot(A.f);
-    if (z < 0.3) continue;
-    const x = v.dot(A.r) / (z * A.tx), y = v.dot(A.u) / (z * A.ty);
-    const rx = r / (z * A.tx), ry = (r * yScale) / (z * A.ty);
-    for (const R of A.rects) if (x + rx > R[0] && x - rx < R[1] && y + ry > R[2] && y - ry < R[3]) return true;
-  }
-  return false;
-}
-
-// keep-out volumes: [{x0,x1,z0,z1,y0?,y1}] — true if a foliage mass at c (horizontal radius r,
-// vertical half-extent ry) would intrude
-export function boxBlocked(boxes, c, r, ry = r) {
-  if (!boxes) return false;
-  for (const B of boxes) {
-    if (c.x + r > B.x0 && c.x - r < B.x1 && c.z + r > B.z0 && c.z - r < B.z1 && c.y - ry < B.y1 && c.y + ry > (B.y0 ?? -1e9)) return true;
-  }
-  return false;
-}
+// Framing / keep-out geometry lives in src/core/spatial.js; the placement rules
+// (src/world/placement/rules.js) decide which frames and boxes are protected.
 
 // pad-local helpers (used by the foliage placement)
 export function padDroop(P, ux, uz) {
