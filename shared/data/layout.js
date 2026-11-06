@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // SITE PLAN — the single source of truth for where everything is.
-// 这是编辑坐标/形状的唯一入口；shared/layout.js 和 web/ 均从这里 re-export。
+// 这是编辑坐标/形状的唯一入口；src/ 与 web/ 均直接从这里 import。
 //
 // Units: metres. +X = east, +Z = south, +Y = up (north is -Z).
 // Courtyard ground level y = 0. The sun is low in the WEST-SOUTH-WEST

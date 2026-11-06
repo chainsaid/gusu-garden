@@ -25,7 +25,7 @@ async function movieBridgeStats() {
   const { createEnvironment } = await import('../src/core/environment.js');
   const { WIND_GLSL } = await import('../src/core/uniforms.js');
   const { ATMOSPHERE } = await import('../src/data/atmosphere.js');
-  const { L } = await import('../src/layout.js');
+  const { L } = await import('../shared/data/layout.js');
   const { createDetailPolicy } = await import('../src/core/detail.js');
   const ENVIRONMENT = createEnvironment({ atmosphere: ATMOSPHERE });
   const { u: G, env: ENV, sunDir } = ENVIRONMENT;

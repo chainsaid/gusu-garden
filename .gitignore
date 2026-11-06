@@ -50,3 +50,6 @@ desktop.ini
 
 # Local Netlify folder
 .netlify
+
+# local share packages (not source)
+.trae-html-share-packages/

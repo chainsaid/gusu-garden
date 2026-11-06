@@ -7,7 +7,8 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { L } from '../../../shared/layout.js';
+import { L } from '../../../shared/data/layout.js';
+import { WEB_DETAIL } from './detail.js';
 import {
   genMaple, genPine, genTiered, genCrabapple,
   BarkAccum, trunkDisp, sampleBranch, padLocal, padNormal, padTopF,
@@ -267,10 +268,10 @@ function buildMaple(rng, spec, sink) {
   const red = spec.type === 'mapleRed';
   let tree, pal, treeHue = 0, accentP = 0.25, leafS, nodeSp, tone = [1, 1, 1];
   if (red) {
-    tree = genMaple(rng, { h: spec.h, base, spread: 0.62, detail: 0.85, leafLen: 0.5, leaders: 3, red: true, seed: spec.id });
+    tree = genMaple(rng, { h: spec.h, base, spread: 0.62, detail: 0.85, leafLen: 0.5, leaders: 3, red: true, seed: spec.id }, WEB_DETAIL);
     pal = RED_PAL; leafS = 0.16; nodeSp = 0.06;
   } else {
-    tree = genTiered(rng, { h: spec.h, base, spread: 0.5, detail: 0.8, leaders: 4, padR: 0.55, gaps: 0.32, twigDens: 3.0, species: 'maple', keepOut: [] });
+    tree = genTiered(rng, { h: spec.h, base, spread: 0.5, detail: 0.8, leaders: 4, padR: 0.55, gaps: 0.32, twigDens: 3.0, species: 'maple', keepOut: [] }, WEB_DETAIL);
     pal = spec.h > 8 ? GREEN_PAL : GREEN_PAL_FAR; leafS = 0.26; nodeSp = 0.065;
     tone = TONES[rng.int(0, 3)];
     for (const P of tree.pads) {
@@ -395,7 +396,7 @@ function buildPine(rng, spec, sink) {
 function buildBlossom(rng, spec, sink) {
   const base = V3(spec.x, 0, spec.z);
   const lean = V3(Math.cos(spec.dir) * 0.3, 0, Math.sin(spec.dir) * 0.3);
-  const tree = genCrabapple(rng, { h: spec.h, base, lean, spread: 0.7, detail: 0.8, leaders: 4, padR: 0.5, gaps: 0.34, twigDens: 3.0, keepOut: [] });
+  const tree = genCrabapple(rng, { h: spec.h, base, lean, spread: 0.7, detail: 0.8, leaders: 4, padR: 0.5, gaps: 0.34, twigDens: 3.0, keepOut: [] }, WEB_DETAIL);
   const bank = sink.bank, cores = sink.cores;
   const env = tree.env;
   const TINTS = [[1.02, 0.94, 0.97], [1.0, 0.88, 0.93], [1.0, 0.82, 0.9], [0.97, 0.76, 0.86]];

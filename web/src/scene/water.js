@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { Reflector } from 'three/addons/objects/Reflector.js';
-import { L } from '../../../shared/layout.js';
+import { L } from '../../../shared/data/layout.js';
 
-// 水面高度从 shared/layout.js 统一读取，与 src/ 离线系统保持一致
+// 水面高度从 shared/data/layout.js 统一读取，与 src/ 离线系统保持一致
 export const WATER_Y = L.pond.waterY;
 
 export function createJiangnanWater(scene) {
-  // 水面形状从 shared/layout.js 的 pond.outline 生成，与 src/ 离线系统保持一致
+  // 水面形状从 shared/data/layout.js 的 pond.outline 生成，与 src/ 离线系统保持一致
   // Three.js Reflector 默认在局部 XY 平面（法线指向 +Z），通过 reflector.rotation.x = -Math.PI / 2
   // 将局部 (x, y, 0) 变换为世界坐标 (x, 0, -y)。因此在 XY 平面构造 Shape 时，
   // 采用 (x, -z) 点位，经旋转后在世界坐标系精准还原 (x, WATER_Y, z)，法线严格朝上 (+Y)。
@@ -123,7 +123,7 @@ export function createJiangnanWater(scene) {
     multisample: 2,
   });
 
-  // 水平放置于荷池水面基准高度（坐标中心来自 shared/layout.js）
+  // 水平放置于荷池水面基准高度（坐标中心来自 shared/data/layout.js）
   reflector.rotation.x = -Math.PI / 2;
   reflector.position.set(0, WATER_Y, 0);
   reflector.name = 'jiangnan_lotus_pond_water';

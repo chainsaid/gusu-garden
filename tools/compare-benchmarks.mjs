@@ -7,7 +7,12 @@ import { findChrome, gpuArgs } from './lib/chrome.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = path.join(ROOT, 'out', 'benchmarks');
-const BRAIN_DIR = 'C:/Users/lielo/.gemini/antigravity/brain/babb32d7-80d4-487f-b7dc-fe8c45b31634';
+// 工件库同步目录：--brain <dir> 或 BRAIN_DIR 环境变量；不提供则跳过同步。
+function argValue(flag) {
+  const i = process.argv.indexOf(flag);
+  return i > -1 ? process.argv[i + 1] : null;
+}
+const BRAIN_DIR = argValue('--brain') || process.env.BRAIN_DIR || null;
 const PORT_ORIG = 5173;
 const PORT_WEB = 3000;
 
@@ -239,13 +244,15 @@ async function main() {
     }
 
     // 5. 同步所有成果至工件目录供直接查看
-    if (fs.existsSync(BRAIN_DIR)) {
+    if (BRAIN_DIR && fs.existsSync(BRAIN_DIR)) {
       console.log(`\n[sync] 正在将基准图与对比图同步至工件库...`);
       const files = fs.readdirSync(OUT_DIR).filter((f) => f.endsWith('.png'));
       for (const f of files) {
         fs.copyFileSync(path.join(OUT_DIR, f), path.join(BRAIN_DIR, f));
       }
       console.log(`✓ 成功将 ${files.length} 张图片同步至工件目录！`);
+    } else {
+      console.log('\n[sync] 未提供 --brain 或 BRAIN_DIR，跳过工件库同步。');
     }
 
     console.log('\n====================================================');

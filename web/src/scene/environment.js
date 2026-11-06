@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { createProceduralSky } from './sky.js';
 import { createPavingTextures } from './textures.js';
-import { L } from '../../../shared/layout.js';
+import { L } from '../../../shared/data/layout.js';
 
 export function setupEnvironment(scene, renderer) {
   // 严格对齐原版电影级太阳方位 (仰角 6.8°，西偏南方位角，拉出深长飞檐阴影)

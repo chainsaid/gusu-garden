@@ -43,7 +43,7 @@
     "flicker": "node tools/lumaflicker.mjs",
     "golden:capture": "node tools/golden.mjs capture",
     "golden:verify": "node tools/golden.mjs verify",
-    "dep:lint": "node tools/dep-lint.mjs"
+    "dep:lint": "node tools/dep-lint.mjs --strict"
   },
   "dependencies": {
     "three": "0.186.1"

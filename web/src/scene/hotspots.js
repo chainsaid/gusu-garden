@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { L } from '../../../shared/layout.js';
+import { L } from '../../../shared/data/layout.js';
 
 // 5 处江南文人园林核心文化景观点 (基于 Node 版 L 布局基准派生)
 export const HOTSPOT_DATA = [

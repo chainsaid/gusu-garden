@@ -12,7 +12,7 @@ import { Pipeline, DEFAULT_POST } from '../core/post.js';
 import * as diag from '../core/diag.js';
 import * as geom from '../core/geom.js';
 import { rng } from '../core/rng.js';
-import { L } from '../layout.js';
+import { L } from '../../shared/data/layout.js';
 import { createDetailPolicy } from '../core/detail.js';
 import { SHOTS, SHOT_DUR, FILM_DURATION } from '../data/film/shots.js';
 import { PLACEMENT } from '../data/placement.js';

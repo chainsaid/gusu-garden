@@ -3,7 +3,7 @@
 // 包含：中堂水墨山水长轴 + 金字黑漆对联 + 红木翘头条案 + 八仙桌与官帽椅 + 琴台七弦琴 + 罗汉床博古架
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { L } from '../../../shared/layout.js';
+import { L } from '../../../shared/data/layout.js';
 
 // 1. 程序化宣纸水墨远山立轴贴图
 function createZhongtangTexture() {
@@ -98,7 +98,7 @@ export function createJiangnanInterior(scene) {
   const interiorRoot = new THREE.Group();
   interiorRoot.name = 'jiangnan_scholar_interior_lighting';
 
-  // 主厅中心坐标与地面高程 (从 Node 版权威源 shared/layout.js 的 L.hall.center 同步)
+  // 主厅中心坐标与地面高程 (从 Node 版权威源 shared/data/layout.js 的 L.hall.center 同步)
   const [cx, , cz] = L.hall.center;
   const yFloor = 2.12;
 

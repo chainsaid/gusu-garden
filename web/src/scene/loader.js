@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
-import { L } from '../../../shared/layout.js';
+import { L } from '../../../shared/data/layout.js';
 import {
   createPlasterTextures,
   createTileTextures,
@@ -50,7 +50,7 @@ export function loadGardenAssets(scene, onProgress) {
           const model = gltf.scene;
           model.name = asset.name;
 
-          // 保持北寺塔在园林西北方的远景借景位置（坐标来自 shared/layout.js）
+          // 保持北寺塔在园林西北方的远景借景位置（坐标来自 shared/data/layout.js）
           if (asset.name === 'pagoda') {
             model.position.set(...L.pagoda.center);
           }

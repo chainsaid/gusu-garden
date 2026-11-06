@@ -904,6 +904,8 @@ src/world/vegetation.js
 
 **依赖/并行**：依赖 B1（layout 的 import 在 `src/app` 稳定后）；可与 B7、B8 并行（只碰 `shared/`、`web/`、`tools/`）。
 
+**本轮实测（2026-11-07）**：`golden verify` 51/51 逐字节一致（S1/S2/S3/S4），离屏渲染零差异。`npm run build:web` 成功（50 modules）；`node tools/test-web-runtime.mjs` 全项通过。`npm run dep:lint`（已改为 `--strict` 门禁）0 条新增、7 条既有 `web -> domain` 植被生成器复用登记为 known、不阻断。`node tools/compare-benchmarks.mjs` 在 macOS 首次跑通 12 机位，未提供 `--brain`/`BRAIN_DIR` 时自动跳过工件库同步。实测 `web/` 直接 import 旧 `shared/layout.js` 的文件为 10 个（前文 13 个为估算，其余是注释提及）。跨端比对说明：仓库不保存 `out/`，此前没有可比基线；本次新采的离线基准与 Web 帧逐位 SSIM 为 0.185–0.492，两者是资产、天空与构件实现各自独立的渲染器，故 0.98 应作为「同一侧、同一基线的前后回归」门禁，而非 src↔web 的画面对等指标。验收还暴露一处 B4 起的既有断点：离线植被生成器改为接收 detail policy 后，web 的 4 处调用未传参（读取 `detail.dens` 时 undefined），`test-web-runtime` 第一次运行即失败；已用 `web/src/scene/detail.js` 的 `WEB_DETAIL`（s=1，等价重构前默认档）补齐，密度不变。
+
 ### 8.11 B10 批（可选）：目录归位
 
 只做物理移动与 import 路径更新，不改任何行为：

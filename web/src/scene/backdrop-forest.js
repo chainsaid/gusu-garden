@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { genTiered, genPine, BarkAccum, trunkDisp, sampleBranch, perpOf, randUnit } from '../../../src/world/vegetation-tree.js';
 import { makeMapleAtlas, makePineAtlas } from '../../../src/world/vegetation-tex.js';
+import { WEB_DETAIL } from './detail.js';
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const UP = V3(0, 1, 0);
@@ -160,7 +161,7 @@ function buildVariantInner(seed, kind, h, mul) {
     }
     tree.env = { c: V3(0, (minY + maxY) / 2, 0), r: V3(rMax, Math.max(0.5, (maxY - minY) / 2), rMax) };
   } else {
-    tree = genTiered(rng, { h, base, spread: 0.5, detail: 0.25, leaders: 2, padR: 0.55, gaps: 0.22, twigDens: 0.8, species: 'maple', keepOut: [] });
+    tree = genTiered(rng, { h, base, spread: 0.5, detail: 0.25, leaders: 2, padR: 0.55, gaps: 0.22, twigDens: 0.8, species: 'maple', keepOut: [] }, WEB_DETAIL);
     pal = kind === 'maple' ? MAPLE_PAL : BROAD_PAL;
     leafS = 0.52; nodeSp = 0.3;
     for (const P of tree.pads) {

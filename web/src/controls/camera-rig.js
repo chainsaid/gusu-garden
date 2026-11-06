@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { L } from '../../../shared/layout.js';
+import { L } from '../../../shared/data/layout.js';
 
 // 5 组文人造园经典航点预设 (以 Node 版 L 布局基准派生)
 export const VIEWPOINTS = [

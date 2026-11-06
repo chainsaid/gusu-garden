@@ -1,5 +1,5 @@
 // Measure the reconstructed 北寺塔: storey table, eave footprint, finial, total height.
-import L from '../src/layout.js';
+import L from '../shared/data/layout.js';
 import { makeStoreys, pTip, roofY } from '../src/world/pagoda.js';
 
 const P = L.pagoda;

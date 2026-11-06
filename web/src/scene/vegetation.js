@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { WATER_Y } from './water.js';
-import { L } from '../../../shared/layout.js';
+import { L } from '../../../shared/data/layout.js';
 import { makeShrubAtlas } from '../../../src/world/vegetation-tex.js';
 
 const TAU = Math.PI * 2;
@@ -209,7 +209,7 @@ export function createJiangnanFoliage(scene) {
   const dummy = new THREE.Object3D();
   const stemDummy = new THREE.Object3D();
 
-  // 严格从 shared/layout.js 统一读取 17 处标准荷花群落生态区 (与 src/ 离线电影系统保持同源同构)
+  // 严格从 shared/data/layout.js 统一读取 17 处标准荷花群落生态区 (与 src/ 离线电影系统保持同源同构)
   const colonies = L.pond.colonies || [];
   let eIdx = 0;
   let fIdx = 0;
