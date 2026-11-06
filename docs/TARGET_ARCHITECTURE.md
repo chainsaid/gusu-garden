@@ -918,6 +918,8 @@ src/world/vegetation.js
 
 **建议**：可以无限期推迟；收益是阅读体验，不是解耦。若做，单独提交，方便 review 时忽略。
 
+**本轮核验（2026-11-07）**：目录已与 §2.7 目标一致——`src/core/film/{shot-eval,timeline}.js`、`src/core/render/{sampling,camera,frame}.js`、`src/data/film/{shots,choreography}.js` 与 `shotkeys/{bridge,buildings,hall,interior,pagoda,pond,terrain,vegetation,index}.js`、`src/app/{main,runtime-config,director,context}.js`、`shared/data/layout.js` 均已在位（由 B5、B8、G 顺带完成）。`shotkeys/` 命名与 `ALL_MODULES` 对齐，`props` 无覆盖文件属预期。`src/world/` 的家族子目录归位按本节建议**刻意不做**：纯路径移动、收益仅阅读体验，且要重翻 60 余个文件与 dep-lint 的 known 清单，风险大于收益。验证：`golden verify` 51/51 逐字节一致；`npm run build` 与 `npm run build:web` 均通过；`npm run dep:lint` 0 条新增。本批无代码变更，仅记录核验结论。
+
 ### 8.12 依赖图与并行组
 
 ```
