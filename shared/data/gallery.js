@@ -91,9 +91,19 @@ export const GALLERY_GROUPS = [
       id: 'tree-maple',
       title: '乔木',
       status: STATUS.REUSE,
-      note: '离线用 genTiered；web 复用同一生成器，下一批接入。',
-      offline: null,
+      note: '离线用枫树生成器（降级叶团）；web 的 GLB 未导出植被。',
+      offline: {
+        builder: 'treeMaple',
+        degrade: '展示降级：实例化叶团替代叶片卡片（成片用叶片着色）',
+        params: [
+          { key: 'height', label: '树高', kind: 'range', min: 4.5, max: 8, step: 0.1, value: 6.0 },
+          { key: 'leaders', label: '主分叉', kind: 'range', min: 2, max: 5, step: 1, value: 3 },
+          { key: 'spread', label: '冠幅', kind: 'range', min: 0.45, max: 0.85, step: 0.02, value: 0.66 },
+          { key: 'autumn', label: '秋色', kind: 'range', min: 0, max: 1, step: 0.05, value: 0.6 },
+        ],
+      },
       web: null,
+      webBlocked: 'GLB 没有导出植被，成片里的树由运行时 Instanced 生成；请对照离线生成器。',
     },
   },
   {
@@ -132,9 +142,18 @@ export const GALLERY_GROUPS = [
       id: 'pond-water',
       title: '池面水镜',
       status: STATUS.PROJECT,
-      note: '绑定本园池体与相机反射，仅限本项目，下一批接入。',
-      offline: null,
+      note: '离线只用一块平面做材质演示；完整水体绑定池体与反射，仅限本项目。',
+      offline: {
+        builder: 'waterPlane',
+        degrade: '展示降级：单平面 + 程序化法线，无实时倒影（成片含池体反射）',
+        params: [
+          { key: 'tint', label: '水色', kind: 'select', value: 'jade', options: [['jade', '碧水'], ['ink', '墨绿'], ['celadon', '浅青']] },
+          { key: 'ripple', label: '波光', kind: 'range', min: 0, max: 1, step: 0.05, value: 0.55 },
+          { key: 'roughness', label: '粗糙度', kind: 'range', min: 0.05, max: 0.4, step: 0.01, value: 0.14 },
+        ],
+      },
       web: null,
+      webBlocked: 'GLB 未包含水面，水在成片里是绑定池体的着色器平面；请对照离线材质演示。',
     },
   },
 ];
