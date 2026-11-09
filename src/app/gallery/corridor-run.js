@@ -364,7 +364,7 @@ export function buildCorridorRun(params, ctx) {
         queti(bayLb, K, leg.bayLen, COLZ);
         queti(bayLb, K, leg.bayLen, -COLZ);
       }
-      const straight = form === 'current' || rail === 'zhiling' || i === 0;
+      const straight = rail === 'zhiling';
       if (straight) sittingRail(bayLb, K, leg.bayLen);
       else meirenkao(bayLb, K, leg.bayLen, lattice);
       if (form === 'jiangnan' && rail === 'meirenkao' && li === 0 && i === 1 && !anchors.meirenkao) {

@@ -20,6 +20,7 @@ import { rng } from '../../core/rng.js';
 import { GALLERY_GROUPS, findItem } from '../../../shared/data/gallery.js';
 import { exportObject, measureGlb } from '../../../shared/gallery-export.js';
 import { buildCorridorRun } from './corridor-run.js';
+import { createMeikao } from '../../../shared/meikao.js';
 
 // --- renderer / scene -------------------------------------------------------
 const canvas = document.getElementById('view');
@@ -245,6 +246,26 @@ const BUILDERS = {
     leaves.castShadow = true;
     group.add(leaves);
     return group;
+  },
+  meikaoSegment(params) {
+    const mats = {
+      wood: M.woodChestnut,
+      woodSeat: M.woodChestnutDark,
+      stone: M.plaster,
+      stoneCap: M.graniteClean,
+      stoneCore: M.granite,
+    };
+    const root = createMeikao(THREE, {
+      length: +params.length || 3300,
+      barPitch: +params.pitch || 88,
+      wall: !!params.wall,
+      materials: mats,
+    });
+    root.scale.set(0.001, 0.001, 0.001);
+    root.rotation.y = Math.PI; // Face the camera
+    const wrap = new THREE.Group();
+    wrap.add(root);
+    return wrap;
   },
   corridorRun(params) { return buildCorridorRun(params, ctx); },
   waterPlane(params) {

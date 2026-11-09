@@ -158,6 +158,29 @@ export const GALLERY_GROUPS = [
     },
   },
   {
+    id: "meikao",
+    title: "美人靠",
+    subtitle: "吴王靠 / 鹅颈",
+    item: {
+      id: "meikao-segment",
+      title: "游廊美人靠",
+      status: STATUS.REUSE,
+      note: "苏州园林实物标准美人靠：外挑140mm鹅颈双曲靠背、119mm腰椎承托、19根圆弧曲档（间距88mm）、3根透光立档与3个短足严格同轴对齐。",
+      offline: {
+        builder: "meikaoSegment",
+        params: [
+          { key: "length", label: "开间跨度(mm)", kind: "range", min: 1800, max: 3600, step: 50, value: 3300 },
+          { key: "pitch", label: "曲档间距(mm)", kind: "range", min: 70, max: 110, step: 2, value: 88 },
+          { key: "wall", label: "基台矮墙", kind: "toggle", value: true },
+        ],
+      },
+      web: {
+        node: "corridorBayMeikao",
+        params: [],
+      },
+    },
+  },
+  {
     id: 'water',
     title: '水面',
     subtitle: '池面 / 倒影',
