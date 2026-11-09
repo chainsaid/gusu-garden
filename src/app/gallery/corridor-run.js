@@ -75,16 +75,26 @@ function roofPackage(lb, K, faces, T, detail, { rafSp = 0.26, lift = () => 0 } =
     lb.add(cg, K.cap, mm);
   }
   const sf = faces.map((F) => ({ ...F, y0: 0, prof: yRT, dmin: (u) => Math.max(TIP, F.dmin ? F.dmin(u) : 0) }));
-  const s = roofSurface(sf, null, () => 0, { flip: true, du: detail.gap(0.4), dd: detail.gap(0.4) }).geo;
+  const s = roofSurface(sf, null, lift, { flip: true, du: detail.gap(0.4), dd: detail.gap(0.4) }).geo;
   s.deleteAttribute('color');
   lb.add(s, K.redDark);
-  rafterField(lb, faces, { sp: rafSp, w: RAF[0], h: RAF[1], yBot: yRB, dStart: TIP, mat: K.red, capMat: K.cap, lo: true });
+  rafterField(lb, faces, { sp: rafSp, w: RAF[0], h: RAF[1], yBot: yRB, dStart: TIP, mat: K.red, capMat: K.cap, lo: true, lift });
 }
 
 function fascia(lb, K, pts, inside, lift = () => 0) {
-  const path = pts.map(([x, z]) => new THREE.Vector3(x, yRT(TIP) + lift(x, z), z));
+  const p3 = [];
+  for (let i = 0; i < pts.length; i++) {
+    const [x, z] = pts[i];
+    if (i === 0) { p3.push(new THREE.Vector3(x, yRT(TIP) + lift(x, z), z)); continue; }
+    const [x0, z0] = pts[i - 1];
+    const n = Math.max(1, Math.ceil(Math.hypot(x - x0, z - z0) / 0.12));
+    for (let j = 1; j <= n; j++) {
+      const xx = x0 + ((x - x0) * j) / n, zz = z0 + ((z - z0) * j) / n;
+      p3.push(new THREE.Vector3(xx, yRT(TIP) + lift(xx, zz), zz));
+    }
+  }
   const p = [[-0.045, 0], [0.045, 0], [0.045, FASCIA_H - 0.02], [0.13, FASCIA_H - 0.02], [0.13, FASCIA_H], [-0.045, FASCIA_H]];
-  lb.add(sweep(path, p, { inside }), K.red);
+  lb.add(sweep(p3, p, { inside }), K.red);
 }
 
 // ---------------------------------------------------------------------------
@@ -271,11 +281,11 @@ function meirenkao(lb, K, bay, latticeKind) {
 }
 
 // white gable infill above the plate on a free end (closes the open roof end)
-function gableEnd(lb, K, x) {
+function gableEnd(lb, K, x, lift = () => 0) {
   const n = 16;
   for (let i = 0; i < n; i++) {
     const z = -COLZ + (i + 0.5) * (2 * COLZ / n);
-    const yTop = Y0 + prof(CW - Math.abs(z)) - 0.04;
+    const yTop = Y0 + prof(CW - Math.abs(z)) + lift(x, z) - 0.04;
     const h = yTop - Y_COLTOP;
     if (h > 0) lb.box(K.plaster, 0.10, h, 2 * COLZ / n, [x, Y_COLTOP + h / 2, z]);
   }
@@ -425,16 +435,20 @@ export function buildCorridorRun(params, ctx) {
     ];
     // 翼角起翘: lift the eave near each run end, strongest at the tile edge.
     const liftFn = (x, z) => {
-      const t = Math.max(sstep(0, 2.4, x), sstep(0, 2.4, L - x));
-      return 0.48 * t * Math.pow(Math.abs(z) / CW, 1.8);
+      const d0 = Math.max(0, x - u0);
+      const d1 = Math.max(0, u1 - x);
+      const t0 = d0 < 2.4 ? Math.pow(1 - d0 / 2.4, 2) : 0;
+      const t1 = d1 < 2.4 ? Math.pow(1 - d1 / 2.4, 2) : 0;
+      const t = Math.max(t0, t1);
+      return 0.52 * t * Math.pow(Math.abs(z) / CW, 1.6);
     };
     roofPackage(lb, K, faces, T, detail, { rafSp: 0.26, lift: liftFn });
     const f = CW - TIP - 0.045;
     fascia(lb, K, [[u0, -f], [u1, -f]], [L / 2, 0], liftFn);
     fascia(lb, K, [[u0, f], [u1, f]], [L / 2, 0], liftFn);
     lb.add(sweep(linePath([Math.max(u0, 0), 0], [Math.min(u1, L), 0], () => RIDGE_Y - 0.02, 0.9), ridgeProfile(0.42, 0.36, 4, 0.08, 0.3)), K.tile);
-    if (li === 0) gableEnd(lb, K, 0);
-    if (li === legs.length - 1) gableEnd(lb, K, L);
+    if (li === 0) gableEnd(lb, K, 0, liftFn);
+    if (li === legs.length - 1) gableEnd(lb, K, L, liftFn);
 
     // ---- joint platform (hides the overlapping plinth wedge at a turn)
     if (li > 0) {

@@ -645,6 +645,7 @@ resize();
 window.__GALLERY_API = {
   side: 'offline',
   ready: true,
+  getObj: () => currentObj,
   list: () => GALLERY_GROUPS.map((g) => ({
     id: g.item.id, group: g.title, item: g.item.title, status: g.item.status,
     available: !!g.item.offline,
