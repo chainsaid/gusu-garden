@@ -362,11 +362,11 @@ export function loadGardenAssets(scene, onProgress) {
                 // -----------------------------------------------------------
                 // (F) 回廊 (Corridor) 专属节点材质对齐
                 // -----------------------------------------------------------
-                const isCorridor = nodeName.includes('corridor') || parentName.includes('corridor');
+                const isCorridor = nodeName.includes('corridor') || parentName.includes('corridor') || nodeName.includes('meikao');
                 if (isCorridor) {
                   const vCount = child.geometry.attributes.position ? child.geometry.attributes.position.count : 0;
-                  // 1. 白粉外墙
-                  if (vCount === 9888 || vCount === 1536 || /wall|plaster/i.test(combined)) {
+                  // 1. 白粉外墙与美人靠墙身
+                  if (vCount === 9888 || vCount === 1536 || /wall|plaster|seat-wall/i.test(combined)) {
                     child.material.map = plasterPbr.map;
                     child.material.color.setHex(0xffffff);
                     child.material.roughness = plasterPbr.roughness;
@@ -375,8 +375,8 @@ export function loadGardenAssets(scene, onProgress) {
                     child.material.needsUpdate = true;
                     return;
                   }
-                  // 2. 漏窗镂空花格
-                  if (/window|lattice|花格/i.test(combined) || vCount === 158300 || vCount === 23266) {
+                  // 2. 漏窗镂空花格与地脚支座
+                  if (/window|lattice|花格|foot|metal/i.test(combined) || vCount === 158300 || vCount === 23266) {
                     child.material.map = null;
                     child.material.color.setHex(0x282b28);
                     child.material.roughness = 0.65;
@@ -396,8 +396,8 @@ export function loadGardenAssets(scene, onProgress) {
                     child.material.needsUpdate = true;
                     return;
                   }
-                  // 4. 花岗岩基座、铺地大砖与柱顶石
-                  if (/stone|granite|podium|stair/i.test(combined)) {
+                  // 4. 花岗岩基座、铺地大砖与柱顶石、坐板石面
+                  if (/stone|granite|podium|stair|seat-cap/i.test(combined)) {
                     child.material.map = stonePbr.map;
                     child.material.color.setHex(0xd5d0c6);
                     child.material.roughness = stonePbr.roughness;

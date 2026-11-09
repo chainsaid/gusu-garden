@@ -661,13 +661,13 @@ export function placeBrackets(acc, mats, xs, zs, top, type, opts = {}) {
   for (const [x, z, o, t, inter] of sets) {
     const ax = [o[0], 0, o[1]];
     const X = basis([x, top, z], ax, [0, 1, 0], v3.cross(ax, [0, 1, 0]));
-    bracketSet(acc, mats, X, t, { inter: inter && !opts.fullInter, kw: opts.kw, lat: inter && opts.fullInter ? 0.56 : undefined });
+    bracketSet(acc, mats, X, t, { inter: inter && !opts.fullInter, kw: opts.kw, lat: inter && opts.fullInter ? 0.56 : undefined, style: opts.style });
   }
   // diagonal corner sets
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     const d = v3.norm([sx, 0, sz]);
     const X = mul(basis([sx * xw, top, sz * zw], d, [0, 1, 0], v3.cross(d, [0, 1, 0])), xf([0, 0, 0], 0, 0, 0, [1.414, 1, 1]));
-    bracketSet(acc, mats, X, type, { lat: 0.3 });
+    bracketSet(acc, mats, X, type, { lat: 0.3, style: opts.style });
   }
   // continuous beams along each side (extended to cross at corners)
   const P = 0.44;
@@ -675,11 +675,11 @@ export function placeBrackets(acc, mats, xs, zs, top, type, opts = {}) {
     const segs = opts.frontSpans && sz > 0 ? opts.frontSpans : [[-xw, xw]];
     for (const [a, b] of segs) {
       const ext0 = a <= -xw + 1e-3 ? 0.9 : 0, ext1 = b >= xw - 1e-3 ? 0.9 : 0;
-      bracketBeams(acc, mats, [a - ext0, top, sz * zw], [b + ext1, top, sz * zw], [0, 0, sz], type);
+      bracketBeams(acc, mats, [a - ext0, top, sz * zw], [b + ext1, top, sz * zw], [0, 0, sz], type, opts.style);
     }
-    if (opts.frontSpans && sz > 0) for (const [a, b] of opts.frontGaps || []) bracketBeams(acc, mats, [a, top, zw], [b, top, zw], [0, 0, 1], 'flat');
+    if (opts.frontSpans && sz > 0) for (const [a, b] of opts.frontGaps || []) bracketBeams(acc, mats, [a, top, zw], [b, top, zw], [0, 0, 1], 'flat', opts.style);
   }
-  for (const sx of [-1, 1]) bracketBeams(acc, mats, [sx * xw, top, -zw - 0.9], [sx * xw, top, zw + 0.9], [sx, 0, 0], type);
+  for (const sx of [-1, 1]) bracketBeams(acc, mats, [sx * xw, top, -zw - 0.9], [sx * xw, top, zw + 0.9], [sx, 0, 0], type, opts.style);
   void P;
 }
 

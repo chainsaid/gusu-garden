@@ -9,6 +9,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { GALLERY_GROUPS, findItem } from '../../../shared/data/gallery.js';
+import { exportObject, measureGlb } from '../../../shared/gallery-export.js';
 
 const canvas = document.getElementById('view');
 const stage = document.getElementById('stage');
@@ -73,6 +74,8 @@ const badgeEl = document.getElementById('badge');
 const noteEl = document.getElementById('note');
 const statusEl = document.getElementById('status');
 const saveBtn = document.getElementById('save');
+const exportBtn = document.getElementById('export');
+const exportInfo = document.getElementById('exportInfo');
 const resetBtn = document.getElementById('reset');
 const msgEl = document.getElementById('stageMsg');
 
@@ -246,6 +249,7 @@ function initParams() {
 
 function renderParams() {
   paramsEl.innerHTML = '';
+  exportBtn.disabled = !(current && current.web && currentObj);
   if (!current || !current.web) { saveBtn.disabled = true; return; }
   const schema = current.web.params || [];
 
@@ -312,6 +316,8 @@ function selectItem(id) {
     showMsg(item.webBlocked || `「${item.title}」本端尚未接入 · 下一批开放`);
     setStatus('本端未接入');
     saveBtn.disabled = true;
+    exportBtn.disabled = true;
+    exportInfo.hidden = true;
     return id;
   }
   if (!template) { pendingId = id; setStatus('GLB 加载中…'); return id; }
@@ -321,6 +327,7 @@ function selectItem(id) {
     showMsg(`「${item.title}」GLB 中找不到节点 ${item.web.node}`);
     setStatus('节点缺失');
     saveBtn.disabled = true;
+    exportBtn.disabled = true;
     return id;
   }
   showMsg('');
@@ -333,6 +340,8 @@ function selectItem(id) {
   applyParams();
   stats.buildMs = performance.now() - t0;
   setStatus(`${item.title} · ${stats.buildMs.toFixed(0)} ms`);
+  exportBtn.disabled = false;
+  exportInfo.hidden = true;
   scheduleRender();
   return id;
 }
@@ -391,6 +400,36 @@ function orbitTo(azDeg, elDeg = 18, distMul = 1) {
 saveBtn.addEventListener('click', () => snapshot(true));
 resetBtn.addEventListener('click', () => { if (currentObj) { placeAndFrame(currentObj); scheduleRender(); } });
 
+async function doExport() {
+  if (!currentObj || !current || !current.web) {
+    setStatus('当前构件不可导出');
+    return null;
+  }
+  exportBtn.disabled = true;
+  setStatus('导出中…');
+  try {
+    const res = await exportObject({
+      object: currentObj,
+      item: current,
+      side: 'web',
+      schema: current.web.params || [],
+      params,
+      degrade: '',
+    });
+    const mb = (res.bytes / 1048576).toFixed(1);
+    exportInfo.hidden = false;
+    exportInfo.innerHTML = `已导出：<a href="/__gallery/export?name=${encodeURIComponent(res.fileName + '.glb')}" target="_blank" rel="noopener">${res.modelPath}</a>（${mb} MB）<br>随附说明：<a href="/__gallery/export?name=${encodeURIComponent(res.fileName + '.md')}" target="_blank" rel="noopener">${res.specPath}</a>`;
+    setStatus('已导出 GLB');
+    return res;
+  } catch (e) {
+    setStatus(`导出失败：${e.message}`);
+    throw e;
+  } finally {
+    exportBtn.disabled = false;
+  }
+}
+exportBtn.addEventListener('click', () => { doExport().catch(() => {}); });
+
 function resize() {
   const w = stage.clientWidth || 1;
   const h = stage.clientHeight || 1;
@@ -414,6 +453,14 @@ window.__GALLERY_API = {
   setParams: (p) => { for (const [k, v] of Object.entries(p)) params[k] = v; applyParams(); renderParams(); return { ...params }; },
   rotate: (az, el, distMul) => { orbitTo(az ?? 35, el ?? 18, distMul ?? 1); return camera.position.toArray(); },
   snapshot: () => snapshot(),
+  export: () => doExport(),
+  verifyExport: (url) => measureGlb(url),
+  bbox: () => {
+    if (!currentObj) return null;
+    const box = new THREE.Box3().setFromObject(currentObj, true);
+    const s = box.getSize(new THREE.Vector3());
+    return { size: s.toArray(), min: box.min.toArray(), max: box.max.toArray() };
+  },
   metrics: () => ({ ...stats }),
   state: () => ({
     current: current ? current.id : null,

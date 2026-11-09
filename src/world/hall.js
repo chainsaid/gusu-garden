@@ -218,7 +218,7 @@ export async function build(ctx) {
     for (const sz of [-1, 1]) { const pts = []; for (let i = 0; i <= 20; i++) { const x = -(xi + 0.15) + (2 * (xi + 0.15) * i) / 20; pts.push([x, yF(mok.ez - zi - 0.14), sz * (zi + 0.14)]); } pf(pts); }
     for (const sx of [-1, 1]) { const pts = []; for (let i = 0; i <= 12; i++) { const z = -(zi + 0.15) + (2 * (zi + 0.15) * i) / 12; pts.push([sx * (xi + 0.14), yF(mok.ex - xi - 0.14), z]); } pf(pts); }
   }
-  placeBrackets(accM, mats, HB.colX, HB.colZ, HB.colTop, 'sanmai', { fullInter: true });
+  placeBrackets(accM, mats, HB.colX, HB.colZ, HB.colTop, 'sanmai', { fullInter: true, style: ctx.opts.bracket });
   gongyanbi(accM, mats, 13, 8.5, HB.colTop - 0.02, mok.E.yP + mok.E.sb * (mok.E.dwX - mok.E.dP) + 0.02, HB.colR);
   accM.warp(warpM);
   for (const b of bellsM.bells) { warpM(b.pos[0], b.pos[1], b.pos[2], tmp); b.pos = [tmp[0], tmp[1], tmp[2]]; anchors.bells.push(b); }
@@ -232,7 +232,7 @@ export async function build(ctx) {
   // 千鸟破风天窗已移除：中式歇山顶不在前坡立抱厦天窗
   // (was: buildChidori(accU, mats, R, {...}, mainYc))
   buildUpper(accU, mats, R);
-  placeBrackets(accU, mats, HB.up.xs, HB.up.zs, HB.up.top, 'qimai', { kw: 1.05, fullInter: true });
+  placeBrackets(accU, mats, HB.up.xs, HB.up.zs, HB.up.top, 'qimai', { kw: 1.05, fullInter: true, style: ctx.opts.bracket });
   gongyanbi(accU, mats, xi, zi, HB.up.top - 0.02, main.E.yP + main.E.sb * (main.E.dwX - main.E.dP) + 0.03, HB.up.r);
   accU.warp(warpU);
   for (const b of bellsU.bells) { warpU(b.pos[0], b.pos[1], b.pos[2], tmp); b.pos = [tmp[0], tmp[1], tmp[2]]; anchors.bells.push(b); }

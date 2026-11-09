@@ -18,6 +18,8 @@ import { buildTaihuPeak } from '../../world/rockery-sdf.js';
 import { genMaple, BarkAccum, trunkDisp } from '../../world/vegetation-tree.js';
 import { rng } from '../../core/rng.js';
 import { GALLERY_GROUPS, findItem } from '../../../shared/data/gallery.js';
+import { exportObject, measureGlb } from '../../../shared/gallery-export.js';
+import { buildCorridorRun } from './corridor-run.js';
 
 // --- renderer / scene -------------------------------------------------------
 const canvas = document.getElementById('view');
@@ -244,6 +246,7 @@ const BUILDERS = {
     group.add(leaves);
     return group;
   },
+  corridorRun(params) { return buildCorridorRun(params, ctx); },
   waterPlane(params) {
     // A single flat basin: material demo only, no pond walls or terrain.
     const tints = { jade: 0x2f5b52, ink: 0x1c302e, celadon: 0x4c7d72 };
@@ -282,6 +285,8 @@ const badgeEl = document.getElementById('badge');
 const noteEl = document.getElementById('note');
 const statusEl = document.getElementById('status');
 const saveBtn = document.getElementById('save');
+const exportBtn = document.getElementById('export');
+const exportInfo = document.getElementById('exportInfo');
 const resetBtn = document.getElementById('reset');
 const msgEl = document.getElementById('stageMsg');
 
@@ -386,6 +391,7 @@ function initParams() {
 
 function renderParams() {
   paramsEl.innerHTML = '';
+  exportBtn.disabled = !(current && current.offline);
   if (!current || !current.offline) { saveBtn.disabled = true; return; }
   const schema = current.offline.params || [];
 
@@ -431,6 +437,12 @@ function renderParams() {
       });
       row.appendChild(input);
     }
+    // 现状对照只换了平面形制，江南化的形制参数在这一侧不生效，灰掉避免误导。
+    if (current.id === 'corridor-run' && params.form === 'current' && ['rail', 'lattice', 'turn', 'levels'].includes(p.key)) {
+      row.style.opacity = '0.35';
+      row.style.pointerEvents = 'none';
+      row.querySelectorAll('input, select').forEach((el) => { el.disabled = true; });
+    }
     paramsEl.appendChild(row);
   }
   saveBtn.disabled = false;
@@ -457,6 +469,8 @@ function selectItem(id) {
     showMsg(`「${item.title}」本端尚未接入 · 下一批开放`);
     setStatus('本端未接入');
     saveBtn.disabled = true;
+    exportBtn.disabled = true;
+    exportInfo.hidden = true;
   }
   return id;
 }
@@ -516,6 +530,36 @@ function orbitTo(azDeg, elDeg = 18, distMul = 1) {
 saveBtn.addEventListener('click', () => snapshot(true));
 resetBtn.addEventListener('click', () => { if (currentObj) { placeAndFrame(currentObj); scheduleRender(); } });
 
+async function doExport() {
+  if (!currentObj || !current || !current.offline) {
+    setStatus('当前构件不可导出');
+    return null;
+  }
+  exportBtn.disabled = true;
+  setStatus('导出中…');
+  try {
+    const res = await exportObject({
+      object: currentObj,
+      item: current,
+      side: 'offline',
+      schema: current.offline.params || [],
+      params,
+      degrade: current.offline.degrade || '',
+    });
+    const mb = (res.bytes / 1048576).toFixed(1);
+    exportInfo.hidden = false;
+    exportInfo.innerHTML = `已导出：<a href="/__gallery/export?name=${encodeURIComponent(res.fileName + '.glb')}" target="_blank" rel="noopener">${res.modelPath}</a>（${mb} MB）<br>随附说明：<a href="/__gallery/export?name=${encodeURIComponent(res.fileName + '.md')}" target="_blank" rel="noopener">${res.specPath}</a>`;
+    setStatus('已导出 GLB');
+    return res;
+  } catch (e) {
+    setStatus(`导出失败：${e.message}`);
+    throw e;
+  } finally {
+    exportBtn.disabled = false;
+  }
+}
+exportBtn.addEventListener('click', () => { doExport().catch(() => {}); });
+
 // --- resize / loop ----------------------------------------------------------
 function resize() {
   const w = stage.clientWidth || 1;
@@ -539,7 +583,28 @@ window.__GALLERY_API = {
   select: (id) => selectItem(id),
   setParams: (p) => { for (const [k, v] of Object.entries(p)) params[k] = v; rebuild(); renderParams(); return { ...params }; },
   rotate: (az, el, distMul) => { orbitTo(az ?? 35, el ?? 18, distMul ?? 1); return camera.position.toArray(); },
+  view: (pos, target) => {
+    camera.position.set(pos[0], pos[1], pos[2]);
+    controls.target.set(target[0], target[1], target[2]);
+    controls.update();
+    scheduleRender();
+    return camera.position.toArray();
+  },
+  anchor: (name) => {
+    const a = currentObj && currentObj.userData.anchors && currentObj.userData.anchors[name];
+    if (!a) return null;
+    currentObj.updateMatrixWorld(true);
+    return currentObj.localToWorld(a.clone()).toArray();
+  },
   snapshot: () => snapshot(),
+  export: () => doExport(),
+  verifyExport: (url) => measureGlb(url),
+  bbox: () => {
+    if (!currentObj) return null;
+    const box = new THREE.Box3().setFromObject(currentObj, true);
+    const s = box.getSize(new THREE.Vector3());
+    return { size: s.toArray(), min: box.min.toArray(), max: box.max.toArray() };
+  },
   metrics: () => ({ ...stats }),
   state: () => ({
     current: current ? current.id : null,

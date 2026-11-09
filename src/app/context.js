@@ -8,12 +8,13 @@ import { captureEnvironment } from '../core/lighting.js';
 //   ctx.services      renderer / scene / camera / pipeline handles for tooling
 // ---------------------------------------------------------------------------
 export function createContext({
-  renderer, scene, camera, L, G, ENV, sunDir, geom, rng, quality, sky, detail, film, placement, M, mat, layers, services,
+  renderer, scene, camera, L, G, ENV, sunDir, geom, rng, quality, sky, detail, film, placement, M, mat, layers, services, opts,
 }) {
   const updates = [];
   const modules = {};
   const ctx = {
     THREE, renderer, scene, camera, L, G, ENV, sunDir, geom, rng, quality, sky, detail, film, placement, M, mat, layers, services, modules,
+    opts: opts || {},
     onUpdate: (fn) => updates.push(fn),
     captureEnv: (pos, opts) => captureEnvironment(renderer, scene, new THREE.Vector3(...pos), opts),
   };

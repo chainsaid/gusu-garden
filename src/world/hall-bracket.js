@@ -38,7 +38,9 @@ function makito(red, gold, X, x, y, z, s = 0.15, h = 0.15, goldFace = true) {
 
 // 斗拱出跳制（清式踩数）：'qimai' 七踩 (3 出跳)、'sanmai' 三踩 (1 出跳)、'flat' 不出跳
 // opts.inter: 补间铺作（坐于荷叶墩之上，而非柱头）
+// opts.style: 'jiangnan' 时走江南牌科（短构件）分支；默认 undefined = 原组物做法
 export function bracketSet(acc, mats, X, type = 'qimai', opts = {}) {
+  if (opts.style === 'jiangnan') return bracketSetJiangnan(acc, mats, X, type, opts);
   const red = acc.m(mats.bkt || mats.red), gold = acc.m(mats.gold), redD = acc.m(mats.redDark), redA = acc.m(mats.redA || mats.red);
   const AH = 0.19, MH = 0.15; // arm height, makito height
   const steps = type === 'qimai' ? 3 : type === 'sanmai' ? 1 : 0;
@@ -91,13 +93,72 @@ export function bracketSet(acc, mats, X, type = 'qimai', opts = {}) {
   return y; // top height of the set (purlin bottom)
 }
 
+// 耍头 (projecting top member) crossing the outermost 令栱: plain run with a
+// short 批竹头 at the tip. Same level as the 令栱, through the 交互斗.
+function shuatou(red, X, x, y) {
+  cbox(red, mul(X, xf([x + 0.25, y + 0.08, 0])), 0.26, 0.08, 0.075, 0.006);
+  cbox(red, mul(X, xf([x + 0.51, y + 0.055, 0])), 0.055, 0.055, 0.06, 0.004);
+}
+
+// 江南牌科（对照用）：栌斗 + 短构件体系 泥道栱 / 瓜子栱 / 令栱（横栱）与
+// 华栱（出跳），每跳头置交互斗，最外跳加 令栱 + 出耍头；不再有贯通的通肘木。
+// 拱眼壁由墙面的 gongyanbi 填板承担（主厅原有，未改）。
+function bracketSetJiangnan(acc, mats, X, type, opts) {
+  const red = acc.m(mats.bkt || mats.red);
+  const gold = mats.gold ? acc.m(mats.gold) : red;
+  const AH = 0.19, MH = 0.15;
+  const steps = type === 'qimai' ? 3 : type === 'sanmai' ? 1 : 0;
+  const P = 0.44;
+  let y = 0.28;
+  red.tint = 0;
+  // 栌斗: broader than the 组物 大斗, same 皿板 taper
+  cbox(red, mul(X, xf([0, 0.14, 0])), 0.23, 0.14, 0.23, C, { taper: [0.78, 0.78] });
+  for (let s = 0; s <= steps; s++) {
+    const x = s * P;
+    // s=0 泥道栱 (in the 栌斗), intermediate 瓜子栱, last 令栱
+    const half = s === 0 || s === steps ? 0.46 : 0.34;
+    armZ(red, X, x, y, 0, half, AH, 0.13);
+    if (s < steps) {
+      // 华栱: short outward piece from the previous jump head to the next
+      armX(red, X, s === 0 ? -0.32 : s * P - 0.18, (s + 1) * P + 0.18, y, 0, AH, 0.14);
+    } else if (steps > 0) {
+      shuatou(red, X, x, y);
+    }
+    y += AH;
+    // 散斗 on the transverse arm ends, 交互斗 at the next jump head
+    makito(red, gold, X, x, y, -(half - 0.15), 0.15, MH, false);
+    makito(red, gold, X, x, y, half - 0.15, 0.15, MH, false);
+    if (s < steps) makito(red, gold, X, (s + 1) * P, y, 0, 0.15, MH);
+    y += MH;
+  }
+  return y;
+}
+
 // Continuous lateral members connecting bracket sets along a wall (toshi-肘木
 // / 手先桁). Called by the wall builder with world endpoints.
 // p0,p1: wall-line points at column-top height (y of p0/p1 = column top).
-export function bracketBeams(acc, mats, p0, p1, outward, type) {
+// style='jiangnan': only the 撩檐枋 above the outermost 令栱 (no continuous 通肘木).
+export function bracketBeams(acc, mats, p0, p1, outward, type, style) {
   const red = acc.m(mats.bkt || mats.red);
   const AH = 0.19, P = 0.44;
   const steps = type === 'qimai' ? 3 : type === 'sanmai' ? 1 : 0;
+  if (style === 'jiangnan') {
+    if (steps === 0) return;
+    // 撩檐枋: one continuous member at the outer jump, sitting on the 令栱 散斗
+    const off = steps * P;
+    const yc = 0.28 + (steps + 1) * 0.34 + 0.05;
+    const a = [p0[0] + outward[0] * off, p0[1] + yc, p0[2] + outward[2] * off];
+    const b = [p1[0] + outward[0] * off, p1[1] + yc, p1[2] + outward[2] * off];
+    const d = [b[0] - a[0], 0, b[2] - a[2]]; const L = Math.hypot(d[0], d[2]);
+    if (L < 0.3) return;
+    const ax = [d[0] / L, 0, d[2] / L];
+    const side = [-ax[2], 0, ax[0]];
+    const M = basis([(a[0] + b[0]) / 2, a[1], (a[2] + b[2]) / 2], ax, [0, 1, 0], side);
+    red.tint = 2;
+    cbox(red, M, L / 2, 0.05, 0.085, C);
+    red.tint = 1;
+    return;
+  }
   const levels = [];
   for (let s = 0; s < Math.max(1, steps); s++) levels.push([s * P, 0.6 + s * 0.34]);
   for (const [off, yb] of levels) {

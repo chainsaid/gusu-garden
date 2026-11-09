@@ -189,22 +189,35 @@ export function buildBamboo(ctx, parent) {
   const { culmMat, leafMat } = makeBambooMats(ctx);
   const R = ctx.rng ? ctx.rng('bamboo') : { range: (a, b) => a + Math.random() * (b - a), float: () => Math.random() };
 
+  // Corridor plinth exclusion (keep all walkways strictly clear of bamboo culms)
+  const isInsideCorridor = (x, z) => {
+    // North corridor: centerline z = -48, plinth ~[-50.2, -45.8]
+    if (x >= -54 && x <= 68 && Math.abs(z - (-48)) < 2.2) return true;
+    // South corridor: centerline z = 46, plinth ~[43.8, 48.2]
+    if (x >= -54 && x <= 68 && Math.abs(z - 46) < 2.2) return true;
+    // West corridor: centerline x = -52, plinth ~[-54.2, -49.8]
+    if (z >= -50 && z <= 48 && Math.abs(x - (-52)) < 2.2) return true;
+    // East corridor: centerline x = 66, plinth ~[63.8, 68.2]
+    if (z >= -50 && z <= 48 && Math.abs(x - 66) < 2.2) return true;
+    return false;
+  };
+
   // Grove clump locations:
-  // 1. Outside north corridor wall (behind leak windows)
-  // 2. Outside west corridor wall
-  // 3. Along east corridor and pavilion nook
+  // 1. Outside north corridor wall (behind leak windows, outside z < -50.2)
+  // 2. Outside west corridor wall (outside x < -54.2)
+  // 3. Along east pavilion and courtyard nooks
   // 4. Hall corners
   const clumps = [
-    // North corridor leak window backdrop
-    { x: 10, z: -48.5, radius: 4.5, count: 28 },
-    { x: -18, z: -48.5, radius: 3.5, count: 20 },
-    { x: 38, z: -48.5, radius: 4.0, count: 24 },
-    // West corridor
-    { x: -52.5, z: -15, radius: 3.8, count: 22 },
-    { x: -52.5, z: 12, radius: 4.0, count: 24 },
-    // East pavilion / corridor corner
-    { x: 55, z: 22, radius: 3.2, count: 18 },
-    { x: 65, z: 8, radius: 3.5, count: 20 },
+    // North corridor leak window backdrop (outdoors behind the white plaster wall)
+    { x: 10, z: -52.0, radius: 1.8, count: 28 },
+    { x: -18, z: -52.0, radius: 1.8, count: 20 },
+    { x: 38, z: -52.0, radius: 1.8, count: 24 },
+    // West corridor (outdoors behind the white plaster wall)
+    { x: -56.0, z: -15, radius: 1.8, count: 22 },
+    { x: -56.0, z: 12, radius: 1.8, count: 24 },
+    // East pavilion / courtyard rockery nook
+    { x: 55, z: 22, radius: 2.5, count: 18 },
+    { x: 61.5, z: 8, radius: 1.8, count: 20 },
     // Courtyard quiet corners flanking the hall
     { x: -14, z: -16, radius: 2.2, count: 12 },
     { x: 34, z: -16, radius: 2.2, count: 12 },
@@ -218,10 +231,15 @@ export function buildBamboo(ctx, parent) {
 
   for (const clump of clumps) {
     for (let i = 0; i < clump.count; i++) {
-      const ang = R.float() * TAU;
-      const dist = Math.sqrt(R.float()) * clump.radius;
-      const cx = clump.x + Math.cos(ang) * dist;
-      const cz = clump.z + Math.sin(ang) * dist;
+      let cx = 0, cz = 0, ok = false;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const ang = R.float() * TAU;
+        const dist = Math.sqrt(R.float()) * clump.radius;
+        cx = clump.x + Math.cos(ang) * dist;
+        cz = clump.z + Math.sin(ang) * dist;
+        if (!isInsideCorridor(cx, cz)) { ok = true; break; }
+      }
+      if (!ok) continue;
       const cy = 0; // ground level
 
       const caneH = R.range(4.5, 6.8);

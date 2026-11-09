@@ -4,7 +4,7 @@ import { createEnvironment } from '../core/environment.js';
 import { WIND_GLSL } from '../core/uniforms.js';
 import { createMaterialKit } from '../world/materials/kit.js';
 import { ATMOSPHERE } from '../data/atmosphere.js';
-import { readSunOverrides } from './runtime-config.js';
+import { readSunOverrides, readBracketStyle, readGualuoStyle, readEaveStyle, readCornerStyle, readMeikaoStyle } from './runtime-config.js';
 import { installAtmosphere } from '../core/fog.js';
 import { createSky } from '../core/sky.js';
 import { createSun, fitSunShadow, captureEnvironment } from '../core/lighting.js';
@@ -136,6 +136,7 @@ const { ctx, updates } = createContext({
   mat: MATS,
   layers: { noRefl: [] },
   services,
+  opts: { bracket: readBracketStyle(location.search), gualuo: readGualuoStyle(location.search), eave: readEaveStyle(location.search), corner: readCornerStyle(location.search), meikao: readMeikaoStyle(location.search) },
 });
 window.__services = ctx.services;
 

@@ -3,7 +3,7 @@
 // (楼门), bell tower (钟楼), two side halls. Fully procedural.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
-import { LB, m4, chamferBox, block, lathe, sweep, rectProfile, tileParams, makeLift, buildIx, hash3, extrude, lotusFinial, kibanaGeo, scrollPlate } from './buildings-kit.js';
+import { LB, m4, chamferBox, block, lathe, sweep, rectProfile, tileParams, makeLift, buildIx, hash3, extrude, lotusFinial, kibanaGeo, scrollPlate, liangtouGeo } from './buildings-kit.js';
 import { eaves, bracketSet, column, xieshanRoof, railing, loopPath, linePath } from './buildings-arch.js';
 import { buildCorridor } from './buildings-corridor.js';
 import { buildGate, buildBellPavilion, buildSideHall } from './buildings-halls.js';
@@ -184,15 +184,21 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
     // gold caps on beam ends
 
-    // carved 木鼻 ends with gold scroll plates
+    // carved 木鼻 ends with gold scroll plates (jiangnan: plain 梁头 + 雀替)
     for (const [px, pz, yaw] of [[sx * cx, sz * cz, sx > 0 ? 0 : Math.PI], [sx * cx, sz * cz, sz > 0 ? -Math.PI / 2 : Math.PI / 2]]) {
       const kb = lb.child(m4([px, yColTop - 0.27, pz], [0, yaw, 0]));
-      kb.add(kibanaGeo(0.4, 0.27, 0.14), K.red, m4([0.05, 0, 0]));
-      kb.add(scrollPlate(0.055), K.cap, m4([0.3, 0.27 * 0.5, 0.14 / 2 + 0.006]));
-      kb.add(scrollPlate(0.055), K.cap, m4([0.3, 0.27 * 0.5, -0.14 / 2 - 0.006], [0, Math.PI, 0]));
+      if (ctx.opts.bracket === 'jiangnan') {
+        kb.add(liangtouGeo(0.4, 0.27, 0.14), K.red, m4([0.02, 0, 0]));
+      } else {
+        kb.add(kibanaGeo(0.4, 0.27, 0.14), K.red, m4([0.05, 0, 0]));
+        kb.add(scrollPlate(0.055), K.cap, m4([0.3, 0.27 * 0.5, 0.14 / 2 + 0.006]));
+        kb.add(scrollPlate(0.055), K.cap, m4([0.3, 0.27 * 0.5, -0.14 / 2 - 0.006], [0, Math.PI, 0]));
+      }
     }
-    lb.box(K.cap, 0.012, 0.16, 0.27, [sx * (cx + 0.255), yPlate - 0.075, sz * cz], [0, 0, 0], 0.003);
-    lb.box(K.cap, 0.27, 0.16, 0.012, [sx * cx, yPlate - 0.075, sz * (cz + 0.255)], [0, 0, 0], 0.003);
+    if (ctx.opts.bracket !== 'jiangnan') {
+      lb.box(K.cap, 0.012, 0.16, 0.27, [sx * (cx + 0.255), yPlate - 0.075, sz * cz], [0, 0, 0], 0.003);
+      lb.box(K.cap, 0.27, 0.16, 0.012, [sx * cx, yPlate - 0.075, sz * (cz + 0.255)], [0, 0, 0], 0.003);
+    }
   }
   // 腰枋 on both faces + 栏间 lattice
   const yN0 = 3.02, yN1 = 3.2;
@@ -215,7 +221,7 @@ function buildPavilion(ctx, K, builder, ix, anchors) {
   for (let i = 0; i < zs.length - 1; i++) for (const s of [-1, 1]) ranma(zs[i] + colR, zs[i + 1] - colR, false, s * cx);
 
   // ---- bracket sets on the plate
-  const BS = { tiers: 3, proj: [0.45, 0.85], armH: 0.15, armW: 0.12, blockH: 0.12, daito: [0.34, 0.2], mak: [0.19, 0.12], wall: [0.9, 1.12, 1.32], inner: true, K: { wood: K.red, gold: K.red } };
+  const BS = { tiers: 3, proj: [0.45, 0.85], armH: 0.15, armW: 0.12, blockH: 0.12, daito: [0.34, 0.2], mak: [0.19, 0.12], wall: [0.9, 1.12, 1.32], inner: true, style: ctx.opts.bracket, K: { wood: K.red, gold: K.red } };
   const sides = [
     { pts: xs.map((x) => [x, cz]), yaw: 0 }, { pts: xs.map((x) => [x, -cz]), yaw: Math.PI },
     { pts: zs.map((z) => [cx, z]), yaw: Math.PI / 2 }, { pts: zs.map((z) => [-cx, z]), yaw: -Math.PI / 2 },

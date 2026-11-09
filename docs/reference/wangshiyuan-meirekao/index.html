@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>网师园美人靠 · 调研与选型</title>
+<style>
+  :root{
+    --paper:#f6f2e9;
+    --card:#fffdf8;
+    --ink:#2b2a26;
+    --muted:#6f6a60;
+    --line:#ddd4c4;
+    --wood:#8a5636;
+    --wood-soft:#c9a98c;
+    --green:#3f5b4b;
+    --red:#9c4a3c;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    line-height:1.75;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:48px 28px 72px}
+  header{border-bottom:1px solid var(--line);padding-bottom:26px;margin-bottom:34px}
+  .kicker{font-size:12px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase}
+  h1{
+    font-family:"Songti SC","Noto Serif SC","SimSun",serif;
+    font-size:clamp(30px,4vw,44px);
+    line-height:1.25;margin:10px 0 12px;font-weight:600;letter-spacing:.02em;
+  }
+  .sub{color:var(--muted);font-size:15px;margin:0}
+  .lede{
+    margin-top:22px;padding:20px 22px;background:var(--card);
+    border-left:4px solid var(--wood);border-radius:0 6px 6px 0;
+    font-size:16px;
+  }
+  .lede strong{color:var(--red)}
+  h2{
+    font-family:"Songti SC","Noto Serif SC","SimSun",serif;
+    font-size:26px;margin:54px 0 8px;font-weight:600;
+  }
+  h2 .num{color:var(--wood-soft);font-size:18px;margin-right:8px;font-family:inherit}
+  .h2note{color:var(--muted);font-size:14px;margin:0 0 22px}
+  h3{font-size:19px;margin:0 0 6px;font-weight:600}
+  p{margin:10px 0}
+  .muted{color:var(--muted)}
+  .grid{display:grid;gap:22px}
+  .grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .card{
+    background:var(--card);border:1px solid var(--line);border-radius:8px;
+    overflow:hidden;
+  }
+  .card .pad{padding:18px 20px 22px}
+  .card img{display:block;width:100%;height:auto;background:#e9e2d5}
+  figure{margin:0}
+  figcaption{font-size:13px;color:var(--muted);padding:10px 14px;border-top:1px solid var(--line)}
+  .tag{
+    display:inline-block;font-size:12px;padding:2px 9px;border-radius:999px;
+    background:#eee7d9;color:var(--wood);margin-right:6px;white-space:nowrap;
+  }
+  .tag.green{background:#e5ece8;color:var(--green)}
+  .tag.red{background:#f2e5e1;color:var(--red)}
+  ul{margin:8px 0 0;padding-left:20px}
+  li{margin:5px 0}
+  table{width:100%;border-collapse:collapse;background:var(--card);font-size:15px}
+  th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line)}
+  th{background:#efe8da;font-weight:600;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  .scheme{position:relative;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:22px 22px 20px}
+  .scheme.primary{border-color:var(--wood);box-shadow:0 8px 24px rgba(138,86,54,.08)}
+  .scheme .pick{
+    position:absolute;top:-12px;right:16px;background:var(--wood);color:#fff;
+    font-size:12px;padding:3px 10px;border-radius:999px;letter-spacing:.04em;
+  }
+  .scheme h3{color:var(--wood)}
+  .scheme .one{font-size:15px;color:var(--green);margin:6px 0 10px}
+  .scheme .where{font-size:13px;color:var(--muted);border-top:1px dashed var(--line);margin-top:14px;padding-top:10px}
+  .checklist{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:18px 22px}
+  .checklist li{margin:7px 0}
+  footer{margin-top:60px;border-top:1px solid var(--line);padding-top:20px;font-size:13px;color:var(--muted)}
+  footer a{color:var(--wood);text-decoration:none;border-bottom:1px dotted var(--wood-soft)}
+  .note{font-size:13px;color:var(--muted);margin-top:10px}
+  @media (max-width:860px){
+    .grid.two,.grid.three{grid-template-columns:1fr}
+    .wrap{padding:32px 18px 56px}
+    th,td{padding:10px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">GUSU GARDEN · REFERENCE</div>
+  <h1>网师园美人靠<br>调研与选型</h1>
+  <p class="sub">2026-11-07 · 只看网师园的亭、轩、榭、廊 · 本轮不改代码</p>
+</header>
+
+<div class="lede">
+  <strong>一句话结论：</strong>网师园能确认有美人靠的是<strong>月到风来亭、竹外一枝轩、半山亭</strong>三处。濯缨水阁临水一面是木坐槛栏杆，算同类做法但资料没直接写“美人靠”。射鸭廊、小山丛桂轩、看松读画轩、殿春簃／冷泉亭没有查到，按“没有”处理。
+</div>
+
+<h2><span class="num">01</span>三处确认的实例</h2>
+<p class="h2note">下面三张都是实拍。图片来自 Wikimedia Commons，作者 Caitriana Nicholson，CC BY-SA 2.0。</p>
+
+<div class="grid three">
+  <div class="card">
+    <figure>
+      <img src="images/01_yuedao_ting.jpg" alt="月到风来亭全景">
+      <figcaption>月到风来亭：六角攒尖，三面临水。亭内临水一侧设鹅颈靠（包几面待现场数），坐面下是水磨砖矮墙。</figcaption>
+    </figure>
+    <div class="pad">
+      <span class="tag red">亭子周边</span><span class="tag">砖石坐槛</span>
+      <ul>
+        <li>靠背是“通长顶枋 + 格条芯”，不是整片弯板。</li>
+        <li>每段止于柱，柱位就是分段位置。</li>
+        <li>坐面和成人膝高差不多。</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <figure>
+      <img src="images/02_zhuwai_yizhi_xuan.jpg" alt="竹外一枝轩临水立面">
+      <figcaption>竹外一枝轩：卷棚硬山，东西狭长三间。临水面设吴王靠坐槛，导游词称“鹅项形短栏”。</figcaption>
+    </figure>
+    <div class="pad">
+      <span class="tag green">直廊首选参照</span><span class="tag">万字格</span>
+      <ul>
+        <li>坐板压在石基上，端头抱柱。</li>
+        <li>坐面高度和廊子现有坐槛几乎一样。</li>
+        <li>只多了一段外倾靠背，改动最小。</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <figure>
+      <img src="images/03_zhuoying_shuige.jpg" alt="濯缨水阁临水木栏">
+      <figcaption>濯缨水阁：卷棚歇山，三面墙、一面木栏。临水一面是木坐槛栏杆，有人坐着倚靠。</figcaption>
+    </figure>
+    <div class="pad">
+      <span class="tag">水榭临水</span><span class="tag red">用词待确认</span>
+      <ul>
+        <li>照片里可坐可倚，形态与美人靠同类。</li>
+        <li>正式资料只写“木栏杆”，没写“美人靠”。</li>
+        <li>引用时说“木坐槛栏杆”更稳。</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<h2><span class="num">02</span>靠背的细节</h2>
+<p class="h2note">三张局部放大图都是原图裁切，不是自绘示意图。</p>
+
+<div class="grid three">
+  <figure class="card">
+    <img src="images/04_yuedao_rail_detail.jpg" alt="月到风来亭靠背局部">
+    <figcaption>月到风来亭：顶枋、格条芯、坐面与砖砌矮墙的关系。</figcaption>
+  </figure>
+  <figure class="card">
+    <img src="images/05_zhuwai_rail_detail.jpg" alt="竹外一枝轩靠背局部">
+    <figcaption>竹外一枝轩：万字／宫式万川格芯，端头止于深色木柱。</figcaption>
+  </figure>
+  <figure class="card">
+    <img src="images/06_zhuoying_rail_detail.jpg" alt="濯缨水阁木栏局部">
+    <figcaption>濯缨水阁：木坐槛与格条靠背，后面是白墙和窗。</figcaption>
+  </figure>
+</div>
+
+<h2><span class="num">03</span>网师园的共同做法</h2>
+<table>
+  <tr><th>事项</th><th>看到的样子</th><th>可信度</th></tr>
+  <tr>
+    <td>坐面高度</td>
+    <td>约 0.42–0.45 m，和成人膝高相当</td>
+    <td>照片判断 + 通行做法，非实测</td>
+  </tr>
+  <tr>
+    <td>坐面进深</td>
+    <td>约 0.35–0.45 m</td>
+    <td>通行做法，非实测</td>
+  </tr>
+  <tr>
+    <td>靠背形态</td>
+    <td>框架 + 格条芯；上枋／中枋／下枋 + 边梃，顶枋兼扶手；边梃做鹅颈形，整体向外倾</td>
+    <td>园林局文字 + 照片；边梃细节来自木作资料，不是网师园测绘</td>
+  </tr>
+  <tr>
+    <td>后仰角度</td>
+    <td>资料只写“向外倾斜而微微弯曲”；木作常见 10–15°</td>
+    <td>有文字描述，无实测角度</td>
+  </tr>
+  <tr>
+    <td>下部</td>
+    <td>月到风来亭：水磨砖矮墙 + 木坐板；竹外一枝轩／濯缨水阁：木坐槛压在石／砖基上；照片里没有悬空雕花牙板</td>
+    <td>照片 + 资料</td>
+  </tr>
+  <tr>
+    <td>与柱交接</td>
+    <td>边框两端底部开浅榫与坐板结合；两端箍头用铜／铁搭钩系柱</td>
+    <td>苏州市园林局原文</td>
+  </tr>
+  <tr>
+    <td>转角</td>
+    <td>按开间分段，端头止于柱；亭子转角由角柱断开，不做整圈连续弯木；顶枋是否绕柱做弯头，照片看不清</td>
+    <td>照片 + 推断，需现场复核</td>
+  </tr>
+</table>
+
+<h2><span class="num">04</span>和本项目廊子的差别</h2>
+<p class="h2note">现有坐槛在 <a href="../../../src/world/buildings-corridor.js" style="color:var(--wood)">buildings-corridor.js</a> 的 <code>body()</code> 里（第 49–56 行）：下枋 + 直棂 + 上枋，上枋顶面约高出廊地面 0.47 m。</p>
+<table>
+  <tr><th></th><th>本项目廊子</th><th>网师园美人靠</th></tr>
+  <tr><td>总高</td><td>约 0.47 m（只有坐面）</td><td>约 0.85–0.9 m（坐面 + 靠背）</td></tr>
+  <tr><td>靠背</td><td>没有</td><td>外倾格条，顶枋兼扶手</td></tr>
+  <tr><td>格芯</td><td>直棂</td><td>万字／竖棂</td></tr>
+  <tr><td>下部</td><td>直棂 + 上下枋，直接坐在台明上</td><td>坐板 + 水磨砖矮墙，或木坐槛</td></tr>
+  <tr><td>柱交接</td><td>通长到柱边</td><td>端头抱柱 + 铁钩</td></tr>
+  <tr><td>用法</td><td>可坐、可挡</td><td>可坐、可倚</td></tr>
+</table>
+<p class="note">差别不在“有没有栏杆”，而在靠背：现有廊子做到坐面就停了，人只能坐、不能靠。</p>
+
+<h2><span class="num">05</span>三个可照做的方案</h2>
+
+<div class="grid three">
+  <div class="scheme primary">
+    <span class="pick">直廊推荐</span>
+    <h3>方案一 · 竹外一枝轩式</h3>
+    <p class="one">保留现在的坐槛，只在上面加一段外倾的万字靠背。</p>
+    <p><strong>适合：</strong>直廊、长廊的临水／临园一侧。</p>
+    <ul>
+      <li>坐面不动（约 0.47 m）</li>
+      <li>靠背顶 0.85–0.9 m，自身高 0.38–0.43 m</li>
+      <li>外倾 10–12°，宫式万川或竖芯</li>
+      <li>端头抱柱，改动最小</li>
+    </ul>
+    <p class="where">不要照搬：白墙、石基座。</p>
+  </div>
+
+  <div class="scheme">
+    <h3>方案二 · 月到风来亭式</h3>
+    <p class="one">坐面下做砖石矮墙，上面铺木坐板，再加格条靠背。</p>
+    <p><strong>适合：</strong>临水亭、水榭、池岸节点。</p>
+    <ul>
+      <li>矮墙到 0.45 m，坐板面 0.45 m</li>
+      <li>靠背顶 0.85–0.9 m</li>
+      <li>下部实，防溅水，临水更稳</li>
+      <li>亭子里按开间绕一圈最自然</li>
+    </ul>
+    <p class="where">不要照搬：轻巧直廊别做砖墙，会显得重。</p>
+  </div>
+
+  <div class="scheme">
+    <h3>方案三 · 半山亭式</h3>
+    <p class="one">按开间分段，角柱收头，万字格，不做整圈弯木。</p>
+    <p><strong>适合：</strong>亭子周边、转角、L 形连接处。</p>
+    <ul>
+      <li>转角两段各自抱柱</li>
+      <li>端头做鹅颈边梃，不做通长弯木</li>
+      <li>施工和建模都简单，转角不会“接不上”</li>
+      <li>半山亭就是西、南两面开敞、角柱收头的实例</li>
+    </ul>
+    <p class="where">注意：半山亭尺寸来自百科，未实测。</p>
+  </div>
+</div>
+
+<h2><span class="num">06</span>如果去现场，量这几项</h2>
+<div class="checklist">
+  <ul>
+    <li>坐面高：从地面到坐板面。</li>
+    <li>坐面深。</li>
+    <li>靠背顶高、靠背自身高。</li>
+    <li>靠背外倾角度、顶枋挑出坐面的距离。</li>
+    <li>坐面下是砖墙、木坐槛，还是牙板。</li>
+    <li>端头与柱的连接：榫、铁钩、抱柱，还是钉。</li>
+    <li>转角：顶枋是否绕柱、有没有弯头、两段是否共用一个边梃。</li>
+    <li>亭子里美人靠包了几面（月到风来亭重点数）。</li>
+  </ul>
+</div>
+
+<footer>
+  <p><strong>还没确认的：</strong>月到风来亭“六角／八角”的官方表述冲突；濯缨水阁是否正式叫“美人靠”；坐面／靠背实测尺寸、后仰角度、转角弯头做法；半山亭尺寸来自百科，未实测。</p>
+  <p><strong>图片来源：</strong>Wikimedia Commons，Caitriana Nicholson，CC BY-SA 2.0；04–06 为 01–03 的裁切派生件，沿用同许可。半山亭照片版权归原作者，仅作外部线索，未复制入项目。</p>
+  <p><strong>主要来源：</strong>
+    <a href="http://ylj.suzhou.gov.cn/szsylj/ylwh/201903/e2e2a80479bf46b7977a8c6ece126555.shtml">苏州市园林局《建筑》</a> ·
+    <a href="http://ylj.suzhou.gov.cn/szsylj/ylwh/201604/2da9997763b849988b5e13ae39e9eb8c.shtml">《月到风来亭》</a> ·
+    <a href="http://ylj.suzhou.gov.cn/szsylj/ylwh/201910/8d1ba447c384458aac82fbe091288b58.shtml">《竹外一枝轩》</a> ·
+    <a href="http://lingdaowang.com/guidewordinfo/104">网师园导游词</a> ·
+    <a href="http://news.qq.com/rain/a/20211214A05EDP00">南方周末《网师园：凡物皆有可观》</a> ·
+    <a href="https://www.bilibili.com/opus/957712853040627747">哔哩哔哩《一文读懂中国古典园林细节之美》</a>
+  </p>
+  <p>详细说明见同目录 <a href="README.md">README.md</a>。</p>
+</footer>
+
+</div>
+</body>
+</html>

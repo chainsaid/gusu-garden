@@ -55,6 +55,8 @@
   .row button:disabled { opacity: 0.4; cursor: default; }
   #note { margin-top: 10px; font-size: 10px; color: #7f9398; line-height: 1.6; }
   #status { margin-top: 8px; font-size: 10px; color: #5fd193; min-height: 14px; }
+  #exportInfo { margin-top: 6px; font-size: 10px; color: #8fa3a8; line-height: 1.6; word-break: break-all; }
+  #exportInfo a { color: #8fd6c0; }
   #stageMsg {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     background: rgba(20,26,29,0.92); border: 1px solid rgba(255,255,255,0.16);
@@ -82,10 +84,12 @@
       <div id="params"></div>
       <div class="row">
         <button id="save" disabled>存成图片</button>
+        <button id="export" disabled>导出 GLB</button>
         <button id="reset" class="ghost">重置视角</button>
       </div>
       <div id="note"></div>
       <div id="status"></div>
+      <div id="exportInfo" hidden></div>
     </div>
   </main>
 </div>

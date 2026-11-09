@@ -135,6 +135,29 @@ export const GALLERY_GROUPS = [
     },
   },
   {
+    id: 'corridor',
+    title: '游廊',
+    subtitle: '直廊 / 曲廊',
+    item: {
+      id: 'corridor-run',
+      title: '游廊',
+      status: STATUS.ADAPT,
+      note: '对照样板：现状=一段直廊（与环池廊同尺寸的做法，坐槛+白墙漏窗）；江南化=沿折线转折、临水侧改美人靠（外挑坐板+鹅颈弧形靠背），首间保留一小段直棂做对照。成片里的环池廊仍按原样，本样板不改动成片。',
+      offline: {
+        builder: 'corridorRun',
+        params: [
+          { key: 'form', label: '形制', kind: 'select', value: 'current', options: [['current', '现状（直廊）'], ['jiangnan', '江南化（曲廊）']] },
+          { key: 'rail', label: '栏杆样式', kind: 'select', value: 'meirenkao', options: [['zhiling', '直棂'], ['meirenkao', '美人靠']] },
+          { key: 'lattice', label: '格心纹样', kind: 'select', value: 'wanzi', options: [['wanzi', '万字纹'], ['binglie', '冰裂纹'], ['zhiling', '直棂']] },
+          { key: 'turn', label: '转折角', kind: 'range', min: -45, max: 45, step: 5, value: 30 },
+          { key: 'bayLen', label: '段长（开间）', kind: 'range', min: 2.4, max: 4.8, step: 0.1, value: 3.6 },
+          { key: 'levels', label: '高差', kind: 'toggle', value: false },
+        ],
+      },
+      web: { node: 'corridor', params: [] },
+    },
+  },
+  {
     id: 'water',
     title: '水面',
     subtitle: '池面 / 倒影',

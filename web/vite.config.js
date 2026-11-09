@@ -1,6 +1,9 @@
 import { defineConfig } from 'vite';
+import { fileURLToPath } from 'node:url';
+import galleryExport from '../tools/gallery-export-plugin.mjs';
 
 export default defineConfig({
+  plugins: [galleryExport(fileURLToPath(new URL('../exports/gallery', import.meta.url)))],
   root: '.',
   publicDir: 'public',
   server: {

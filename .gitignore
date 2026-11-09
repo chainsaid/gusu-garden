@@ -6,6 +6,9 @@ out/
 shots/
 *.log
 
+# gallery exports (generated GLB + spec, served by the dev endpoint)
+exports/
+
 # third-party reference images (not redistributable)
 ref/
 
@@ -53,3 +56,7 @@ desktop.ini
 
 # local share packages (not source)
 .trae-html-share-packages/
+
+# python cache
+__pycache__/
+*.pyc

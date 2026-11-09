@@ -127,6 +127,13 @@
       THREE, scene, L, G, ENV, sunDir, geom, rng, quality: 'realtime', detail: DETAIL,
       M: KIT.materials(),
       mat: KIT,
+      opts: {
+        bracket: 'tokyo',
+        gualuo: 'h10',
+        eave: 'jiangnan',
+        corner: 'jiangnan',
+        meikao: 'mount',
+      },
       onUpdate: () => {},
       captureEnv: () => {},
       modules: {},
@@ -214,6 +221,14 @@
         if (/pushou|ring|metal|iron|铺首|门环|铁件/i.test(combined)) return MAT_MAP.castIron;
         if (/menzan|gold|gilt|门簪/i.test(combined)) return MAT_MAP.pearlGold;
         if (/black|dark|doorleaf|黑漆|门扇/i.test(combined)) return MAT_MAP.woodDark;
+        return MAT_MAP.woodChestnut;
+      }
+
+      // 5.5 美人靠构件 (吴王靠 / 飞来椅)
+      if (combined.includes('meikao')) {
+        if (/wall/i.test(combined)) return MAT_MAP.plasterWhite;
+        if (/cap|stone/i.test(combined)) return MAT_MAP.stoneCyan;
+        if (/foot|metal|base/i.test(combined) && !/base-rail/i.test(combined)) return MAT_MAP.castIron;
         return MAT_MAP.woodChestnut;
       }
 

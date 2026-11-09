@@ -184,7 +184,7 @@ export function kibanaGeo(L, H, W) {
     return extrude(s, W, Math.min(0.01, W * 0.08), null, 6);
   });
 }
-// gold scroll plate for the 木鼻 side (spiral lines approximated by a ring + tail)
+// 金卷 (gold scroll plate) — 日式木鼻配件；江南对照路径不用
 export function scrollPlate(R) {
   return cached(`scr${R}`, () => {
     const parts = [];
@@ -192,6 +192,23 @@ export function scrollPlate(R) {
     parts.push(ni(new THREE.TorusGeometry(R * 0.55, R * 0.12, 4, 14, Math.PI * 1.4).rotateZ(1.2)));
     parts.push(ni(new THREE.SphereGeometry(R * 0.22, 8, 5)));
     return mergeGeometries(parts);
+  });
+}
+
+// 江南梁头 + 雀替（对照用）：素平梁头出挑，梁下贴柱起卷的雀替。
+// 原点在柱面梁底中心，沿 +x 出挑；总高仍取原木鼻的 H。
+export function liangtouGeo(L = 0.4, H = 0.27, W = 0.14) {
+  return cached(`lt${L},${H},${W}`, () => {
+    const head = ni(chamferBox(L, H, W, 0.012).clone().translate(L / 2, H / 2, 0));
+    // 梁头端部略收（卷杀意）
+    const tip = ni(chamferBox(0.07, H - 0.028, W - 0.02, 0.008).clone().translate(L - 0.004, H / 2, 0));
+    // 雀替：贴柱一侧的曲线下缘
+    const P = [
+      [0.004, -0.004], [L * 0.94, -0.004], [L * 0.92, -0.03],
+      [L * 0.66, -0.085], [L * 0.40, -0.145], [L * 0.18, -0.185], [0.02, -0.2],
+    ];
+    const corbel = ni(extrude(P, W * 0.94, Math.min(0.008, W * 0.06), `ch${L},${H},${W}`, 4));
+    return mergeGeometries([head, tip, corbel], false);
   });
 }
 

@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { LB, m4, beamM, chamferBox, block, lathe, lotusFinial, sweep, rectProfile, roundProfile, tileParams, tileCapGeos, makeLift, extrude, hash3, armGeo, ni, kibanaGeo, scrollPlate } from './buildings-kit.js';
+import { LB, m4, beamM, chamferBox, block, lathe, lotusFinial, sweep, rectProfile, roundProfile, tileParams, tileCapGeos, makeLift, extrude, hash3, armGeo, ni, kibanaGeo, scrollPlate, liangtouGeo } from './buildings-kit.js';
 import { eaves, bracketSet, column, xieshanRoof, railing, loopPath, linePath, ridgeProfile } from './buildings-arch.js';
 
 const V3 = THREE.Vector3;
@@ -94,12 +94,16 @@ export function hallBuilding(lb, K, S, detail) {
   }
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
 
-    // carved 木鼻 ends with gold scroll plates
+    // carved 木鼻 ends with gold scroll plates (jiangnan: plain 梁头 + 雀替)
     for (const [px, pz, yaw] of [[sx * cx, sz * cz, sx > 0 ? 0 : Math.PI], [sx * cx, sz * cz, sz > 0 ? -Math.PI / 2 : Math.PI / 2]]) {
       const kb = lb.child(m4([px, yct - knH, pz], [0, yaw, 0]));
-      kb.add(kibanaGeo(0.4, knH, 0.14), K.red, m4([0.05, 0, 0]));
-      kb.add(scrollPlate(0.055), K.cap, m4([0.3, knH * 0.5, 0.14 / 2 + 0.006]));
-      kb.add(scrollPlate(0.055), K.cap, m4([0.3, knH * 0.5, -0.14 / 2 - 0.006], [0, Math.PI, 0]));
+      if (S.BS && S.BS.style === 'jiangnan') {
+        kb.add(liangtouGeo(0.4, knH, 0.14), K.red, m4([0.02, 0, 0]));
+      } else {
+        kb.add(kibanaGeo(0.4, knH, 0.14), K.red, m4([0.05, 0, 0]));
+        kb.add(scrollPlate(0.055), K.cap, m4([0.3, knH * 0.5, 0.14 / 2 + 0.006]));
+        kb.add(scrollPlate(0.055), K.cap, m4([0.3, knH * 0.5, -0.14 / 2 - 0.006], [0, Math.PI, 0]));
+      }
     }
   }
   // walls per bay (side frames: front +z, back -z, right +x, left -x)
@@ -608,7 +612,7 @@ export function buildBellPavilion(ctx, K, lb, anchors, toW) {
   const H = hallBuilding(lb, K, {
     xs: [-1.95, 1.95], zs: [-1.95, 1.95], colR: 0.22, y0: yF, yct: yF + 4.1, knH: 0.26,
     walls: () => 'open', soseki: true,
-    BS: { tiers: 3, proj: [0.42, 0.8], armH: 0.14, armW: 0.12, blockH: 0.11, daito: [0.34, 0.19], mak: [0.18, 0.11], wall: [0.85, 1.05, 1.25], inner: true, K: { wood: K.red, gold: K.red } },
+    BS: { tiers: 3, proj: [0.42, 0.8], armH: 0.14, armW: 0.12, blockH: 0.11, daito: [0.34, 0.19], mak: [0.18, 0.11], wall: [0.85, 1.05, 1.25], inner: true, style: ctx.opts.bracket, K: { wood: K.red, gold: K.red } },
     ov: 1.9, liftL: 0.45, roofRise: 2.7, gd: 1.7, ovG: 0.5, tileP: 0.26, tileDetail: 1, lo: true,
     ridge: { w: 0.56, h: 0.5, layers: 5, capR: 0.1, drop: 0.4 }, hip: { w: 0.3, h: 0.3, layers: 3, capR: 0.07, drop: 0.2 }, chiwen: { s: 0.8 }, xuanyu: 0.55, hafuH: 0.34,
     ceiling: true, ceilingMat: K.ceilingBell,
@@ -804,7 +808,7 @@ export function buildSideHall(ctx, K, lb, anchors, toW, spec) {
       if (side === 'back') return i === 0 || i === n - 1 ? 'plaster' : 'window';
       return 'window';
     },
-    BS: { tiers: 3, proj: [0.42, 0.8], armH: 0.14, armW: 0.12, blockH: 0.11, daito: [0.32, 0.19], mak: [0.18, 0.11], wall: [0.85, 1.05, 1.2], inner: false, goldCaps: false, goldMak: false, goldDaito: false, K: { wood: K.red, gold: K.red } },
+    BS: { tiers: 3, proj: [0.42, 0.8], armH: 0.14, armW: 0.12, blockH: 0.11, daito: [0.32, 0.19], mak: [0.18, 0.11], wall: [0.85, 1.05, 1.2], inner: false, style: ctx.opts.bracket, goldCaps: false, goldMak: false, goldDaito: false, K: { wood: K.red, gold: K.red } },
     ov: 1.9, liftL: 0.42, roofRise: spec.w >= 13 ? 3.6 : 3.2, ovG: 0.6, tileP: 0.28, tileDetail: 1,
     chiwen: { s: 0.85 }, lo: true, gableLattice: true, infill: true,
   }, ctx.detail);

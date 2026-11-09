@@ -199,6 +199,7 @@ export function eaves(lb, E) {
 // returns total height
 // ---------------------------------------------------------------------------
 export function bracketSet(lb, frame, S) {
+  if (S.style === 'jiangnan') return bracketSetJiangnan(lb, frame, S);
   const K = S.K;
   const b = lb.child(frame);
   const aH = S.armH, aW = S.armW, bH = S.blockH;
@@ -250,6 +251,94 @@ export function bracketSet(lb, frame, S) {
         mak(pz * 0.72, pz * 0.72, y, true, Math.PI / 4);
       }
     }
+    y += bH;
+  }
+  return y;
+}
+
+// 江南牌科（对照用）：短构件 泥道栱 / 瓜子栱 / 令栱 + 华栱 出跳，跳头交互斗，
+// 最外跳加令栱并出耍头；转角为两向交叉泥道栱 + 两向及斜向华栱（角科）。
+// 与组物总高一致（proj 段数决定层数），屋檐与檩位不受影响。
+function bracketSetJiangnan(lb, frame, S) {
+  const K = S.K;
+  const b = lb.child(frame);
+  const aH = S.armH, aW = S.armW, bH = S.blockH;
+  const [dW, dH] = S.daito, [mW] = S.mak;
+  const lo = S.lo;
+  b.add(block(dW + 0.02, dH, dW + 0.02), K.wood);
+  let y = dH;
+  const proj = S.proj, n = proj.length;
+  const mak = (x, z, yy) => b.add(block(mW, bH, mW), K.wood, m4([x, yy, z]));
+  // transverse 栱: length L along x (or z when ry=PI/2), centred at (x,z)
+  const gong = (L, x, z, yy, ry = 0) => b.add(armGeo(L, aH, aW, lo), K.wood, m4([x, yy, z], [0, ry, 0]));
+  // radial member along ry (0 -> +z, PI/2 -> +x, PI/4 -> diagonal), from -L0 to +L1,
+  // shifted outward by z0; optional straight replacement (耍头) with explicit length/height
+  const out = (L0, L1, yy, ry = 0, z0 = 0, len = null, h = aH, w = aW) => {
+    const L = L0 + L1, mid = (L1 - L0) / 2;
+    const dx = Math.sin(ry), dz = Math.cos(ry);
+    b.add(chamferBox(len ?? L, h, w, lo ? 0 : 0.006), K.wood, m4([dx * (mid + z0), yy, dz * (mid + z0)], [0, ry - Math.PI / 2, 0]));
+  };
+  if (!S.corner) {
+    gong(0.95, 0, 0, y);                                     // 泥道栱
+    if (n > 0) out(0.12, proj[0] + 0.10, y);                 // 华栱
+    y += aH;
+    mak(-0.36, 0, y); mak(0.36, 0, y); if (n > 0) mak(0, proj[0], y);
+    y += bH;
+    for (let t = 1; t < n; t++) {
+      gong(0.66, 0, proj[t - 1], y);                         // 瓜子栱
+      out(0.10, proj[t] + 0.10, y);
+      y += aH;
+      mak(-0.27, proj[t - 1], y); mak(0.27, proj[t - 1], y); mak(0, proj[t], y);
+      y += bH;
+    }
+    if (n > 0) {
+      const zL = proj[n - 1];
+      gong(0.98, 0, zL, y);                                  // 令栱
+      out(0.10, 0.58, y, 0, zL, 0.70, aH * 0.8, aW * 0.8);   // 耍头
+      y += aH;
+      mak(-0.40, zL, y); mak(0.40, zL, y);
+      y += bH;
+    }
+    return y;
+  }
+  // ---------------- corner 角科
+  gong(0.55, -0.275, 0, y);                                  // 泥道栱 into -x
+  gong(0.55, 0, -0.275, y, Math.PI / 2);                     // 泥道栱 into -z
+  if (n > 0) {
+    out(0.12, proj[0] + 0.10, y, 0);
+    out(0.12, proj[0] + 0.10, y, Math.PI / 2);
+    out(0.10, proj[0] * Math.SQRT2 + 0.12, y, Math.PI / 4);
+  }
+  y += aH;
+  mak(-0.48, 0, y); mak(0, -0.48, y);
+  if (n > 0) {
+    mak(0, proj[0], y); mak(proj[0], 0, y);
+    const d = proj[0] * 0.707;
+    mak(d, d, y);
+  }
+  y += bH;
+  for (let t = 1; t < n; t++) {
+    gong(0.66, 0, proj[t - 1], y);
+    gong(0.66, proj[t - 1], 0, y, Math.PI / 2);
+    out(0.10, proj[t] + 0.10, y);
+    out(0.10, proj[t] + 0.10, y, Math.PI / 2);
+    out(0.10, proj[t] * Math.SQRT2 + 0.12, y, Math.PI / 4);
+    y += aH;
+    mak(-0.27, proj[t - 1], y); mak(0.27, proj[t - 1], y);
+    mak(proj[t - 1], -0.27, y); mak(proj[t - 1], 0.27, y);
+    mak(0, proj[t], y); mak(proj[t], 0, y);
+    const d = proj[t] * 0.707; mak(d, d, y);
+    y += bH;
+  }
+  if (n > 0) {
+    const zL = proj[n - 1];
+    gong(0.98, 0, zL, y);
+    gong(0.98, zL, 0, y, Math.PI / 2);
+    out(0.10, 0.58, y, 0, zL, 0.70, aH * 0.8, aW * 0.8);
+    out(0.10, 0.58, y, Math.PI / 2, zL, 0.70, aH * 0.8, aW * 0.8);
+    y += aH;
+    mak(-0.40, zL, y); mak(0.40, zL, y);
+    mak(zL, -0.40, y); mak(zL, 0.40, y);
     y += bH;
   }
   return y;
