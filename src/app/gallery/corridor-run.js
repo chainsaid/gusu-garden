@@ -10,7 +10,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import {
-  LB, m4, block, lathe, sweep, roofSurface, tileCapGeos, tileParams, sstep,
+  LB, m4, block, lathe, sweep, chamferBox, rectProfile, roofSurface, tileCapGeos, tileParams, sstep,
 } from '../../world/buildings-kit.js';
 import { rafterField, linePath, ridgeProfile } from '../../world/buildings-arch.js';
 import { Builder } from '../../core/geom.js';
@@ -427,26 +427,108 @@ export function buildCorridorRun(params, ctx) {
       column(lb.child(new THREE.Matrix4().makeTranslation(cx, 0, 0)), K);
     }
 
-    // ---- roof (extends across interior joints so the two legs meet cleanly)
-    const u0 = -ext0, u1 = L + ext1;
+    // ---- roof: authentic classical Jiangnan mitered joint at turns
+    const dYawNext = li < legs.length - 1 ? (legs[li + 1].yaw - leg.yaw) : 0;
+    const dYawPrev = li > 0 ? (leg.yaw - legs[li - 1].yaw) : 0;
+    const tNext = Math.tan(dYawNext / 2);
+    const tPrev = Math.tan(dYawPrev / 2);
+    const f = CW - TIP - 0.045;
+
+    // Outer edge (front, z = +f) and Inner edge (back, z = -f)
+    const xOuter0 = li === 0 ? 0 : -f * tPrev;
+    const xOuter1 = li === legs.length - 1 ? L : L + f * tNext;
+    const xInner0 = li === 0 ? 0 : +f * tPrev;
+    const xInner1 = li === legs.length - 1 ? L : L - f * tNext;
+
+    // Face 0: z in [0, CW], d = CW - z (d=0 at z=CW, d=CW at z=0)
+    const u0_f0 = Math.min(xOuter0, 0);
+    const u1_f0 = Math.max(xOuter1, L);
+    const dmin_f0 = (u) => {
+      let dm = 0;
+      if (tNext < 0 && u > L) dm = Math.max(dm, CW - (u - L) / tNext);
+      if (tPrev < 0 && u < 0) dm = Math.max(dm, CW + u / tPrev);
+      return Math.max(0, dm);
+    };
+    const dmax_f0 = (u) => {
+      let dm = CW;
+      if (tNext > 0 && u > L) dm = Math.min(dm, CW - (u - L) / tNext);
+      if (tPrev > 0 && u < 0) dm = Math.min(dm, CW + u / tPrev);
+      return Math.max(0, dm);
+    };
+
+    // Face 1: z in [-CW, 0], d = CW + z (d=0 at z=-CW, d=CW at z=0)
+    const u0_f1 = -Math.max(xInner1, L);
+    const u1_f1 = -Math.min(xInner0, 0);
+    const dmin_f1 = (u) => {
+      const x = -u;
+      let dm = 0;
+      if (tNext > 0 && x > L) dm = Math.max(dm, CW + (x - L) / tNext);
+      if (tPrev > 0 && x < 0) dm = Math.max(dm, CW - x / tPrev);
+      return Math.max(0, dm);
+    };
+    const dmax_f1 = (u) => {
+      const x = -u;
+      let dm = CW;
+      if (tNext < 0 && x > L) dm = Math.min(dm, CW + (x - L) / tNext);
+      if (tPrev < 0 && x < 0) dm = Math.min(dm, CW - x / tPrev);
+      return Math.max(0, dm);
+    };
+
     const faces = [
-      { O: [0, CW], a: [1, 0], n: [0, -1], u0, u1, dmax: () => CW },
-      { O: [0, -CW], a: [-1, 0], n: [0, 1], u0: -u1, u1: -u0, dmax: () => CW },
+      { O: [0, CW], a: [1, 0], n: [0, -1], u0: u0_f0, u1: u1_f0, dmin: dmin_f0, dmax: dmax_f0 },
+      { O: [0, -CW], a: [-1, 0], n: [0, 1], u0: u0_f1, u1: u1_f1, dmin: dmin_f1, dmax: dmax_f1 },
     ];
-    // 翼角起翘: lift the eave near each run end, strongest at the tile edge.
+
+    // 翼角起翘: strongest at the corridor ends, plus subtle corner lift
     const liftFn = (x, z) => {
-      const d0 = Math.max(0, x - u0);
-      const d1 = Math.max(0, u1 - x);
-      const t0 = d0 < 2.4 ? Math.pow(1 - d0 / 2.4, 2) : 0;
-      const t1 = d1 < 2.4 ? Math.pow(1 - d1 / 2.4, 2) : 0;
-      const t = Math.max(t0, t1);
+      let t = 0;
+      if (li === 0 && x < 2.4) t = Math.max(t, Math.pow(1 - Math.max(0, x) / 2.4, 2));
+      if (li === legs.length - 1 && x > L - 2.4) t = Math.max(t, Math.pow(1 - Math.max(0, L - x) / 2.4, 2));
       return 0.52 * t * Math.pow(Math.abs(z) / CW, 1.6);
     };
+
     roofPackage(lb, K, faces, T, detail, { rafSp: 0.26, lift: liftFn });
-    const f = CW - TIP - 0.045;
-    fascia(lb, K, [[u0, -f], [u1, -f]], [L / 2, 0], liftFn);
-    fascia(lb, K, [[u0, f], [u1, f]], [L / 2, 0], liftFn);
-    lb.add(sweep(linePath([Math.max(u0, 0), 0], [Math.min(u1, L), 0], () => RIDGE_Y - 0.02, 0.9), ridgeProfile(0.42, 0.36, 4, 0.08, 0.3)), K.tile);
+
+    // fascia ends meet at the exact miter point without crossing
+    fascia(lb, K, [[xInner0, -f], [xInner1, -f]], [L / 2, 0], liftFn);
+    fascia(lb, K, [[xOuter0, f], [xOuter1, f]], [L / 2, 0], liftFn);
+
+    // main ridge along the corridor run
+    lb.add(sweep(linePath([0, 0], [L, 0], () => RIDGE_Y - 0.02, 0.9), ridgeProfile(0.42, 0.36, 4, 0.08, 0.3)), K.tile);
+
+    // 戗脊 (hip ridge) & 天沟 (valley) at the miter joint
+    if (li < legs.length - 1 && Math.abs(dYawNext) > 1e-4) {
+      const hp = ridgeProfile(0.18, 0.12, 2, 0.03, 0.06);
+      if (dYawNext > 0) {
+        const qRidge = [L, 0];
+        const qCorner = [L + CW * tNext, CW];
+        lb.add(sweep(linePath(qRidge, qCorner, (x, z) => {
+          const d = CW - z;
+          return Y0 + prof(d) + liftFn(x, z) - 0.02;
+        }, 0.2), hp), K.tile);
+        const yCorner = Y0 + prof(0) + liftFn(qCorner[0], qCorner[1]);
+        
+        const vInner = [L - CW * tNext, -CW];
+        lb.add(sweep(linePath(vInner, [L, 0], (x, z) => {
+          const d = CW + z;
+          return Y0 + prof(d) - 0.035;
+        }, 0.25), rectProfile(0.16, 0.025)), K.black);
+      } else {
+        const qRidge = [L, 0];
+        const qCorner = [L + (-CW) * tNext, -CW];
+        lb.add(sweep(linePath(qRidge, qCorner, (x, z) => {
+          const d = CW + z;
+          return Y0 + prof(d) + liftFn(x, z) - 0.02;
+        }, 0.2), hp), K.tile);
+
+        const vInner = [L - (-CW) * tNext, CW];
+        lb.add(sweep(linePath(vInner, [L, 0], (x, z) => {
+          const d = CW - z;
+          return Y0 + prof(d) - 0.035;
+        }, 0.25), rectProfile(0.16, 0.025)), K.black);
+      }
+    }
+
     if (li === 0) gableEnd(lb, K, 0, liftFn);
     if (li === legs.length - 1) gableEnd(lb, K, L, liftFn);
 
