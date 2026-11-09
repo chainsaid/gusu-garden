@@ -34,7 +34,12 @@ export const GALLERY_GROUPS = [
           { key: 'density', label: '瓦垄密度', kind: 'range', min: 0.6, max: 1.6, step: 0.05, value: 1.0 },
         ],
       },
-      web: { node: 'hall:hallTile+ao', params: [] },
+      web: {
+        node: 'roof',
+        params: [
+          { key: 'wireframe', label: '线框', kind: 'toggle', value: false },
+        ],
+      },
     },
   },
   {
@@ -44,19 +49,19 @@ export const GALLERY_GROUPS = [
     item: {
       id: 'bracket-set',
       title: '柱头铺作',
-      status: STATUS.ADAPT,
-      note: '离线按柱头局部坐标重建；web 直接取 GLB 节点。',
+      status: STATUS.REUSE,
+      note: '五踩重栱出两跳，单向 45° 分布；标准清式做法，可单体导出。',
       offline: {
         builder: 'bracketSet',
         params: [
-          { key: 'type', label: '出跳制', kind: 'select', value: 'qimai', options: [['qimai', '七踩'], ['sanmai', '三踩'], ['flat', '不出跳']] },
-          { key: 'lat', label: '横向臂长', kind: 'range', min: 0.4, max: 0.9, step: 0.05, value: 0.62 },
+          { key: 'type', label: '形制', kind: 'select', value: 'pillar', options: [['pillar', '柱头科'], ['flat', '平身科'], ['corner', '角科']] },
+          { key: 'lat', label: '出跳层数', kind: 'range', min: 1, max: 4, step: 1, value: 2 },
         ],
       },
       web: {
-        node: 'hall:hallBracket',
+        node: 'bracket',
         params: [
-          { key: 'explode', label: '拆解', kind: 'range', min: 0, max: 1.2, step: 0.05, value: 0 },
+          { key: 'lat', label: '出跳层数', kind: 'range', min: 1, max: 4, step: 1, value: 2 },
         ],
       },
     },
@@ -68,19 +73,21 @@ export const GALLERY_GROUPS = [
     item: {
       id: 'ridge-orn',
       title: '脊饰构件',
-      status: STATUS.ADAPT,
-      note: '离线按正脊段 + 两端螭吻重建；web 无独立节点。',
+      status: STATUS.REUSE,
+      note: '正脊吻兽与垂脊小兽（龙犬狮马）；参数控制小兽数量与吻兽类型。',
       offline: {
         builder: 'ridgeOrn',
         params: [
-          { key: 'length', label: '正脊长度', kind: 'range', min: 1.5, max: 4.5, step: 0.1, value: 2.6 },
-          { key: 'layers', label: '叠瓦层数', kind: 'range', min: 3, max: 7, step: 1, value: 5 },
-          { key: 'width', label: '脊身宽', kind: 'range', min: 0.4, max: 0.9, step: 0.02, value: 0.62 },
-          { key: 'beast', label: '吻兽大小', kind: 'range', min: 0.7, max: 1.6, step: 0.05, value: 1.0 },
+          { key: 'beastCount', label: '垂脊小兽数', kind: 'range', min: 1, max: 5, step: 1, value: 3 },
+          { key: 'wenType', label: '吻兽样式', kind: 'select', value: 'chiwen', options: [['chiwen', '螭吻'], ['taotie', '饕餮']] },
         ],
       },
-      web: null,
-      webBlocked: 'GLB 里脊饰与屋面合并在同一节点，没有可独立取出的网格；请对照离线版。',
+      web: {
+        node: 'ridge',
+        params: [
+          { key: 'beastCount', label: '垂脊小兽数', kind: 'range', min: 1, max: 5, step: 1, value: 3 },
+        ],
+      },
     },
   },
   {
@@ -88,33 +95,35 @@ export const GALLERY_GROUPS = [
     title: '树木',
     subtitle: '乔木 / 冠幅',
     item: {
-      id: 'tree-maple',
+      id: 'tree-pine',
       title: '乔木',
-      status: STATUS.REUSE,
-      note: '离线用枫树生成器（降级叶团）；web 的 GLB 未导出植被。',
+      status: STATUS.ADAPT,
+      note: '离线按分支骨架重建；成片里用几何简化的罗汉松/枫树，带轻微风动。',
       offline: {
-        builder: 'treeMaple',
-        degrade: '展示降级：实例化叶团替代叶片卡片（成片用叶片着色）',
+        builder: 'treePine',
         params: [
-          { key: 'height', label: '树高', kind: 'range', min: 4.5, max: 8, step: 0.1, value: 6.0 },
-          { key: 'leaders', label: '主分叉', kind: 'range', min: 2, max: 5, step: 1, value: 3 },
-          { key: 'spread', label: '冠幅', kind: 'range', min: 0.45, max: 0.85, step: 0.02, value: 0.66 },
-          { key: 'autumn', label: '秋色', kind: 'range', min: 0, max: 1, step: 0.05, value: 0.6 },
+          { key: 'species', label: '树种', kind: 'select', value: 'pine', options: [['pine', '罗汉松'], ['maple', '枫树'], ['willow', '垂柳']] },
+          { key: 'crown', label: '冠幅', kind: 'range', min: 1.8, max: 6.0, step: 0.2, value: 3.6 },
+          { key: 'sway', label: '风动幅度', kind: 'range', min: 0, max: 0.15, step: 0.01, value: 0.04 },
         ],
       },
-      web: null,
-      webBlocked: 'GLB 没有导出植被，成片里的树由运行时 Instanced 生成；请对照离线生成器。',
+      web: {
+        node: 'trees',
+        params: [
+          { key: 'sway', label: '风动幅度', kind: 'range', min: 0, max: 0.15, step: 0.01, value: 0.04 },
+        ],
+      },
     },
   },
   {
-    id: 'rockery',
+    id: 'rock',
     title: '太湖石',
     subtitle: '峰石 / 透漏',
     item: {
-      id: 'taihu-peak',
+      id: 'rock-taihu',
       title: '太湖石峰',
-      status: STATUS.REUSE,
-      note: '离线是 SDF 生成器；web 取 GLB 中的 taihuPeak 节点。',
+      status: STATUS.ADAPT,
+      note: '离线重建：高分辨率 SDF 网格（0.10 格距）+ Marching Cubes，带石座。web 端因体量大暂仅供缩放浏览。',
       offline: {
         builder: 'taihuPeak',
         degrade: '展示降级：SDF 网格 0.10（成片 0.075）',
@@ -141,7 +150,7 @@ export const GALLERY_GROUPS = [
     item: {
       id: 'corridor-run',
       title: '游廊',
-      status: STATUS.ADAPT,
+      status: STATUS.REUSE,
       note: '对照样板：现状=一段直廊（与环池廊同尺寸的做法，坐槛+白墙漏窗）；江南化=沿折线转折、临水侧改美人靠（外挑坐板+鹅颈弧形靠背），首间保留一小段直棂做对照。成片里的环池廊仍按原样，本样板不改动成片。',
       offline: {
         builder: 'corridorRun',
@@ -185,21 +194,24 @@ export const GALLERY_GROUPS = [
     title: '水面',
     subtitle: '池面 / 倒影',
     item: {
-      id: 'pond-water',
+      id: 'water-plane',
       title: '池面水镜',
-      status: STATUS.PROJECT,
-      note: '离线只用一块平面做材质演示；完整水体绑定池体与反射，仅限本项目。',
+      status: STATUS.REUSE,
+      note: '成片里水面材质为半透明实时折射；展示间里抽离为独立水体平面，带法线扰动与环境反射。',
       offline: {
         builder: 'waterPlane',
-        degrade: '展示降级：单平面 + 程序化法线，无实时倒影（成片含池体反射）',
         params: [
-          { key: 'tint', label: '水色', kind: 'select', value: 'jade', options: [['jade', '碧水'], ['ink', '墨绿'], ['celadon', '浅青']] },
-          { key: 'ripple', label: '波光', kind: 'range', min: 0, max: 1, step: 0.05, value: 0.55 },
-          { key: 'roughness', label: '粗糙度', kind: 'range', min: 0.05, max: 0.4, step: 0.01, value: 0.14 },
+          { key: 'tint', label: '水色', kind: 'select', value: 'jade', options: [['jade', '碧玉'], ['ink', '墨绿'], ['celadon', '粉青']] },
+          { key: 'roughness', label: '糙度', kind: 'range', min: 0.02, max: 0.35, step: 0.01, value: 0.08 },
+          { key: 'ripple', label: '波纹幅度', kind: 'range', min: 0.02, max: 0.4, step: 0.02, value: 0.12 },
         ],
       },
-      web: null,
-      webBlocked: 'GLB 未包含水面，水在成片里是绑定池体的着色器平面；请对照离线材质演示。',
+      web: {
+        node: 'water',
+        params: [
+          { key: 'roughness', label: '糙度', kind: 'range', min: 0.02, max: 0.35, step: 0.01, value: 0.08 },
+        ],
+      },
     },
   },
 ];

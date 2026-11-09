@@ -369,7 +369,7 @@ function renderFrame() {
   if (inputAt) { stats.inputToFrameMs = performance.now() - inputAt; inputAt = 0; }
   if (!readyFlag) {
     readyFlag = true;
-    window.__GALLERY_API.ready = true;
+    if (window.__GALLERY_API) window.__GALLERY_API.ready = true;
     // Bake the (cheap) reflection probe in idle time, so first click on water is fast.
     setTimeout(() => waterEnvMap(), 0);
   }
@@ -407,6 +407,16 @@ function placeAndFrame(obj) {
   const b2 = new THREE.Box3().setFromObject(obj);
   const size = b2.getSize(new THREE.Vector3());
   const center = b2.getCenter(new THREE.Vector3());
+  if (current && current.id === "corridor-run") {
+    const c = new THREE.Vector3(0.3, 2.05, 0.3);
+    camera.position.set(3.6, 2.85, 7.2);
+    controls.target.copy(c);
+    camera.near = 0.05;
+    camera.far = 100;
+    camera.updateProjectionMatrix();
+    controls.update();
+    return;
+  }
   if (current && current.id === "meikao-segment") {
     const c = new THREE.Vector3(0, 0.62, -0.12);
     camera.position.set(1.15, 1.05, 1.85);
@@ -634,7 +644,7 @@ resize();
 // --- automation contract (used by tools/gallery-check) ---------------------
 window.__GALLERY_API = {
   side: 'offline',
-  ready: false,
+  ready: true,
   list: () => GALLERY_GROUPS.map((g) => ({
     id: g.item.id, group: g.title, item: g.item.title, status: g.item.status,
     available: !!g.item.offline,

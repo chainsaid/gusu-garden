@@ -375,7 +375,7 @@ export function buildCorridorRun(params, ctx) {
       const gh = (gl.userData?.meta?.size?.height ?? 527.6) / 1000;
       gl.position.set(
         leg.start[0] + c * bx + s * bz,
-        leg.y + Y_COLTOP - 0.11 - gh / 2,
+        leg.y + Y_COLTOP - 0.22 - gh / 2,
         leg.start[1] - s * bx + c * bz
       );
       gl.rotation.y = leg.yaw;
@@ -426,7 +426,7 @@ export function buildCorridorRun(params, ctx) {
     // 翼角起翘: lift the eave near each run end, strongest at the tile edge.
     const liftFn = (x, z) => {
       const t = Math.max(sstep(0, 2.4, x), sstep(0, 2.4, L - x));
-      return 0.38 * t * Math.pow(Math.abs(z) / CW, 1.6);
+      return 0.48 * t * Math.pow(Math.abs(z) / CW, 1.8);
     };
     roofPackage(lb, K, faces, T, detail, { rafSp: 0.26, lift: liftFn });
     const f = CW - TIP - 0.045;
