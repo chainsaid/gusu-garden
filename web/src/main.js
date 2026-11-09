@@ -12,7 +12,7 @@ import { createBackdropForest } from './scene/backdrop-forest.js';
 import { createJiangnanInterior } from './scene/interior.js';
 import { WeatherSystem } from './scene/weather.js';
 import { loadGardenAssets } from './scene/loader.js';
-import { CameraRig } from './controls/camera-rig.js';
+import { CameraRig, VIEWPOINTS } from './controls/camera-rig.js';
 import { HotspotManager } from './scene/hotspots.js';
 import { JiangnanAmbience } from './audio/ambience.js';
 import { configManager } from './core/config.js';
@@ -55,7 +55,7 @@ async function bootstrap() {
   // 7. 挂载相机漫游控制器
   const cameraRig = new CameraRig(engine.camera, canvas);
 
-  // 解析 URL 显式机位参数 (支持基准帧 1:1 精确对齐: ?cam=x,y,z&look=x,y,z&focal=mm)
+  // 解析 URL 显式机位参数 (支持基准帧 1:1 精确对齐: ?cam=x,y,z&look=x,y,z&focal=mm 或 ?point=5)
   const Q = new URLSearchParams(window.location.search);
   if (Q.has('clean')) {
     const style = document.createElement('style');
@@ -65,7 +65,12 @@ async function bootstrap() {
   if (Q.has('cam') && Q.has('look')) {
     const cp = Q.get('cam').split(',').map(Number);
     const lp = Q.get('look').split(',').map(Number);
-    cameraRig.controls.enabled = false; // 禁用 OrbitControls 极角截断，保证显式机位绝对 1:1 精确对齐
+    if (Q.has('clean')) {
+      cameraRig.controls.enabled = false; // 禁用 OrbitControls 极角截断，保证显式机位绝对 1:1 精确对齐
+    } else {
+      cameraRig.controls.target.set(lp[0], lp[1], lp[2]);
+      cameraRig.controls.update();
+    }
     engine.camera.position.set(cp[0], cp[1], cp[2]);
     engine.camera.up.set(0, 1, 0);
     if (Q.has('focal')) {
@@ -80,6 +85,13 @@ async function bootstrap() {
     }
     engine.camera.lookAt(lp[0], lp[1], lp[2]);
     engine.camera.updateMatrixWorld();
+  } else if (Q.has('point') || Q.has('view')) {
+    const pt = parseInt(Q.get('point') || Q.get('view'), 10);
+    if (!isNaN(pt) && VIEWPOINTS[pt]) {
+      engine.camera.position.copy(VIEWPOINTS[pt].pos);
+      cameraRig.controls.target.copy(VIEWPOINTS[pt].target);
+      cameraRig.controls.update();
+    }
   }
 
   // 8. 挂载 3D 景致文化标牌与毛玻璃信息卡系统
@@ -113,6 +125,14 @@ async function bootstrap() {
   const audioBtn = document.getElementById('audio-btn');
   const audioIcon = document.getElementById('audio-icon');
   const configBtn = document.getElementById('config-btn');
+
+  // 若 URL 指定了初始 point，高亮对应按钮
+  if (Q.has('point') || Q.has('view')) {
+    const pt = parseInt(Q.get('point') || Q.get('view'), 10);
+    tourBtns.forEach((b) => {
+      b.classList.toggle('active', parseInt(b.getAttribute('data-point'), 10) === pt);
+    });
+  }
 
   // 配置抽屉开关
   if (configBtn) {

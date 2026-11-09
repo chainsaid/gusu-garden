@@ -34,6 +34,12 @@ export const VIEWPOINTS = [
     pos: new THREE.Vector3(55.0, 28.0, 48.0),
     target: new THREE.Vector3(-10.0, 2.0, -10.0),
   },
+  {
+    name: '游廊美人靠',
+    desc: '漫步游廊：外挑140mm鹅颈双曲靠背与下密上疏对齐模数',
+    pos: new THREE.Vector3(65.8, 1.55, 18.0),
+    target: new THREE.Vector3(64.7, 1.15, 25.0),
+  },
 ];
 
 export class CameraRig {
@@ -239,8 +245,8 @@ export class CameraRig {
 
       // 3. 园林物理漫步边界与台基高度约束
       // 庭院活动范围: x in [-22, 38], z in [-20, 36]
-      this.camera.position.x = Math.max(-22, Math.min(38, this.camera.position.x));
-      this.camera.position.z = Math.max(-20, Math.min(36, this.camera.position.z));
+      this.camera.position.x = Math.max(-54, Math.min(68, this.camera.position.x));
+      this.camera.position.z = Math.max(-50, Math.min(48, this.camera.position.z));
 
       // 若在主厅台基区域 (x in [0, 20], z in [-18, 0])，地面高程抬升至 y=2.8m，人眼高度=4.4m
       const inHallPodium = this.camera.position.x >= 0 && this.camera.position.x <= 20 &&

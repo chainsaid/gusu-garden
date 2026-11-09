@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { L } from '../../../shared/data/layout.js';
 
-// 5 处江南文人园林核心文化景观点 (基于 Node 版 L 布局基准派生)
+// 6 处江南文人园林核心文化景观点 (基于 Node 版 L 布局基准派生)
 export const HOTSPOT_DATA = [
   {
     id: 'hall',
@@ -47,6 +47,15 @@ export const HOTSPOT_DATA = [
     position: new THREE.Vector3(17.5, 2.2, 1.0),
     lookTarget: new THREE.Vector3(17.5, 2.2, 1.0),
     cameraPos: new THREE.Vector3(14.0, 2.6, 6.0),
+  },
+  {
+    id: 'meikao',
+    title: '雕栏 · 游廊美人靠',
+    badge: '吴王靠',
+    desc: '江南园林游廊临水沿槛而设的鹅颈式靠椅（吴王靠）。下密上疏对齐模数，双曲鹅颈出挑140mm，坐板微倾1.2度，游人可倚凭观荷听雨，是江南游廊最具神韵的空间构件。',
+    position: new THREE.Vector3(64.7, 1.3, 21.5),
+    lookTarget: new THREE.Vector3(64.7, 1.15, 25.0),
+    cameraPos: new THREE.Vector3(65.8, 1.55, 18.0),
   },
 ];
 
@@ -169,4 +178,3 @@ export class HotspotManager {
     });
   }
 }
-
