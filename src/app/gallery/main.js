@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { createEnvironment } from '../../core/environment.js';
 import { WIND_GLSL } from '../../core/uniforms.js';
 import { createMaterialKit } from '../../world/materials/kit.js';
@@ -30,13 +31,15 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.shadowMap.autoUpdate = false;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x141719);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
 const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 400);
 const controls = new OrbitControls(camera, canvas);
@@ -55,18 +58,24 @@ const ctx = {
 };
 
 // --- lights + ground --------------------------------------------------------
-const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
-sun.position.copy(sunDir).multiplyScalar(20);
+const sun = new THREE.DirectionalLight(0xfff6ea, 2.8);
+sun.position.set(5, 8, 6);
 sun.castShadow = true;
-sun.shadow.mapSize.set(512, 512);
+sun.shadow.mapSize.set(1024, 1024);
 sun.shadow.camera.near = 0.5;
-sun.shadow.camera.far = 60;
-sun.shadow.camera.left = -8;
-sun.shadow.camera.right = 8;
-sun.shadow.camera.top = 8;
-sun.shadow.camera.bottom = -8;
+sun.shadow.camera.far = 40;
+sun.shadow.bias = -0.0003;
 scene.add(sun);
-scene.add(new THREE.HemisphereLight(0xdfe9f5, 0x2a2620, 0.65));
+
+const fillLight = new THREE.DirectionalLight(0xd4e4ee, 1.3);
+fillLight.position.set(-6, 5, 4);
+scene.add(fillLight);
+
+const rimLight = new THREE.DirectionalLight(0xffeedd, 1.4);
+rimLight.position.set(1, 6, -6);
+scene.add(rimLight);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
 
 const ground = new THREE.Mesh(
   new THREE.CircleGeometry(9, 64),
@@ -249,11 +258,31 @@ const BUILDERS = {
   },
   meikaoSegment(params) {
     const mats = {
-      wood: M.woodChestnut,
-      woodSeat: M.woodChestnutDark,
-      stone: M.plaster,
-      stoneCap: M.graniteClean,
-      stoneCore: M.granite,
+      wood: new THREE.MeshStandardMaterial({
+        color: 0x301e14,
+        roughness: 0.36,
+        metalness: 0.04,
+      }),
+      woodSeat: new THREE.MeshStandardMaterial({
+        color: 0x3a251a,
+        roughness: 0.30,
+        metalness: 0.04,
+      }),
+      stone: new THREE.MeshStandardMaterial({
+        color: 0xded8cc,
+        roughness: 0.88,
+        metalness: 0.0,
+      }),
+      stoneCap: new THREE.MeshStandardMaterial({
+        color: 0xa8a69e,
+        roughness: 0.75,
+        metalness: 0.0,
+      }),
+      metal: new THREE.MeshStandardMaterial({
+        color: 0x221f1d,
+        roughness: 0.45,
+        metalness: 0.6,
+      }),
     };
     const root = createMeikao(THREE, {
       length: +params.length || 3300,
@@ -262,7 +291,6 @@ const BUILDERS = {
       materials: mats,
     });
     root.scale.set(0.001, 0.001, 0.001);
-    root.rotation.y = Math.PI; // Face the camera
     const wrap = new THREE.Group();
     wrap.add(root);
     return wrap;
@@ -379,6 +407,16 @@ function placeAndFrame(obj) {
   const b2 = new THREE.Box3().setFromObject(obj);
   const size = b2.getSize(new THREE.Vector3());
   const center = b2.getCenter(new THREE.Vector3());
+  if (current && current.id === "meikao-segment") {
+    const c = new THREE.Vector3(0, 0.62, -0.12);
+    camera.position.set(1.15, 1.05, 1.85);
+    controls.target.copy(c);
+    camera.near = 0.05;
+    camera.far = 50;
+    camera.updateProjectionMatrix();
+    controls.update();
+    return;
+  }
   const r = Math.max(size.x, size.y, size.z, 0.5);
   const dir = new THREE.Vector3(1, 0.55, 1).normalize();
   camera.position.copy(center).addScaledVector(dir, r * 2.15);

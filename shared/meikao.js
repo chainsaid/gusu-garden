@@ -225,8 +225,9 @@ function orient(THREE, geo) {
     acc += (ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx)) / 6;
   }
   if (acc <= 0) flipIndex(geo);
-  geo.computeVertexNormals();
-  return geo;
+  const out = geo.toNonIndexed();
+  out.computeVertexNormals();
+  return out;
 }
 
 // 将 2D 曲线 (z,y) 扫掠成带实体厚度的条柱
@@ -316,10 +317,16 @@ export function createMeikao(THREE, options = {}) {
       mats.stone, 'seat-wall-body');
     body.position.set(0, w.bottom + w.bodyH / 2, w.zc);
 
+    const seatMat = mats.woodSeat || mats.wood;
     const cap = mesh(
       new THREE.BoxGeometry(w.len, p.seatThk, p.seatD),
-      mats.stoneCap, 'seat-cap');
+      seatMat, 'seat-cap');
     cap.position.set(0, L.seatTop - p.seatThk / 2, (L.seatFront + L.seatBack) / 2);
+
+    const trim = mesh(
+      new THREE.BoxGeometry(w.len, 14, p.seatD + 16),
+      mats.wood, 'seat-trim');
+    trim.position.set(0, L.seatTop - p.seatThk - 7, (L.seatFront + L.seatBack) / 2);
   }
 
   // 2) 端部收口望柱（两端立柱）
