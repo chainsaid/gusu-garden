@@ -146,7 +146,7 @@ export const GALLERY_GROUPS = [
       offline: {
         builder: 'corridorRun',
         params: [
-          { key: 'form', label: '形制', kind: 'select', value: 'current', options: [['current', '现状（直廊）'], ['jiangnan', '江南化（曲廊）']] },
+          { key: 'form', label: '形制', kind: 'select', value: 'jiangnan', options: [['jiangnan', '江南化（曲廊）'], ['current', '直廊']] },
           { key: 'rail', label: '栏杆样式', kind: 'select', value: 'meirenkao', options: [['zhiling', '直棂'], ['meirenkao', '美人靠']] },
           { key: 'lattice', label: '格心纹样', kind: 'select', value: 'wanzi', options: [['wanzi', '万字纹'], ['binglie', '冰裂纹'], ['zhiling', '直棂']] },
           { key: 'turn', label: '转折角', kind: 'range', min: -45, max: 45, step: 5, value: 30 },

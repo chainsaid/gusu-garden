@@ -15,6 +15,8 @@ import {
 import { rafterField, linePath, ridgeProfile } from '../../world/buildings-arch.js';
 import { Builder } from '../../core/geom.js';
 import { buildIx } from '../../world/buildings-kit.js';
+import { createGualuo } from '../../../shared/gualuo-h10.js';
+import { createMeikao } from '../../../shared/meikao.js';
 
 const CW = 2.68;          // tile eave half width
 const TIP = 0.08;
@@ -272,10 +274,10 @@ function meirenkao(lb, K, bay, latticeKind) {
 function gableEnd(lb, K, x) {
   const n = 16;
   for (let i = 0; i < n; i++) {
-    const z = -CW + (i + 0.5) * (2 * CW / n);
-    const yTop = Y0 + prof(CW - Math.abs(z)) + 0.01;
+    const z = -COLZ + (i + 0.5) * (2 * COLZ / n);
+    const yTop = Y0 + prof(CW - Math.abs(z)) - 0.04;
     const h = yTop - Y_COLTOP;
-    if (h > 0) lb.box(K.plaster, 0.10, h, 2 * CW / n, [x, Y_COLTOP + h / 2, z]);
+    if (h > 0) lb.box(K.plaster, 0.10, h, 2 * COLZ / n, [x, Y_COLTOP + h / 2, z]);
   }
 }
 
@@ -325,6 +327,7 @@ export function buildCorridorRun(params, ctx) {
 
   const T = tileParams({ ...TILE, phase: 0 }, detail);
   const anchors = {};
+  const extraMeshes = [];
 
   legs.forEach((leg, li) => {
     const lb = root.child(m4([leg.start[0], leg.y, leg.start[1]], [0, leg.yaw, 0]));
@@ -352,22 +355,57 @@ export function buildCorridorRun(params, ctx) {
     for (let i = 0; i < leg.nBays; i++) {
       const x0 = i * leg.bayLen;
       const bayLb = lb.child(new THREE.Matrix4().makeTranslation(x0, 0, 0));
-      // 江南化: white wall only at the two runs' ends (转折/接院墙处), bays open.
-      const wallHere = form === 'current'
-        || (li === 0 && i === 0)
-        || (li === legs.length - 1 && i === leg.nBays - 1);
-      if (wallHere) outerWall(bayLb, K, COL_R, leg.bayLen - COL_R, -COLZ, lattice, form === 'current' ? 'rect' : 'haitang');
-      if (form === 'jiangnan') {
-        if (!wallHere) sittingRail(bayLb, K, leg.bayLen, -COLZ);
-        guaLuo(bayLb, K, leg.bayLen, COLZ);
-        guaLuo(bayLb, K, leg.bayLen, -COLZ);
-        queti(bayLb, K, leg.bayLen, COLZ);
-        queti(bayLb, K, leg.bayLen, -COLZ);
+
+      // 白粉墙设在靠园墙侧 (-COLZ)，嵌以海棠/镂空漏窗
+      outerWall(bayLb, K, COL_R, leg.bayLen - COL_R, -COLZ, lattice, "haitang");
+
+      // 雀替
+      queti(bayLb, K, leg.bayLen, COLZ);
+
+      // 挂落与美人靠
+      const clearSpan = leg.bayLen - 2 * COL_R;
+      const spanMm = clearSpan * 1000;
+      const bx = x0 + leg.bayLen / 2;
+      const bz = COLZ;
+      const c = Math.cos(leg.yaw), s = Math.sin(leg.yaw);
+
+      // 1) 狮子林 H10 经典雕花回纹挂落
+      const gl = createGualuo(THREE, { span: spanMm, material: K.redDark });
+      gl.scale.set(0.001, 0.001, 0.001);
+      const gh = (gl.userData?.meta?.size?.height ?? 527.6) / 1000;
+      gl.position.set(
+        leg.start[0] + c * bx + s * bz,
+        leg.y + Y_COLTOP - 0.11 - gh / 2,
+        leg.start[1] - s * bx + c * bz
+      );
+      gl.rotation.y = leg.yaw;
+      extraMeshes.push(gl);
+
+      // 2) 临水美人靠 / 坐槛
+      if (rail === "meirenkao") {
+        const mk = createMeikao(THREE, {
+          length: spanMm,
+          materials: {
+            wood: K.redDark,
+            woodSeat: K.redDark,
+            stone: K.plaster,
+            stoneCap: K.stoneClean,
+            stoneCore: K.stone,
+          },
+        });
+        mk.scale.set(0.001, 0.001, 0.001);
+        mk.position.set(
+          leg.start[0] + c * bx + s * bz,
+          leg.y + Y_PL,
+          leg.start[1] - s * bx + c * bz
+        );
+        mk.rotation.y = leg.yaw + Math.PI;
+        extraMeshes.push(mk);
+      } else {
+        sittingRail(bayLb, K, leg.bayLen);
       }
-      const straight = rail === 'zhiling';
-      if (straight) sittingRail(bayLb, K, leg.bayLen);
-      else meirenkao(bayLb, K, leg.bayLen, lattice);
-      if (form === 'jiangnan' && rail === 'meirenkao' && li === 0 && i === 1 && !anchors.meirenkao) {
+
+      if (rail === "meirenkao" && li === 0 && i === 1 && !anchors.meirenkao) {
         anchors.meirenkao = [x0 + leg.bayLen / 2, MK_Y0 + 0.28, COLZ + 0.30];
       }
     }
@@ -386,12 +424,10 @@ export function buildCorridorRun(params, ctx) {
       { O: [0, -CW], a: [-1, 0], n: [0, 1], u0: -u1, u1: -u0, dmax: () => CW },
     ];
     // 翼角起翘: lift the eave near each run end, strongest at the tile edge.
-    const liftFn = form === 'jiangnan'
-      ? (x, z) => {
-        const t = Math.max(sstep(0, 2.2, x), sstep(0, 2.2, L - x));
-        return 0.30 * t * Math.pow(Math.abs(z) / CW, 1.7);
-      }
-      : () => 0;
+    const liftFn = (x, z) => {
+      const t = Math.max(sstep(0, 2.4, x), sstep(0, 2.4, L - x));
+      return 0.38 * t * Math.pow(Math.abs(z) / CW, 1.6);
+    };
     roofPackage(lb, K, faces, T, detail, { rafSp: 0.26, lift: liftFn });
     const f = CW - TIP - 0.045;
     fascia(lb, K, [[u0, -f], [u1, -f]], [L / 2, 0], liftFn);
@@ -420,6 +456,7 @@ export function buildCorridorRun(params, ctx) {
 
   const group = b.build({ name: 'corridor-run' });
   buildIx(ix, group);
+  for (const m of extraMeshes) group.add(m);
 
   // anchor in the built object's local frame
   if (anchors.meirenkao) {
