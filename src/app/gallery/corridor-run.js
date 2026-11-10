@@ -479,12 +479,32 @@ export function buildCorridorRun(params, ctx) {
       { O: [0, -CW], a: [-1, 0], n: [0, 1], u0: u0_f1, u1: u1_f1, dmin: dmin_f1, dmax: dmax_f1 },
     ];
 
-    // 翼角起翘: strongest at the corridor ends, plus subtle corner lift
+    // 翼角起翘 (嫩戗发戗):
+    // 1. 走廊两端自由端（敞口出檐起翘）
+    // 2. 走廊转折阳角（外凸角）：嫩戗飞檐起翘（高挑 0.42m，沿廊道延伸 2.0m 顺滑过渡）
+    const CRUN = 2.0;
+    const CRISE = 0.42;
     const liftFn = (x, z) => {
       let t = 0;
+      // 两端自由端
       if (li === 0 && x < 2.4) t = Math.max(t, Math.pow(1 - Math.max(0, x) / 2.4, 2));
       if (li === legs.length - 1 && x > L - 2.4) t = Math.max(t, Math.pow(1 - Math.max(0, L - x) / 2.4, 2));
-      return 0.52 * t * Math.pow(Math.abs(z) / CW, 1.6);
+
+      // 转折外檐阳角（发戗起翘）
+      if (li < legs.length - 1 && dYawNext > 0 && z > 0 && x > L - CRUN) {
+        t = Math.max(t, Math.pow(1 - Math.max(0, L - x) / CRUN, 2));
+      }
+      if (li > 0 && dYawPrev > 0 && z > 0 && x < CRUN) {
+        t = Math.max(t, Math.pow(1 - Math.max(0, x) / CRUN, 2));
+      }
+      if (li < legs.length - 1 && dYawNext < 0 && z < 0 && x > L - CRUN) {
+        t = Math.max(t, Math.pow(1 - Math.max(0, L - x) / CRUN, 2));
+      }
+      if (li > 0 && dYawPrev < 0 && z < 0 && x < CRUN) {
+        t = Math.max(t, Math.pow(1 - Math.max(0, x) / CRUN, 2));
+      }
+
+      return CRISE * t * Math.pow(Math.abs(z) / CW, 1.6);
     };
 
     roofPackage(lb, K, faces, T, detail, { rafSp: 0.26, lift: liftFn });
@@ -496,36 +516,56 @@ export function buildCorridorRun(params, ctx) {
     // main ridge along the corridor run
     lb.add(sweep(linePath([0, 0], [L, 0], () => RIDGE_Y - 0.02, 0.9), ridgeProfile(0.42, 0.36, 4, 0.08, 0.3)), K.tile);
 
-    // 戗脊 (hip ridge) & 天沟 (valley) at the miter joint
+    // 戗脊 (hip ridge) & 天沟 (valley) & 嫩戗发戗木构
     if (li < legs.length - 1 && Math.abs(dYawNext) > 1e-4) {
       const hp = ridgeProfile(0.18, 0.12, 2, 0.03, 0.06);
       if (dYawNext > 0) {
         const qRidge = [L, 0];
         const qCorner = [L + CW * tNext, CW];
-        lb.add(sweep(linePath(qRidge, qCorner, (x, z) => {
+        const clen = Math.hypot(CW * tNext, CW);
+        const ux = (CW * tNext) / clen, uz = CW / clen;
+        const qTip = [qCorner[0] + ux * 0.16, qCorner[1] + uz * 0.16];
+        
+        lb.add(sweep(linePath(qRidge, qTip, (x, z) => {
           const d = CW - z;
-          return Y0 + prof(d) + liftFn(x, z) - 0.02;
-        }, 0.2), hp), K.tile);
+          let y = Y0 + prof(Math.max(0, d)) + liftFn(x, z) - 0.02;
+          if (z > CW) y += (z - CW) * 0.55;
+          return y;
+        }, 0.08), hp), K.tile);
+
+        // 嫩戗发戗木构：老角梁(老戗)与嫩戗
         const yCorner = Y0 + prof(0) + liftFn(qCorner[0], qCorner[1]);
+        lb.beam(K.redDark, [L, Y_COLTOP + 0.15, 0], [qCorner[0] - ux * 0.12, yCorner - 0.18, qCorner[1] - uz * 0.12], 0.14, 0.16);
+        lb.beam(K.red, [qCorner[0] - ux * 0.45, yCorner - 0.18, qCorner[1] - uz * 0.45], [qCorner[0] + ux * 0.06, yCorner - 0.02, qCorner[1] + uz * 0.06], 0.10, 0.12);
         
         const vInner = [L - CW * tNext, -CW];
         lb.add(sweep(linePath(vInner, [L, 0], (x, z) => {
           const d = CW + z;
           return Y0 + prof(d) - 0.035;
-        }, 0.25), rectProfile(0.16, 0.025)), K.black);
+        }, 0.15), rectProfile(0.16, 0.025)), K.black);
       } else {
         const qRidge = [L, 0];
         const qCorner = [L + (-CW) * tNext, -CW];
-        lb.add(sweep(linePath(qRidge, qCorner, (x, z) => {
+        const clen = Math.hypot(-CW * tNext, -CW);
+        const ux = (-CW * tNext) / clen, uz = (-CW) / clen;
+        const qTip = [qCorner[0] + ux * 0.16, qCorner[1] + uz * 0.16];
+        
+        lb.add(sweep(linePath(qRidge, qTip, (x, z) => {
           const d = CW + z;
-          return Y0 + prof(d) + liftFn(x, z) - 0.02;
-        }, 0.2), hp), K.tile);
+          let y = Y0 + prof(Math.max(0, d)) + liftFn(x, z) - 0.02;
+          if (z < -CW) y += (-CW - z) * 0.55;
+          return y;
+        }, 0.08), hp), K.tile);
+
+        const yCorner = Y0 + prof(0) + liftFn(qCorner[0], qCorner[1]);
+        lb.beam(K.redDark, [L, Y_COLTOP + 0.15, 0], [qCorner[0] - ux * 0.12, yCorner - 0.18, qCorner[1] - uz * 0.12], 0.14, 0.16);
+        lb.beam(K.red, [qCorner[0] - ux * 0.45, yCorner - 0.18, qCorner[1] - uz * 0.45], [qCorner[0] + ux * 0.06, yCorner - 0.02, qCorner[1] + uz * 0.06], 0.10, 0.12);
 
         const vInner = [L - (-CW) * tNext, CW];
         lb.add(sweep(linePath(vInner, [L, 0], (x, z) => {
           const d = CW - z;
           return Y0 + prof(d) - 0.035;
-        }, 0.25), rectProfile(0.16, 0.025)), K.black);
+        }, 0.15), rectProfile(0.16, 0.025)), K.black);
       }
     }
 
