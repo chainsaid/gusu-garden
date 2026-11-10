@@ -482,8 +482,8 @@ export function buildCorridorRun(params, ctx) {
     // 翼角起翘 (正统香山帮嫩戗发戗反宇曲面):
     // 采用五次平滑阶跃曲线 (Quintic Hermite: C2 连续可微)，在转折开间 (2.8m 范围) 内渐进式生起，
     // 彻底杜绝局部生硬折拐，形成从正身温润平顺到檐角高拔昂扬的整体反宇双曲面。
-    const CRUN = 2.8;
-    const CRISE = 0.44;
+    const CRUN = 1.4;
+    const CRISE = 0.22;
     const qstep = (s) => {
       s = Math.max(0, Math.min(1, s));
       return s * s * s * (s * (s * 6 - 15) + 10);
@@ -537,7 +537,7 @@ export function buildCorridorRun(params, ctx) {
       const p0 = RIDGE_Y - 0.02;
       const p1 = RIDGE_Y - 0.42;
       const p2 = Y0 + 0.10;
-      const p3 = Y0 + CRISE + 0.08;
+      const p3 = Y0 + CRISE + 0.04;
       const ridgeSagH = (u) => {
         const b0 = (1 - u) ** 3;
         const b1 = 3 * (1 - u) ** 2 * u;
@@ -592,7 +592,7 @@ export function buildCorridorRun(params, ctx) {
       // 3) 内角阴角天沟 (Valley Gutter)
       const vInner = [L - signZ * CW * tNext, -signZ * CW];
       lb.add(sweep(linePath(vInner, [L, 0], (x, z) => {
-        const d = CW - signZ * z;
+        const d = signZ > 0 ? (CW + z) : (CW - z);
         return Y0 + prof(d) - 0.035;
       }, 0.12), rectProfile(0.16, 0.025)), K.black);
     }
