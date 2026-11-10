@@ -479,32 +479,37 @@ export function buildCorridorRun(params, ctx) {
       { O: [0, -CW], a: [-1, 0], n: [0, 1], u0: u0_f1, u1: u1_f1, dmin: dmin_f1, dmax: dmax_f1 },
     ];
 
-    // 翼角起翘 (嫩戗发戗):
-    // 1. 走廊两端自由端（敞口出檐起翘）
-    // 2. 走廊转折阳角（外凸角）：嫩戗飞檐起翘（高挑 0.42m，沿廊道延伸 2.0m 顺滑过渡）
-    const CRUN = 2.0;
-    const CRISE = 0.42;
+    // 翼角起翘 (正统香山帮嫩戗发戗反宇曲面):
+    // 采用五次平滑阶跃曲线 (Quintic Hermite: C2 连续可微)，在转折开间 (2.8m 范围) 内渐进式生起，
+    // 彻底杜绝局部生硬折拐，形成从正身温润平顺到檐角高拔昂扬的整体反宇双曲面。
+    const CRUN = 2.8;
+    const CRISE = 0.44;
+    const qstep = (s) => {
+      s = Math.max(0, Math.min(1, s));
+      return s * s * s * (s * (s * 6 - 15) + 10);
+    };
+
     const liftFn = (x, z) => {
       let t = 0;
       // 两端自由端
-      if (li === 0 && x < 2.4) t = Math.max(t, Math.pow(1 - Math.max(0, x) / 2.4, 2));
-      if (li === legs.length - 1 && x > L - 2.4) t = Math.max(t, Math.pow(1 - Math.max(0, L - x) / 2.4, 2));
+      if (li === 0 && x < CRUN) t = Math.max(t, qstep((CRUN - Math.max(0, x)) / CRUN));
+      if (li === legs.length - 1 && x > L - CRUN) t = Math.max(t, qstep((CRUN - Math.max(0, L - x)) / CRUN));
 
-      // 转折外檐阳角（发戗起翘）
+      // 转折阳角外檐（发戗起翘）
       if (li < legs.length - 1 && dYawNext > 0 && z > 0 && x > L - CRUN) {
-        t = Math.max(t, Math.pow(1 - Math.max(0, L - x) / CRUN, 2));
+        t = Math.max(t, qstep((CRUN - Math.max(0, L - x)) / CRUN));
       }
       if (li > 0 && dYawPrev > 0 && z > 0 && x < CRUN) {
-        t = Math.max(t, Math.pow(1 - Math.max(0, x) / CRUN, 2));
+        t = Math.max(t, qstep((CRUN - Math.max(0, x)) / CRUN));
       }
       if (li < legs.length - 1 && dYawNext < 0 && z < 0 && x > L - CRUN) {
-        t = Math.max(t, Math.pow(1 - Math.max(0, L - x) / CRUN, 2));
+        t = Math.max(t, qstep((CRUN - Math.max(0, L - x)) / CRUN));
       }
       if (li > 0 && dYawPrev < 0 && z < 0 && x < CRUN) {
-        t = Math.max(t, Math.pow(1 - Math.max(0, x) / CRUN, 2));
+        t = Math.max(t, qstep((CRUN - Math.max(0, x)) / CRUN));
       }
 
-      return CRISE * t * Math.pow(Math.abs(z) / CW, 1.6);
+      return CRISE * t * Math.pow(Math.abs(z) / CW, 1.35);
     };
 
     roofPackage(lb, K, faces, T, detail, { rafSp: 0.26, lift: liftFn });
@@ -516,59 +521,81 @@ export function buildCorridorRun(params, ctx) {
     // main ridge along the corridor run
     lb.add(sweep(linePath([0, 0], [L, 0], () => RIDGE_Y - 0.02, 0.9), ridgeProfile(0.42, 0.36, 4, 0.08, 0.3)), K.tile);
 
-    // 戗脊 (hip ridge) & 天沟 (valley) & 嫩戗发戗木构
+    // 戗脊 (hip ridge) & 天沟 (valley) & 香山帮嫩戗发戗结构体系
     if (li < legs.length - 1 && Math.abs(dYawNext) > 1e-4) {
       const hp = ridgeProfile(0.18, 0.12, 2, 0.03, 0.06);
-      if (dYawNext > 0) {
-        const qRidge = [L, 0];
-        const qCorner = [L + CW * tNext, CW];
-        const clen = Math.hypot(CW * tNext, CW);
-        const ux = (CW * tNext) / clen, uz = CW / clen;
-        const qTip = [qCorner[0] + ux * 0.16, qCorner[1] + uz * 0.16];
-        
-        lb.add(sweep(linePath(qRidge, qTip, (x, z) => {
-          const d = CW - z;
-          let y = Y0 + prof(Math.max(0, d)) + liftFn(x, z) - 0.02;
-          if (z > CW) y += (z - CW) * 0.55;
-          return y;
-        }, 0.08), hp), K.tile);
+      const isConvexOuter = dYawNext > 0;
+      const signZ = isConvexOuter ? 1 : -1;
+      const qRidge = [L, 0];
+      const qCorner = [L + signZ * CW * tNext, signZ * CW];
+      const clen = Math.hypot(signZ * CW * tNext, signZ * CW);
+      const ux = (signZ * CW * tNext) / clen, uz = (signZ * CW) / clen;
+      // 戗尖向外前方自然延伸 0.22m
+      const qTip = [qCorner[0] + ux * 0.22, qCorner[1] + uz * 0.22];
 
-        // 嫩戗发戗木构：老角梁(老戗)与嫩戗
-        const yCorner = Y0 + prof(0) + liftFn(qCorner[0], qCorner[1]);
-        lb.beam(K.redDark, [L, Y_COLTOP + 0.15, 0], [qCorner[0] - ux * 0.12, yCorner - 0.18, qCorner[1] - uz * 0.12], 0.14, 0.16);
-        lb.beam(K.red, [qCorner[0] - ux * 0.45, yCorner - 0.18, qCorner[1] - uz * 0.45], [qCorner[0] + ux * 0.06, yCorner - 0.02, qCorner[1] + uz * 0.06], 0.10, 0.12);
-        
-        const vInner = [L - CW * tNext, -CW];
-        lb.add(sweep(linePath(vInner, [L, 0], (x, z) => {
-          const d = CW + z;
-          return Y0 + prof(d) - 0.035;
-        }, 0.15), rectProfile(0.16, 0.025)), K.black);
-      } else {
-        const qRidge = [L, 0];
-        const qCorner = [L + (-CW) * tNext, -CW];
-        const clen = Math.hypot(-CW * tNext, -CW);
-        const ux = (-CW * tNext) / clen, uz = (-CW) / clen;
-        const qTip = [qCorner[0] + ux * 0.16, qCorner[1] + uz * 0.16];
-        
-        lb.add(sweep(linePath(qRidge, qTip, (x, z) => {
-          const d = CW + z;
-          let y = Y0 + prof(Math.max(0, d)) + liftFn(x, z) - 0.02;
-          if (z < -CW) y += (-CW - z) * 0.55;
-          return y;
-        }, 0.08), hp), K.tile);
+      // 1) 戗脊：全局顺滑的香山帮三次贝塞尔反宇曲线 (C2连续，无任何尖折)
+      const p0 = RIDGE_Y - 0.02;
+      const p1 = RIDGE_Y - 0.42;
+      const p2 = Y0 + 0.10;
+      const p3 = Y0 + CRISE + 0.08;
+      const ridgeSagH = (u) => {
+        const b0 = (1 - u) ** 3;
+        const b1 = 3 * (1 - u) ** 2 * u;
+        const b2 = 3 * (1 - u) * u ** 2;
+        const b3 = u ** 3;
+        return b0 * p0 + b1 * p1 + b2 * p2 + b3 * p3;
+      };
 
-        const yCorner = Y0 + prof(0) + liftFn(qCorner[0], qCorner[1]);
-        lb.beam(K.redDark, [L, Y_COLTOP + 0.15, 0], [qCorner[0] - ux * 0.12, yCorner - 0.18, qCorner[1] - uz * 0.12], 0.14, 0.16);
-        lb.beam(K.red, [qCorner[0] - ux * 0.45, yCorner - 0.18, qCorner[1] - uz * 0.45], [qCorner[0] + ux * 0.06, yCorner - 0.02, qCorner[1] + uz * 0.06], 0.10, 0.12);
+      lb.add(sweep(linePath(qRidge, qTip, (x, z) => {
+        const u = Math.min(1, Math.hypot(x - qRidge[0], z - qRidge[1]) / (clen + 0.22));
+        return ridgeSagH(u);
+      }, 0.06), hp), K.tile);
 
-        const vInner = [L - (-CW) * tNext, CW];
-        lb.add(sweep(linePath(vInner, [L, 0], (x, z) => {
-          const d = CW - z;
-          return Y0 + prof(d) - 0.035;
-        }, 0.15), rectProfile(0.16, 0.025)), K.black);
+      // 2) 香山帮经典大木作：老戗 + 嫩戗 + 菱角木 + 扁担木
+      const yCorner = Y0 + prof(0) + liftFn(qCorner[0], qCorner[1]);
+      const yTip = ridgeSagH(1.0);
+
+      // a. 角柱柱头大斗 / 坐斗
+      lb.box(K.red, 0.38, 0.18, 0.38, [L, Y_COLTOP + 0.09, 0], [0, 0, 0], 0.015);
+
+      // b. 老角梁（老戗）：顺屋面坡度外挑的主承重梁
+      const pOldTip = [qCorner[0] - ux * 0.24, yCorner - 0.24, qCorner[1] - uz * 0.24];
+      lb.beam(K.redDark, [L, Y_COLTOP + 0.16, 0], pOldTip, 0.16, 0.22);
+
+      // c. 嫩戗（仔角梁）：嵌于老戗脊背，大幅度斜立昂扬冲霄
+      const pNenBase = [qCorner[0] - ux * 0.65, yCorner - 0.22, qCorner[1] - uz * 0.65];
+      const pNenTip = [qTip[0] - ux * 0.02, yTip - 0.08, qTip[1] - uz * 0.02];
+      lb.beam(K.red, pNenBase, pNenTip, 0.12, 0.16);
+
+      // d. 菱角木（戗山木）：老戗与嫩戗之间的受力三角斜撑
+      const pLingBase = [qCorner[0] - ux * 0.38, yCorner - 0.24, qCorner[1] - uz * 0.38];
+      const pLingTop = [qCorner[0] - ux * 0.18, yCorner - 0.13, qCorner[1] - uz * 0.18];
+      lb.beam(K.redDark, pLingBase, pLingTop, 0.12, 0.14);
+
+      // e. 扁担木：横向抱箍锁紧老戗与嫩戗交接部
+      const sideX = -uz, sideZ = ux;
+      lb.beam(K.redDark,
+        [pNenBase[0] - sideX * 0.22, pNenBase[1] + 0.02, pNenBase[2] - sideZ * 0.22],
+        [pNenBase[0] + sideX * 0.22, pNenBase[1] + 0.02, pNenBase[2] + sideZ * 0.22],
+        0.09, 0.11
+      );
+
+      // f. 撒头飞椽 (Fanning Rafters)
+      for (const ang of [-0.22, -0.11, 0.11, 0.22]) {
+        const cA = Math.cos(ang), sA = Math.sin(ang);
+        const rx = ux * cA - uz * sA, rz = ux * sA + uz * cA;
+        const rStart = [qCorner[0] - ux * 0.70, yCorner - 0.24, qCorner[1] - uz * 0.70];
+        const rEnd = [qCorner[0] - ux * 0.12 + rx * 0.35, yCorner - 0.10, qCorner[1] - uz * 0.12 + rz * 0.35];
+        lb.beam(K.red, rStart, rEnd, 0.07, 0.09);
       }
-    }
 
+      // 3) 内角阴角天沟 (Valley Gutter)
+      const vInner = [L - signZ * CW * tNext, -signZ * CW];
+      lb.add(sweep(linePath(vInner, [L, 0], (x, z) => {
+        const d = CW - signZ * z;
+        return Y0 + prof(d) - 0.035;
+      }, 0.12), rectProfile(0.16, 0.025)), K.black);
+    }
     if (li === 0) gableEnd(lb, K, 0, liftFn);
     if (li === legs.length - 1) gableEnd(lb, K, L, liftFn);
 
