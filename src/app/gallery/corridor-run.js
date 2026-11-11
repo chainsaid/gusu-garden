@@ -10,13 +10,40 @@
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
 import {
-  LB, m4, block, lathe, sweep, chamferBox, rectProfile, roofSurface, tileCapGeos, tileParams, sstep,
+  LB, m4, block, lathe, sweep, chamferBox, rectProfile, roofSurface, tileCapGeos, tileParams, sstep, extrude,
 } from '../../world/buildings-kit.js';
 import { rafterField, linePath, ridgeProfile } from '../../world/buildings-arch.js';
 import { Builder } from '../../core/geom.js';
 import { buildIx } from '../../world/buildings-kit.js';
 import { createGualuo } from '../../../shared/gualuo-h10.js';
 import { createMeikao } from '../../../shared/meikao.js';
+
+// 香山帮正统戗兽（脊兽/螭吻）：龙吻张口吞脊、剑把插顶、回纹翻卷
+function createQianshou(s = 0.5) {
+  const sh = new THREE.Shape();
+  sh.moveTo(-0.43 * s, 0); sh.lineTo(0.43 * s, 0);
+  sh.lineTo(0.49 * s, 0.13 * s);
+  sh.quadraticCurveTo(0.40 * s, 0.20 * s, 0.41 * s, 0.25 * s);
+  sh.quadraticCurveTo(0.53 * s, 0.33 * s, 0.49 * s, 0.50 * s);
+  sh.quadraticCurveTo(0.51 * s, 0.63 * s, 0.44 * s, 0.72 * s);
+  sh.quadraticCurveTo(0.33 * s, 0.89 * s, 0.22 * s, 1.00 * s);
+  sh.quadraticCurveTo(0.12 * s, 0.94 * s, 0, 0.85 * s);
+  sh.quadraticCurveTo(-0.12 * s, 0.94 * s, -0.22 * s, 1.00 * s);
+  sh.quadraticCurveTo(-0.33 * s, 0.89 * s, -0.44 * s, 0.72 * s);
+  sh.quadraticCurveTo(-0.51 * s, 0.63 * s, -0.49 * s, 0.50 * s);
+  sh.quadraticCurveTo(-0.53 * s, 0.33 * s, -0.41 * s, 0.25 * s);
+  sh.quadraticCurveTo(-0.40 * s, 0.20 * s, -0.49 * s, 0.13 * s);
+  sh.lineTo(-0.43 * s, 0);
+  const body = extrude(sh, 0.16 * s, 0.02 * s, "qianshou_b", 6);
+  const rim = new THREE.Shape();
+  rim.moveTo(-0.36 * s, 0.13 * s); rim.lineTo(0.36 * s, 0.13 * s); rim.lineTo(0.40 * s, 0.32 * s);
+  rim.quadraticCurveTo(0.42 * s, 0.60 * s, 0.30 * s, 0.74 * s);
+  rim.quadraticCurveTo(0.20 * s, 0.84 * s, 0.16 * s, 0.90 * s); rim.lineTo(0, 0.79 * s); rim.lineTo(-0.16 * s, 0.90 * s);
+  rim.quadraticCurveTo(-0.20 * s, 0.84 * s, -0.30 * s, 0.74 * s);
+  rim.quadraticCurveTo(-0.42 * s, 0.60 * s, -0.40 * s, 0.32 * s); rim.lineTo(-0.36 * s, 0.13 * s);
+  const inner = extrude(rim, 0.05 * s, 0.01 * s, "qianshou_r", 6).translate(0, 0, 0.08 * s);
+  return [body, inner];
+}
 
 const CW = 2.68;          // tile eave half width
 const TIP = 0.08;
@@ -28,6 +55,10 @@ const Y_PLATE = 3.80;
 const S_RAF = 0.42;
 const RAF = [0.08, 0.1];
 const FASCIA_H = 0.1;
+const f = CW - TIP - 0.045;
+const CRUN = 1.8;
+const CRISE = 0.52; // 净起翘 520mm，飞檐挺拔灵动
+const soar = (s) => Math.pow(Math.max(0, Math.min(1, s)), 2.2);
 const TILE = { p: 3.6 / 13, c: 0.3, rw: 0.13, rh: 0.055, pd: 0.016, lip: 0.05, thR: 0.02, thP: 0.012, detail: 0 };
 const yRB = (d) => Y_PLATE + S_RAF * (d - (CW - COLZ));
 const yRT = (d) => yRB(d) + RAF[1];
@@ -228,9 +259,11 @@ function guaLuo(lb, K, bay, z) {
 }
 
 // 雀替: small brackets at the column heads
-function queti(lb, K, bay, z) {
+function queti(lb, K, bay, z, isTurnEnd = false, isTurnStart = false) {
   for (const cx of [COL_R, bay - COL_R]) {
     for (const s of [-1, 1]) {
+      if (cx === bay - COL_R && s === 1 && isTurnEnd) continue;
+      if (cx === COL_R && s === -1 && isTurnStart) continue;
       lb.box(K.red, 0.30, 0.10, 0.085, [cx + s * 0.17, Y_COLTOP - 0.31, z], [0, 0, 0], 0.006);
       lb.box(K.redDark, 0.12, 0.05, 0.075, [cx + s * 0.34, Y_COLTOP - 0.34, z], [0, 0, 0], 0.004);
     }
@@ -282,12 +315,17 @@ function meirenkao(lb, K, bay, latticeKind) {
 
 // white gable infill above the plate on a free end (closes the open roof end)
 function gableEnd(lb, K, x, lift = () => 0) {
+  // 山面端头山花板壁与随梁枋（符合江南园林穿斗山面木作，杜绝悬空三角白块）
+  lb.beam(K.redDark, [x, Y_COLTOP - 0.08, -COLZ], [x, Y_COLTOP - 0.08, COLZ], 0.16, 0.20);
   const n = 16;
   for (let i = 0; i < n; i++) {
     const z = -COLZ + (i + 0.5) * (2 * COLZ / n);
     const yTop = Y0 + prof(CW - Math.abs(z)) + lift(x, z) - 0.04;
     const h = yTop - Y_COLTOP;
-    if (h > 0) lb.box(K.plaster, 0.10, h, 2 * COLZ / n, [x, Y_COLTOP + h / 2, z]);
+    if (h > 0) {
+      // 内部山花板壁（深色木望板贴面，质感统一自然）
+      lb.box(K.redDark, 0.08, h, 2 * COLZ / n, [x, Y_COLTOP + h / 2, z]);
+    }
   }
 }
 
@@ -350,43 +388,56 @@ export function buildCorridorRun(params, ctx) {
       const h = c === 0 ? 0.5 : 0.28, y = c === 0 ? -0.2 : 0.19;
       lb.box(K.stone, L - 0.01, h, 4.3, [L / 2, y, 0], [0, 0, 0], c === 0 ? 0.03 : 0.025);
     }
-    for (let j = 0; j < 3; j++) {
-      lb.box(K.stoneClean, L - 0.012, 0.12, 4.3 / 3 - 0.012, [L / 2, 0.39, -4.3 / 3 + j * (4.3 / 3)], [0, 0, 0], 0.012);
-    }
+    // 整平青石板铺装（规整对缝，杜绝细碎穿帮破缝）
+    lb.box(K.stoneClean, L + 0.02, 0.12, 4.28, [L / 2, 0.39, 0], [0, 0, 0], 0.008);
 
-    // ---- beams
-    for (const s of [-1, 1]) {
-      lb.box(K.red, L, 0.22, 0.12, [L / 2, Y_COLTOP - 0.11, s * COLZ], [0, 0, 0], 0.012);
-      lb.box(K.red, L, 0.16, 0.15, [L / 2, Y_PLATE - 0.08, s * COLZ], [0, 0, 0], 0.012);
-    }
-    lb.box(K.red, L, 0.18, 0.17, [L / 2, yRB(CW) - 0.09, 0], [0, 0, 0], 0.012);
+    // ---- authentic Jiangnan miter angles
+    const dYawNext = li < legs.length - 1 ? (legs[li + 1].yaw - leg.yaw) : 0;
+    const dYawPrev = li > 0 ? (leg.yaw - legs[li - 1].yaw) : 0;
+    const tNext = Math.tan(dYawNext / 2);
+    const tPrev = Math.tan(dYawPrev / 2);
 
     // ---- bays: outer wall + water-side railing
     for (let i = 0; i < leg.nBays; i++) {
       const x0 = i * leg.bayLen;
       const bayLb = lb.child(new THREE.Matrix4().makeTranslation(x0, 0, 0));
 
-      // 白粉墙设在靠园墙侧 (-COLZ)，嵌以海棠/镂空漏窗
-      outerWall(bayLb, K, COL_R, leg.bayLen - COL_R, -COLZ, lattice, "haitang");
+      // 白粉墙设在靠园墙侧 (-COLZ)，嵌以海棠/镂空漏窗（精准对齐角平分线转角内柱面）
+      const isLastBay = (i === leg.nBays - 1);
+      const isFirstBay = (i === 0);
+      const wallEnd = (isLastBay && li < legs.length - 1 && Math.abs(dYawNext) > 1e-4)
+        ? (leg.bayLen - COL_R - COLZ * tNext)
+        : (leg.bayLen - COL_R);
+      const wallStart = (isFirstBay && li > 0 && Math.abs(dYawPrev) > 1e-4)
+        ? (COL_R - COLZ * tPrev)
+        : COL_R;
+      outerWall(bayLb, K, wallStart, wallEnd, -COLZ, lattice, "haitang");
 
       // 雀替
-      queti(bayLb, K, leg.bayLen, COLZ);
+      const isTurnEnd = (i === leg.nBays - 1) && (li < legs.length - 1) && Math.abs(dYawNext) > 1e-4;
+      const isTurnStart = (i === 0) && (li > 0) && Math.abs(dYawPrev) > 1e-4;
+      queti(bayLb, K, leg.bayLen, COLZ, isTurnEnd, isTurnStart);
 
       // 挂落与美人靠
       const clearSpan = leg.bayLen - 2 * COL_R;
-      const spanMm = clearSpan * 1000;
       const bx = x0 + leg.bayLen / 2;
       const bz = COLZ;
       const c = Math.cos(leg.yaw), s = Math.sin(leg.yaw);
 
-      // 1) 狮子林 H10 经典雕花回纹挂落
-      const gl = createGualuo(THREE, { span: spanMm, material: K.redDark });
+      // 当处于转角连接开间时，延长开间构件并位移使其直接与角平分线转角立柱相接
+      const extEnd = (isTurnEnd && dYawNext > 0) ? (COLZ * tNext) : 0;
+      const extStart = (isTurnStart && dYawPrev > 0) ? (COLZ * tPrev) : 0;
+      const actualSpanMm = (clearSpan + extEnd + extStart) * 1000;
+      const actualBx = bx + extEnd / 2 - extStart / 2;
+
+      // 1) 狮子林 H10 经典雕花回纹挂落（严格对齐柱面，消除角部缺口）
+      const gl = createGualuo(THREE, { span: actualSpanMm, material: K.redDark });
       gl.scale.set(0.001, 0.001, 0.001);
       const gh = (gl.userData?.meta?.size?.height ?? 527.6) / 1000;
       gl.position.set(
-        leg.start[0] + c * bx + s * bz,
+        leg.start[0] + c * actualBx + s * bz,
         leg.y + Y_COLTOP - 0.22 - gh / 2,
-        leg.start[1] - s * bx + c * bz
+        leg.start[1] - s * actualBx + c * bz
       );
       gl.rotation.y = leg.yaw;
       extraMeshes.push(gl);
@@ -394,7 +445,7 @@ export function buildCorridorRun(params, ctx) {
       // 2) 临水美人靠 / 坐槛
       if (rail === "meirenkao") {
         const mk = createMeikao(THREE, {
-          length: spanMm,
+          length: actualSpanMm,
           materials: {
             wood: K.redDark,
             woodSeat: K.redDark,
@@ -405,9 +456,9 @@ export function buildCorridorRun(params, ctx) {
         });
         mk.scale.set(0.001, 0.001, 0.001);
         mk.position.set(
-          leg.start[0] + c * bx + s * bz,
+          leg.start[0] + c * actualBx + s * bz,
           leg.y + Y_PL,
-          leg.start[1] - s * bx + c * bz
+          leg.start[1] - s * actualBx + c * bz
         );
         mk.rotation.y = leg.yaw + Math.PI;
         extraMeshes.push(mk);
@@ -420,19 +471,65 @@ export function buildCorridorRun(params, ctx) {
       }
     }
 
-    // ---- columns
+    // ---- columns (转角柱置于角平分线 miter 节点)
     for (let i = 0; i <= leg.nBays; i++) {
       if (i === 0 && li > 0) continue; // shared with the previous leg
-      const cx = i * leg.bayLen;
-      column(lb.child(new THREE.Matrix4().makeTranslation(cx, 0, 0)), K);
+      if (i === leg.nBays && li < legs.length - 1 && Math.abs(dYawNext) > 1e-4) {
+        for (const s of [-1, 1]) {
+          const z = s * COLZ;
+          const xj = L + z * tNext;
+          lb.cyl(K.col, COL_R, COL_R, Y_COLTOP - Y_PL, [xj, (Y_COLTOP + Y_PL) / 2, z], [0, 0, 0], 20);
+          lb.cyl(K.stone, COL_R * 1.5, COL_R * 1.5, 0.16, [xj, Y_PL + 0.08, z], [0, 0, 0], 24);
+          lb.cyl(K.stoneClean, COL_R * 1.25, COL_R * 1.25, 0.08, [xj, Y_PL + 0.20, z], [0, 0, 0], 24);
+
+          // 正统香山帮柱头坐斗（大斗与升）：稳妥承托角平分线两向斜切额枋
+          lb.box(K.col, 0.36, 0.14, 0.36, [xj, Y_COLTOP + 0.07, z], [0, dYawNext / 2, 0], 0.015);
+          lb.box(K.col, 0.42, 0.08, 0.42, [xj, Y_COLTOP + 0.15, z], [0, dYawNext / 2, 0], 0.015);
+        }
+
+        // 外角柱美人靠转角闭合件（平顺环抱角柱，圆润扶手与坐板完整交圈）
+        if (dYawNext > 0 && rail === "meirenkao") {
+          const xjOuter = L + COLZ * tNext;
+          const rotAngle = dYawNext / 2;
+          // 台基石槛包角与白石压板
+          lb.box(K.plaster, 0.60, 0.44, 0.60, [xjOuter, Y_PL + 0.22, COLZ], [0, rotAngle, 0], 0.02);
+          lb.box(K.stoneClean, 0.68, 0.06, 0.68, [xjOuter, Y_PL + 0.45, COLZ], [0, rotAngle, 0], 0.015);
+          // 坐板包角（外挑宽坐板，微弧圆顺衔接两向坐板）
+          lb.box(K.redDark, 0.76, 0.07, 0.64, [xjOuter, Y_PL + 0.46 + 0.035, COLZ + 0.22], [0, rotAngle, 0], 0.015);
+          // 鹅颈靠背转角圆顺寻杖扶手（平滑过渡，消除硬拼生硬感）
+          const pMidRail = [xjOuter, Y_PL + 1.025, COLZ + 0.46];
+          lb.box(K.redDark, 0.58, 0.055, 0.14, pMidRail, [0, rotAngle, 0], 0.02);
+          // 转角抱柱支撑立档
+          for (const sDir of [-1, 1]) {
+            lb.beam(K.redDark, [xjOuter + sDir * 0.22, Y_PL + 1.02, COLZ + 0.46], [xjOuter, Y_PL + 1.02, COLZ + 0.28], 0.06, 0.07);
+            lb.beam(K.redDark, [xjOuter + sDir * 0.16, Y_PL + 0.52, COLZ + 0.22], [xjOuter + sDir * 0.16, Y_PL + 1.00, COLZ + 0.44], 0.045, 0.05);
+          }
+        }
+      } else {
+        const cx = i * leg.bayLen;
+        for (const s of [-1, 1]) {
+          const cz = s * COLZ;
+          column(lb.child(new THREE.Matrix4().makeTranslation(cx, 0, cz)), K);
+        }
+      }
+    }
+
+    // 转角内侧白粉墙阴角通顶密封（严密咬合两向粉墙与角柱，通顶至檩下/天沟底，杜绝漏光与虚空）
+    if (li < legs.length - 1 && Math.abs(dYawNext) > 1e-4) {
+      const yBot = Y_PL + 0.12;
+      const yTop = Y_PLATE + 0.18; // 通顶至檩下/天沟底
+      const wallH = yTop - yBot;
+      const xjInner = L - COLZ * tNext;
+      // 沿角平分线 (dYawNext / 2) 放置转角闭合厚墙体，完美咬合两向粉墙与内角柱
+      lb.box(K.plaster, 0.72, wallH, 0.30, [xjInner, yBot + wallH / 2, -COLZ], [0, dYawNext / 2, 0], 0.015);
+      // 内角下槛与上枋封包
+      lb.box(K.redDark, 0.68, 0.12, 0.26, [xjInner, Y_PL + 0.06, -COLZ], [0, dYawNext / 2, 0], 0.01);
+      lb.box(K.redDark, 0.68, 0.12, 0.26, [xjInner, Y_COLTOP - 0.06, -COLZ], [0, dYawNext / 2, 0], 0.01);
+      // 檐枋交接封檐
+      lb.beam(K.redDark, [xjInner - 0.35, Y_COLTOP + 0.12, -COLZ], [xjInner + 0.35, Y_COLTOP + 0.12, -COLZ], 0.14, 0.16);
     }
 
     // ---- roof: authentic classical Jiangnan mitered joint at turns
-    const dYawNext = li < legs.length - 1 ? (legs[li + 1].yaw - leg.yaw) : 0;
-    const dYawPrev = li > 0 ? (leg.yaw - legs[li - 1].yaw) : 0;
-    const tNext = Math.tan(dYawNext / 2);
-    const tPrev = Math.tan(dYawPrev / 2);
-    const f = CW - TIP - 0.045;
 
     // Outer edge (front, z = +f) and Inner edge (back, z = -f)
     const xOuter0 = li === 0 ? 0 : -f * tPrev;
@@ -480,64 +577,57 @@ export function buildCorridorRun(params, ctx) {
     ];
 
     // 翼角起翘 (正统香山帮嫩戗发戗反宇曲面):
-    // 采用五次平滑阶跃曲线 (Quintic Hermite: C2 连续可微)，在转折开间 (2.8m 范围) 内渐进式生起，
-    // 彻底杜绝局部生硬折拐，形成从正身温润平顺到檐角高拔昂扬的整体反宇双曲面。
-    const CRUN = 1.4;
-    const CRISE = 0.22;
+    // 参照建施-17《小沧浪亭》与建施-18《四时潇洒亭》：
+    // 采用五次平滑阶跃曲线 (Quintic Hermite: C2 连续可微)，在转折开间 (1.8m 半开间范围) 内渐进式生起，
+    // 形成从正身卷棚温润平顺到戗角飞檐高挺飞扬的完整反宇双曲面。
     const qstep = (s) => {
       s = Math.max(0, Math.min(1, s));
       return s * s * s * (s * (s * 6 - 15) + 10);
     };
 
+    // 正统香山帮反宇幂次曲线：自平身渐进生起，至翼角戗尖单调加速冲拔，彻底消除 Hermite 样条角点斜率归零导致的“双驼峰/中间下凹”畸变
     const liftFn = (x, z) => {
       let t = 0;
-      // 两端自由端
-      if (li === 0 && x < CRUN) t = Math.max(t, qstep((CRUN - Math.max(0, x)) / CRUN));
-      if (li === legs.length - 1 && x > L - CRUN) t = Math.max(t, qstep((CRUN - Math.max(0, L - x)) / CRUN));
-
-      // 转折阳角外檐（发戗起翘）
       if (li < legs.length - 1 && dYawNext > 0 && z > 0 && x > L - CRUN) {
-        t = Math.max(t, qstep((CRUN - Math.max(0, L - x)) / CRUN));
+        t = Math.max(t, soar((CRUN - Math.max(0, L - x)) / CRUN));
       }
       if (li > 0 && dYawPrev > 0 && z > 0 && x < CRUN) {
-        t = Math.max(t, qstep((CRUN - Math.max(0, x)) / CRUN));
+        t = Math.max(t, soar((CRUN - Math.max(0, x)) / CRUN));
       }
-      if (li < legs.length - 1 && dYawNext < 0 && z < 0 && x > L - CRUN) {
-        t = Math.max(t, qstep((CRUN - Math.max(0, L - x)) / CRUN));
-      }
-      if (li > 0 && dYawPrev < 0 && z < 0 && x < CRUN) {
-        t = Math.max(t, qstep((CRUN - Math.max(0, x)) / CRUN));
-      }
-
       return CRISE * t * Math.pow(Math.abs(z) / CW, 1.35);
     };
 
     roofPackage(lb, K, faces, T, detail, { rafSp: 0.26, lift: liftFn });
 
     // fascia ends meet at the exact miter point without crossing
-    fascia(lb, K, [[xInner0, -f], [xInner1, -f]], [L / 2, 0], liftFn);
-    fascia(lb, K, [[xOuter0, f], [xOuter1, f]], [L / 2, 0], liftFn);
+    // fascia swept globally below
+    // fascia swept globally below
 
     // main ridge along the corridor run
-    lb.add(sweep(linePath([0, 0], [L, 0], () => RIDGE_Y - 0.02, 0.9), ridgeProfile(0.42, 0.36, 4, 0.08, 0.3)), K.tile);
+    // main ridge swept globally with mitered turns below
 
-    // 戗脊 (hip ridge) & 天沟 (valley) & 香山帮嫩戗发戗结构体系
+    // 戗脊 (hip ridge) & 天沟 (valley) & 香山帮嫩戗发戗大木作体系（对齐建施-17/18/19）
     if (li < legs.length - 1 && Math.abs(dYawNext) > 1e-4) {
-      const hp = ridgeProfile(0.18, 0.12, 2, 0.03, 0.06);
+      
       const isConvexOuter = dYawNext > 0;
       const signZ = isConvexOuter ? 1 : -1;
       const qRidge = [L, 0];
       const qCorner = [L + signZ * CW * tNext, signZ * CW];
       const clen = Math.hypot(signZ * CW * tNext, signZ * CW);
       const ux = (signZ * CW * tNext) / clen, uz = (signZ * CW) / clen;
-      // 戗尖向外前方自然延伸 0.22m
-      const qTip = [qCorner[0] + ux * 0.22, qCorner[1] + uz * 0.22];
+      // 嫩戗向外出挑 0.14m，戗尖与戗兽自然凸出滴水檐口（严格对齐建施-17《小沧浪亭》1:10 详图）
+      const tipExt = 0.14;
+      const qTip = [qCorner[0] + ux * tipExt, qCorner[1] + uz * tipExt];
 
-      // 1) 戗脊：全局顺滑的香山帮三次贝塞尔反宇曲线 (C2连续，无任何尖折)
+      // 翼角起拔：檐口基准高度与高挺飞翘的戗尖高度（瓦面与戗脊严密咬合，消除骨肉分离）
+      const yCorner = Y0 + prof(0) + liftFn(qCorner[0], qCorner[1]);
+      const yTip = yCorner + 0.06;
+
+      // 1) 戗脊：紧密骑缝贴伏于屋面瓦垄相交缝（消除 24cm 灰色悬空水泥板）
       const p0 = RIDGE_Y - 0.02;
-      const p1 = RIDGE_Y - 0.42;
-      const p2 = Y0 + 0.10;
-      const p3 = Y0 + CRISE + 0.04;
+      const p1 = RIDGE_Y - 0.28;
+      const p2 = yCorner + 0.04;
+      const p3 = yTip + 0.04;
       const ridgeSagH = (u) => {
         const b0 = (1 - u) ** 3;
         const b1 = 3 * (1 - u) ** 2 * u;
@@ -546,48 +636,72 @@ export function buildCorridorRun(params, ctx) {
         return b0 * p0 + b1 * p1 + b2 * p2 + b3 * p3;
       };
 
+      // 戗脊截面：drop 设为 0.04m（贴伏瓦垄，杜绝悬空灰色厚墙）
+      const hpSnug = ridgeProfile(0.22, 0.14, 3, 0.045, 0.04);
       lb.add(sweep(linePath(qRidge, qTip, (x, z) => {
-        const u = Math.min(1, Math.hypot(x - qRidge[0], z - qRidge[1]) / (clen + 0.22));
+        const u = Math.min(1, Math.hypot(x - qRidge[0], z - qRidge[1]) / (clen + tipExt));
         return ridgeSagH(u);
-      }, 0.06), hp), K.tile);
+      }, 0.05), hpSnug), K.tile);
 
-      // 2) 香山帮经典大木作：老戗 + 嫩戗 + 菱角木 + 扁担木
-      const yCorner = Y0 + prof(0) + liftFn(qCorner[0], qCorner[1]);
-      const yTip = ridgeSagH(1.0);
+      // 2) 香山帮经典大木作体系（严格对齐建施-17实测标注）
+      // 外转折角柱柱头坐斗中心
+      const xjOuter = L + signZ * COLZ * tNext;
+      const zjOuter = signZ * COLZ;
+      const pOldBase = [xjOuter, Y_COLTOP + 0.18, zjOuter];
 
-      // a. 角柱柱头大斗 / 坐斗
-      lb.box(K.red, 0.38, 0.18, 0.38, [L, Y_COLTOP + 0.09, 0], [0, 0, 0], 0.015);
+      // a. 老角梁（老戗）：断面 120×120 (建施-17标注)，真实自角柱柱头向外斜挑至檐角
+      const pOldTip = [qCorner[0] + ux * 0.10, yCorner - 0.16, qCorner[1] + uz * 0.10];
+      lb.beam(K.redDark, pOldBase, pOldTip, 0.13, 0.15);
 
-      // b. 老角梁（老戗）：顺屋面坡度外挑的主承重梁
-      const pOldTip = [qCorner[0] - ux * 0.24, yCorner - 0.24, qCorner[1] - uz * 0.24];
-      lb.beam(K.redDark, [L, Y_COLTOP + 0.16, 0], pOldTip, 0.16, 0.22);
+      // b. 嫩戗（仔角戗）：断面 50×70 (建施-17标注)，嵌立于老戗之上昂然向上冲出翼角
+      const pNenBase = [xjOuter + ux * 0.42, Y_COLTOP + 0.28, zjOuter + uz * 0.42];
+      const pNenTip = [qTip[0], yCorner - 0.10, qTip[1]];
+      lb.beam(K.red, pNenBase, pNenTip, 0.08, 0.12);
 
-      // c. 嫩戗（仔角梁）：嵌于老戗脊背，大幅度斜立昂扬冲霄
-      const pNenBase = [qCorner[0] - ux * 0.65, yCorner - 0.22, qCorner[1] - uz * 0.65];
-      const pNenTip = [qTip[0] - ux * 0.02, yTip - 0.08, qTip[1] - uz * 0.02];
-      lb.beam(K.red, pNenBase, pNenTip, 0.12, 0.16);
+      // c. 菱角木（戗山木）：老戗与嫩戗之间的受力三角承托木
+      const pLingBase = [xjOuter + ux * 0.85, Y_COLTOP + 0.25, zjOuter + uz * 0.85];
+      const pLingTop = [xjOuter + ux * 0.95, Y_COLTOP + 0.48, zjOuter + uz * 0.95];
+      lb.beam(K.redDark, pLingBase, pLingTop, 0.10, 0.12);
 
-      // d. 菱角木（戗山木）：老戗与嫩戗之间的受力三角斜撑
-      const pLingBase = [qCorner[0] - ux * 0.38, yCorner - 0.24, qCorner[1] - uz * 0.38];
-      const pLingTop = [qCorner[0] - ux * 0.18, yCorner - 0.13, qCorner[1] - uz * 0.18];
-      lb.beam(K.redDark, pLingBase, pLingTop, 0.12, 0.14);
-
-      // e. 扁担木：横向抱箍锁紧老戗与嫩戗交接部
+      // d. 扁担木：横向抱箍锁紧老戗与嫩戗交接部
       const sideX = -uz, sideZ = ux;
       lb.beam(K.redDark,
-        [pNenBase[0] - sideX * 0.22, pNenBase[1] + 0.02, pNenBase[2] - sideZ * 0.22],
-        [pNenBase[0] + sideX * 0.22, pNenBase[1] + 0.02, pNenBase[2] + sideZ * 0.22],
-        0.09, 0.11
+        [pNenBase[0] - sideX * 0.22, pNenBase[1] + 0.03, pNenBase[2] - sideZ * 0.22],
+        [pNenBase[0] + sideX * 0.22, pNenBase[1] + 0.03, pNenBase[2] + sideZ * 0.22],
+        0.08, 0.10
       );
 
-      // f. 撒头飞椽 (Fanning Rafters)
-      for (const ang of [-0.22, -0.11, 0.11, 0.22]) {
-        const cA = Math.cos(ang), sA = Math.sin(ang);
-        const rx = ux * cA - uz * sA, rz = ux * sA + uz * cA;
-        const rStart = [qCorner[0] - ux * 0.70, yCorner - 0.24, qCorner[1] - uz * 0.70];
-        const rEnd = [qCorner[0] - ux * 0.12 + rx * 0.35, yCorner - 0.10, qCorner[1] - uz * 0.12 + rz * 0.35];
-        lb.beam(K.red, rStart, rEnd, 0.07, 0.09);
-      }
+      // e. 木插角大样（建施-17 1:10 木插角雕花构件）
+      const pChaBase = [qCorner[0] - ux * 0.50, yCorner - 0.28, qCorner[1] - uz * 0.50];
+      const pChaTip = [qCorner[0] + ux * 0.20, yCorner - 0.08, qCorner[1] + uz * 0.20];
+      lb.beam(K.redDark, pChaBase, pChaTip, 0.05, 0.16);
+
+      // 翼角角梁生头木与角望板：密闭翼角下层空间，杜绝露骨穿刺与漏天
+      const pSoffitBase = [xjOuter, Y_COLTOP + 0.18, zjOuter];
+      const pSoffitTip = [qCorner[0], yCorner - 0.10, qCorner[1]];
+      lb.beam(K.redDark, pSoffitBase, pSoffitTip, 0.22, 0.08);
+
+      // g. 正统香山帮立体卷草回纹戗角脊兽（左右端正垂直，背沿脊线自然微仰，杜绝歪斜倾倒）
+      const [qBody, qRim] = createQianshou(0.55);
+      const widthVec = new THREE.Vector3(-uz, 0, ux).normalize();
+      const normalVec = new THREE.Vector3(ux, 0, uz).normalize();
+      const pitchAng = 0.32; // 沿戗脊仰角 18°，神采奕奕
+      const pitchedNormal = normalVec.clone().applyAxisAngle(widthVec, pitchAng);
+      const pitchedUp = new THREE.Vector3(0, 1, 0).applyAxisAngle(widthVec, pitchAng);
+      const mQian = new THREE.Matrix4().makeBasis(widthVec, pitchedUp, pitchedNormal);
+      mQian.setPosition(qTip[0], yTip + 0.02, qTip[1]);
+      lb.add(qBody, K.tile, mQian);
+      lb.add(qRim, K.tile, mQian);
+      // 剑把（螭吻背上宝剑把柄，纯正古建瓦灰质感，端正稳固立于脊兽中轴）
+      const hiltBase = [qTip[0], yTip + 0.22, qTip[1]];
+      const hiltTip = [
+        qTip[0] + pitchedUp.x * 0.32,
+        yTip + 0.22 + pitchedUp.y * 0.32,
+        qTip[1] + pitchedUp.z * 0.32
+      ];
+      lb.beam(K.tile, hiltBase, hiltTip, 0.035, 0.035);
+
+      // 瓦当与滴水已由 roofPackage/roofSurface 统一依据真实瓦垄准确生成，消除悬空游离构件
 
       // 3) 内角阴角天沟 (Valley Gutter)
       const vInner = [L - signZ * CW * tNext, -signZ * CW];
@@ -599,11 +713,76 @@ export function buildCorridorRun(params, ctx) {
     if (li === 0) gableEnd(lb, K, 0, liftFn);
     if (li === legs.length - 1) gableEnd(lb, K, L, liftFn);
 
-    // ---- joint platform (hides the overlapping plinth wedge at a turn)
+    // ---- 苏州名园夹道天井与对景粉墙（消除漏窗黑洞虚空，提供古典园林透景/框景）
+    if (form === "jiangnan") {
+      const cyW = leg.len + 3.6;
+      const cx0 = leg.len / 2 + (li === 0 ? 0.6 : (li === legs.length - 1 ? 0.6 : 0));
+      const cyZ = -COLZ - 1.80; // 天井进深 1.8m
+      // 1) 夹弄青石铺地
+      lb.box(K.stoneClean, cyW, 0.08, 3.0, [cx0, Y_PL - 0.04, cyZ + 1.0], [0, 0, 0], 0.01);
+      // 2) 院墙粉壁（白灰抹灰墙身，高度 3.5m）
+      lb.box(K.plaster, cyW, 3.5, 0.20, [cx0, Y_PL + 1.75, cyZ], [0, 0, 0]);
+      // 3) 院墙黛瓦压顶与滴水
+      lb.box(K.tile, cyW + 0.10, 0.16, 0.36, [cx0, Y_PL + 3.5 + 0.08, cyZ], [0, 0, 0], 0.02);
+
+      // 转角天井外墙封堵闭合（沿角平分线咬合两向外院墙，彻底消除转角暗洞）
+      if (Math.abs(dYawNext) > 1e-4) {
+        lb.box(K.plaster, 4.2, 3.5, 0.36, [leg.len + 0.8, Y_PL + 1.75, cyZ + 0.3], [0, dYawNext / 2, 0]);
+        lb.box(K.tile, 4.4, 0.16, 0.46, [leg.len + 0.8, Y_PL + 3.5 + 0.08, cyZ + 0.3], [0, dYawNext / 2, 0], 0.02);
+        lb.box(K.stoneClean, 4.2, 0.08, 3.6, [leg.len + 0.8, Y_PL - 0.04, cyZ + 1.1], [0, dYawNext / 2, 0], 0.01);
+      }
+      if (li === 0) {
+        lb.box(K.plaster, 0.20, 3.5, 3.2, [-1.2, Y_PL + 1.75, cyZ + 1.2], [0, 0, 0]);
+        lb.box(K.tile, 0.36, 0.16, 3.3, [-1.2, Y_PL + 3.5 + 0.08, cyZ + 1.2], [0, 0, 0], 0.02);
+      }
+
+      // 4) 漏窗外框景翠竹小品（透过海棠镂空漏窗观赏，竹影婆娑，意境幽雅）
+      for (let bi = 0; bi < leg.nBays; bi++) {
+        const wx = (bi + 0.5) * leg.bayLen;
+        const bz0 = -COLZ - 0.85;
+        const bOffsets = [[-0.22, 0.0, 2.4], [-0.08, -0.15, 2.7], [0.12, 0.05, 2.2], [0.25, -0.10, 2.5]];
+        for (const [bx, bz, bh] of bOffsets) {
+          lb.cyl(K.lattice, 0.016, 0.016, bh, [wx + bx, Y_PL + bh / 2, bz0 + bz], [0, 0, 0], 8);
+          lb.box(K.lattice, 0.30, 0.06, 0.22, [wx + bx, Y_PL + bh * 0.72, bz0 + bz], [0, 0.4, 0.15]);
+          lb.box(K.lattice, 0.36, 0.06, 0.25, [wx + bx, Y_PL + bh * 0.88, bz0 + bz], [0, -0.45, -0.12]);
+        }
+      }
+
+      // 5) 临水驳岸条石与水面（临水侧外侧）
+      const rwZ = COLZ + 0.55;
+      lb.box(K.stone, cyW, 0.42, 0.36, [cx0, Y_PL - 0.21, rwZ], [0, 0, 0], 0.02);
+      // 水面（微光泽暗绿池水，倒映游廊与立柱）
+      lb.box(K.tile, cyW + 0.8, 0.04, 4.8, [cx0, Y_PL - 0.22, rwZ + 2.4], [0, 0, 0]);
+
+      // 临水转角水面与驳岸角石无缝交圈（封堵外转折角部 V 形水面暗洞）
+      if (li > 0 && Math.abs(dYawPrev) > 1e-4) {
+        lb.box(K.tile, 6.5, 0.041, 6.5, [0, Y_PL - 0.22, rwZ + 2.4], [0, dYawPrev / 2, 0]);
+        lb.box(K.stone, 1.2, 0.422, 0.65, [0, Y_PL - 0.21, rwZ], [0, dYawPrev / 2, 0], 0.02);
+      }
+
+      // 6) 游廊端头园门（月洞门照壁，让廊内视线有景可落，彻底消除虚空黑洞）
+      if (li === legs.length - 1) {
+        const gX = leg.len + 0.05;
+        lb.box(K.plaster, 0.18, Y_COLTOP - Y_PL, 1.15, [gX, (Y_COLTOP + Y_PL) / 2, -COLZ + 0.575]);
+        lb.box(K.plaster, 0.18, Y_COLTOP - Y_PL, 1.15, [gX, (Y_COLTOP + Y_PL) / 2, COLZ - 0.575]);
+        lb.box(K.plaster, 0.18, 0.45, 2 * COLZ, [gX, Y_COLTOP - 0.225, 0]);
+        lb.beam(K.redDark, [gX, Y_COLTOP, -COLZ], [gX, Y_COLTOP, COLZ], 0.18, 0.18);
+        // 门后庭院对景粉墙与绿竹衬底
+        lb.box(K.plaster, 0.18, 3.5, 4.2, [gX + 2.5, Y_PL + 1.75, 0]);
+        lb.box(K.tile, 0.26, 0.14, 4.4, [gX + 2.5, Y_PL + 3.5 + 0.07, 0]);
+        lb.box(K.stoneClean, 2.6, 0.08, 4.2, [gX + 1.3, Y_PL - 0.04, 0]);
+        for (const [bx, bz, bh] of [[1.8, -0.6, 2.5], [2.1, 0.4, 2.7], [1.9, 0.9, 2.3]]) {
+          lb.cyl(K.lattice, 0.018, 0.018, bh, [gX + bx, Y_PL + bh / 2, bz], [0, 0, 0], 8);
+          lb.box(K.lattice, 0.35, 0.06, 0.25, [gX + bx, Y_PL + bh * 0.8, bz], [0, 0.3, 0.2]);
+        }
+      }
+    }
+
+    // ---- joint platform (hides the overlapping plinth wedge at a turn, perfectly level with floor)
     if (li > 0) {
-      const sx = 3.65;
-      lb.box(K.stone, sx - 0.01, 0.5, sx - 0.01, [0, -0.2 + leg.y, 0], [0, 0, 0], 0.03);
-      lb.box(K.stoneClean, sx - 0.01, 0.12, sx - 0.01, [0, 0.456, 0], [0, 0, 0], 0.012);
+      const sx = 4.35;
+      lb.box(K.stone, sx, 0.5, sx, [0, -0.2 + leg.y, 0], [0, dYawPrev / 2, 0], 0.03);
+      lb.box(K.stoneClean, sx, 0.121, sx, [0, 0.3905 + leg.y, 0], [0, dYawPrev / 2, 0], 0.008);
     }
   });
 
@@ -615,6 +794,99 @@ export function buildCorridorRun(params, ctx) {
       const h = 0.12 + i * 0.11;
       lb.box(K.stoneClean, 1.4 - i * 0.15, h, 0.34, [0.55 + i * 0.17, h / 2, 2.0], [0, 0, 0], 0.01);
     }
+  }
+
+  // ---- global continuous mitered beams running through all turns
+  for (const s of [-1, 1]) {
+    const zOff = s * COLZ;
+    const pLower = [];
+    const pUpper = [];
+    legs.forEach((leg, li) => {
+      const dYawNext = li < legs.length - 1 ? (legs[li + 1].yaw - leg.yaw) : 0;
+      const tNext = Math.tan(dYawNext / 2);
+      const toWorld = (lx, lz, y) => [
+        leg.start[0] + lx * Math.cos(leg.yaw) + lz * Math.sin(leg.yaw),
+        leg.y + y,
+        leg.start[1] - lx * Math.sin(leg.yaw) + lz * Math.cos(leg.yaw)
+      ];
+      if (li === 0) {
+        pLower.push(toWorld(0, zOff, Y_COLTOP - 0.11));
+        pUpper.push(toWorld(0, zOff, Y_PLATE - 0.08));
+      }
+      const xEnd = li < legs.length - 1 ? leg.len + zOff * tNext : leg.len;
+      pLower.push(toWorld(xEnd, zOff, Y_COLTOP - 0.11));
+      pUpper.push(toWorld(xEnd, zOff, Y_PLATE - 0.08));
+    });
+    root.add(sweep(pLower, rectProfile(0.12, 0.22), { miter: true, caps: true }), K.red);
+    root.add(sweep(pUpper, rectProfile(0.15, 0.16), { miter: true, caps: true }), K.red);
+  }
+
+  // Central ridge purlin (脊檩)
+  const pRidgePurlin = [];
+  legs.forEach((leg, li) => {
+    const toWorld = (lx, lz, y) => [
+      leg.start[0] + lx * Math.cos(leg.yaw) + lz * Math.sin(leg.yaw),
+      leg.y + y,
+      leg.start[1] - lx * Math.sin(leg.yaw) + lz * Math.cos(leg.yaw)
+    ];
+    if (li === 0) pRidgePurlin.push(toWorld(0, 0, yRB(CW) - 0.09));
+    pRidgePurlin.push(toWorld(leg.len, 0, yRB(CW) - 0.09));
+  });
+  root.add(sweep(pRidgePurlin, rectProfile(0.17, 0.18), { miter: true, caps: true }), K.red);
+
+
+  // ---- 全局连续正脊（Sweep with Miter）：消除转折处两坡脊筒硬切与接缝破面
+  const pGlobalRidge = [];
+  legs.forEach((leg, li) => {
+    const toWorld = (lx, lz, y) => [
+      leg.start[0] + lx * Math.cos(leg.yaw) + lz * Math.sin(leg.yaw),
+      leg.y + y,
+      leg.start[1] - lx * Math.sin(leg.yaw) + lz * Math.cos(leg.yaw)
+    ];
+    const n = Math.max(1, Math.ceil(leg.len / 0.3));
+    if (li === 0) pGlobalRidge.push(toWorld(0, 0, RIDGE_Y - 0.02));
+    for (let j = 1; j <= n; j++) {
+      pGlobalRidge.push(toWorld((j * leg.len) / n, 0, RIDGE_Y - 0.02));
+    }
+  });
+  root.add(sweep(pGlobalRidge, ridgeProfile(0.42, 0.36, 4, 0.08, 0.28), { miter: true, caps: true }), K.tile);
+
+  // ---- 全局连续封檐板（内外檐口无缝转角）：消除两段封檐板高低错位与断头破口
+  for (const s of [-1, 1]) {
+    const zEave = s * f;
+    const pFascia = [];
+    legs.forEach((leg, li) => {
+      const dYawNext = li < legs.length - 1 ? (legs[li + 1].yaw - leg.yaw) : 0;
+      const dYawPrev = li > 0 ? (leg.yaw - legs[li - 1].yaw) : 0;
+      const tNext = Math.tan(dYawNext / 2);
+      const tPrev = Math.tan(dYawPrev / 2);
+      const toWorld = (lx, lz, y) => [
+        leg.start[0] + lx * Math.cos(leg.yaw) + lz * Math.sin(leg.yaw),
+        leg.y + y,
+        leg.start[1] - lx * Math.sin(leg.yaw) + lz * Math.cos(leg.yaw)
+      ];
+      const lift = (x, z) => {
+        let t = 0;
+        if (li < legs.length - 1 && dYawNext > 0 && z > 0 && x > leg.len - CRUN) {
+          t = Math.max(t, soar((CRUN - Math.max(0, leg.len - x)) / CRUN));
+        }
+        if (li > 0 && dYawPrev > 0 && z > 0 && x < CRUN) {
+          t = Math.max(t, soar((CRUN - Math.max(0, x)) / CRUN));
+        }
+        return CRISE * t * Math.pow(Math.abs(z) / CW, 1.35);
+      };
+
+      const xStart = li === 0 ? 0 : -zEave * tPrev;
+      const xEnd = li === legs.length - 1 ? leg.len : leg.len + zEave * tNext;
+      const n = Math.max(1, Math.ceil((xEnd - xStart) / 0.12));
+      if (li === 0) pFascia.push(toWorld(xStart, zEave, yRT(TIP) + lift(xStart, zEave)));
+      for (let j = 1; j <= n; j++) {
+        const xx = xStart + ((xEnd - xStart) * j) / n;
+        pFascia.push(toWorld(xx, zEave, yRT(TIP) + lift(xx, zEave)));
+      }
+    });
+    const pProfile = [[-0.045, 0], [0.045, 0], [0.045, FASCIA_H - 0.02], [0.13, FASCIA_H - 0.02], [0.13, FASCIA_H], [-0.045, FASCIA_H]];
+    root.add(sweep(pFascia, pProfile, { miter: true, caps: true }), K.red);
   }
 
   const group = b.build({ name: 'corridor-run' });
